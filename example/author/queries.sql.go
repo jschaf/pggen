@@ -7,6 +7,11 @@ import (
 	"github.com/jackc/pgx/v4"
 )
 
+type Author struct {
+	FirstName string
+	LastName  string
+}
+
 const findAuthorsName = "FindAuthors"
 const findAuthorsSQL = `SELECT first_name, last_name FROM author WHERE first_name = $1`
 

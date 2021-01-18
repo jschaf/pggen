@@ -6,11 +6,6 @@ import (
 	"github.com/jackc/pgx/v4"
 )
 
-type Author struct {
-	FirstName string
-	LastName  string
-}
-
 // Querier is a typesafe Go interface backed by SQL queries.
 //
 // Methods ending with Batch enqueue a query to run later in a pgx.Batch. After
@@ -55,13 +50,13 @@ type Conn interface {
 
 type DBQuerier struct {
 	conn  Conn
-	hooks QuerierHook
+	hooks QueryHook
 }
 
 var _ Querier = &DBQuerier{}
 
 // NewQuerier creates a DBQuerier that implements Querier.
-func NewQuerier(conn Conn, hooks QuerierHook) *DBQuerier {
+func NewQuerier(conn Conn, hooks QueryHook) *DBQuerier {
 	return &DBQuerier{
 		conn:  conn,
 		hooks: hooks,
