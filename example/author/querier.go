@@ -12,24 +12,24 @@ type Author struct {
 	LastName  string
 }
 
+// Querier is a typesafe Go interface backed by SQL queries.
+//
+// Methods ending with Batch enqueue a query to run later in a pgx.Batch. After
+// calling SendBatch on pgx.Conn, pgxpool.Pool, or pgx.Tx, use the Scan methods
+// to parse the results.
 type Querier interface {
+	// FindAuthors finds authors by first name.
 	FindAuthors(ctx context.Context, firstName string) ([]Author, error)
-	DeleteAuthors(ctx context.Context) (pgconn.CommandTag, error)
-}
-
-// BatchQuerier provides the batch interface to Querier. Methods ending with
-// Batch enqueue a query to run later in a pgx.Batch. After calling SendBatch
-// on pgx.Conn, pgxpool.Pool, or pgx.Tx, use the Scan methods to parse the
-// results.
-type BatchQuerier interface {
-	// FindAuthorsBatch enqueues a Querier.FindAuthors query into batch to be
-	// executed later by the batch.
+	// FindAuthorsBatch enqueues a FindAuthors query into batch to be executed
+	// later by the batch.
 	FindAuthorsBatch(ctx context.Context, batch pgx.Batch, firstName string)
 	// FindAuthorsScan scans the result of an executed FindAuthorsBatch query.
 	FindAuthorsScan(ctx context.Context, results pgx.BatchResults) ([]Author, error)
 
-	// DeleteAuthorsBatch enqueues a Querier.DeleteAuthors query into batch to be
-	// executed later by the batch.
+	// DeleteAuthors deletes authors with a first name of "joe".
+	DeleteAuthors(ctx context.Context) (pgconn.CommandTag, error)
+	// DeleteAuthorsBatch enqueues a DeleteAuthors query into batch to be executed
+	// later by the batch.
 	DeleteAuthorsBatch(ctx context.Context, batch *pgx.Batch)
 	// DeleteAuthorsScan scans the result of an executed DeleteAuthorsBatch query.
 	DeleteAuthorsScan(ctx context.Context, results pgx.BatchResults) (pgconn.CommandTag, error)
@@ -60,9 +60,8 @@ type DBQuerier struct {
 }
 
 var _ Querier = &DBQuerier{}
-var _ BatchQuerier = &DBQuerier{}
 
-// NewQuerier creates a DBQuerier that implements Querier and BatchQuerier.
+// NewQuerier creates a DBQuerier that implements Querier.
 func NewQuerier(conn Conn, hooks QuerierHook) *DBQuerier {
 	return &DBQuerier{
 		conn:  conn,
