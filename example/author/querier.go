@@ -77,9 +77,8 @@ const findAuthorsName = "FindAuthors"
 const findAuthorsSQL = `SELECT first_name, last_name FROM author WHERE first_name = $1`
 
 func (q *DBQuerier) FindAuthors(ctx context.Context, firstName string) ([]Author, error) {
-	sql := findAuthorsSQL // sql may be modified by BeforeQuery
-	ctx = q.hooks.BeforeQuery(ctx, BeforeHookParams{QueryName: findAuthorsName, SQL: &sql, IsBatch: false})
-	rows, err := q.conn.Query(ctx, sql, firstName) // err may be modified by AfterQuery
+	ctx = q.hooks.BeforeQuery(ctx, BeforeHookParams{QueryName: findAuthorsName, SQL: findAuthorsSQL, IsBatch: false})
+	rows, err := q.conn.Query(ctx, findAuthorsSQL, firstName)
 	cmdTag := pgconn.CommandTag{}
 	if rows != nil {
 		cmdTag = rows.CommandTag()
@@ -87,7 +86,7 @@ func (q *DBQuerier) FindAuthors(ctx context.Context, firstName string) ([]Author
 	}
 	q.hooks.AfterQuery(ctx, AfterHookParams{
 		QueryName: findAuthorsName, SQL: findAuthorsSQL, IsBatch: false, Rows: rows,
-		CommandTag: cmdTag, QueryErr: &err})
+		CommandTag: cmdTag, QueryErr: err})
 	if err != nil {
 		return nil, fmt.Errorf("query FindAuthors: %w", err)
 	}
@@ -106,13 +105,12 @@ func (q *DBQuerier) FindAuthors(ctx context.Context, firstName string) ([]Author
 }
 
 func (q *DBQuerier) FindAuthorsBatch(ctx context.Context, batch pgx.Batch, firstName string) {
-	sql := findAuthorsSQL // sql may be modified by BeforeQuery
-	ctx = q.hooks.BeforeQuery(ctx, BeforeHookParams{QueryName: findAuthorsName, SQL: &sql, IsBatch: true})
-	batch.Queue(sql, firstName)
+	ctx = q.hooks.BeforeQuery(ctx, BeforeHookParams{QueryName: findAuthorsName, SQL: findAuthorsSQL, IsBatch: true})
+	batch.Queue(findAuthorsSQL, firstName)
 }
 
 func (q *DBQuerier) FindAuthorsScan(ctx context.Context, results pgx.BatchResults) ([]Author, error) {
-	rows, err := results.Query() // err may be modified by AfterQuery
+	rows, err := results.Query()
 	cmdTag := pgconn.CommandTag{}
 	if rows != nil {
 		cmdTag = rows.CommandTag()
@@ -120,7 +118,7 @@ func (q *DBQuerier) FindAuthorsScan(ctx context.Context, results pgx.BatchResult
 	}
 	q.hooks.AfterQuery(ctx, AfterHookParams{
 		QueryName: findAuthorsName, SQL: findAuthorsSQL, IsBatch: false, Rows: rows,
-		CommandTag: cmdTag, QueryErr: &err})
+		CommandTag: cmdTag, QueryErr: err})
 	if err != nil {
 		return nil, err
 	}
@@ -142,25 +140,23 @@ const deleteAuthorsName = "DeleteAuthors"
 const deleteAuthorsSQL = `DELETE FROM author where first_name = 'joe'`
 
 func (q *DBQuerier) DeleteAuthors(ctx context.Context) (pgconn.CommandTag, error) {
-	sql := deleteAuthorsSQL // sql may be modified by BeforeQuery
-	ctx = q.hooks.BeforeQuery(ctx, BeforeHookParams{QueryName: deleteAuthorsName, SQL: &sql, IsBatch: false})
-	cmdTag, err := q.conn.Exec(ctx, sql) // err may be modified by AfterQuery
+	ctx = q.hooks.BeforeQuery(ctx, BeforeHookParams{QueryName: deleteAuthorsName, SQL: deleteAuthorsSQL, IsBatch: false})
+	cmdTag, err := q.conn.Exec(ctx, deleteAuthorsSQL)
 	q.hooks.AfterQuery(ctx, AfterHookParams{
 		QueryName: findAuthorsName, SQL: findAuthorsSQL, IsBatch: false,
-		CommandTag: cmdTag, QueryErr: &err})
+		CommandTag: cmdTag, QueryErr: err})
 	return cmdTag, err
 }
 
 func (q *DBQuerier) DeleteAuthorsBatch(ctx context.Context, batch *pgx.Batch) {
-	sql := deleteAuthorsSQL // sql may be modified by BeforeQuery
-	ctx = q.hooks.BeforeQuery(ctx, BeforeHookParams{QueryName: deleteAuthorsName, SQL: &sql, IsBatch: true})
-	batch.Queue(sql)
+	ctx = q.hooks.BeforeQuery(ctx, BeforeHookParams{QueryName: deleteAuthorsName, SQL: deleteAuthorsSQL, IsBatch: true})
+	batch.Queue(deleteAuthorsSQL)
 }
 
 func (q *DBQuerier) DeleteAuthorsScan(ctx context.Context, results pgx.BatchResults) (pgconn.CommandTag, error) {
-	cmdTag, err := results.Exec() // err may be modified by AfterQuery
+	cmdTag, err := results.Exec()
 	q.hooks.AfterQuery(ctx, AfterHookParams{
 		QueryName: findAuthorsName, SQL: findAuthorsSQL, IsBatch: false,
-		CommandTag: cmdTag, QueryErr: &err})
+		CommandTag: cmdTag, QueryErr: err})
 	return cmdTag, err
 }
