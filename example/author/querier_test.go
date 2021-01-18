@@ -13,18 +13,29 @@ import (
 func TestNewQuerier_FindAuthors(t *testing.T) {
 	conn, cleanup := pgtest.NewPostgresSchema(t, []string{"schema.sql"})
 	defer cleanup()
-	insertAuthor(t, conn, "john", "adams")
-
 	q := NewQuerier(conn, NewNopHook())
-	authors, err := q.FindAuthors(context.Background(), "john")
-	if err != nil {
-		t.Fatal(err)
+	insertAuthor(t, conn, "john", "adams")
+	insertAuthor(t, conn, "george", "washington")
+	insertAuthor(t, conn, "george", "carver")
+
+	tests := []struct {
+		firstName string
+		want      []Author
+	}{
+		{"john", []Author{{FirstName: "john", LastName: "adams"}}},
+		{"george", []Author{{FirstName: "george", LastName: "washington"}, {FirstName: "george", LastName: "carver"}}},
+		{"joe", nil},
 	}
 
-	assert.Equal(t,
-		[]Author{{FirstName: "john", LastName: "adams"}},
-		authors,
-		"expect authors to contain john adams")
+	for _, tt := range tests {
+		t.Run("FindAuthors "+tt.firstName, func(t *testing.T) {
+			authors, err := q.FindAuthors(context.Background(), tt.firstName)
+			if err != nil {
+				t.Error(err)
+			}
+			assert.Equal(t, tt.want, authors, "expect authors to match expected")
+		})
+	}
 }
 
 func insertAuthor(t *testing.T, conn *pgx.Conn, first, last string) {
