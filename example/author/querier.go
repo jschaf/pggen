@@ -11,10 +11,9 @@ type Author struct {
 	FirstName string
 	LastName  string
 }
-type AuthorID int
 
 type Querier interface {
-	FindAuthors(ctx context.Context, id AuthorID) ([]Author, error)
+	FindAuthors(ctx context.Context, firstName string) ([]Author, error)
 	DeleteAuthors(ctx context.Context) (pgconn.CommandTag, error)
 }
 
@@ -25,7 +24,7 @@ type Querier interface {
 type BatchQuerier interface {
 	// FindAuthorsBatch enqueues a Querier.FindAuthors query into batch to be
 	// executed later by the batch.
-	FindAuthorsBatch(ctx context.Context, batch pgx.Batch, id AuthorID)
+	FindAuthorsBatch(ctx context.Context, batch pgx.Batch, firstName string)
 	// FindAuthorsScan scans the result of an executed FindAuthorsBatch query.
 	FindAuthorsScan(ctx context.Context, results pgx.BatchResults) ([]Author, error)
 
@@ -59,6 +58,9 @@ type DBQuerier struct {
 	conn  Conn
 	hooks QuerierHook
 }
+
+var _ Querier = &DBQuerier{}
+var _ BatchQuerier = &DBQuerier{}
 
 // NewQuerier creates a DBQuerier that implements Querier and BatchQuerier.
 func NewQuerier(conn Conn, hooks QuerierHook) *DBQuerier {
