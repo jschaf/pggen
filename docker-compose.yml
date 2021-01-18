@@ -1,0 +1,12 @@
+version: "3.8"
+services:
+  postgresql:
+    image: "postgres:13"
+    ports:
+      - "5555:5432"
+    restart: always
+    command: ["postgres", "-c", "log_statement=all"]
+    environment:
+      POSTGRES_DB: sqld
+      POSTGRES_PASSWORD: hunter2
+      POSTGRES_USER: postgres

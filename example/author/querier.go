@@ -1,7 +1,8 @@
-package main
+package author
 
 import (
 	"context"
+	"fmt"
 	"github.com/jackc/pgconn"
 	"github.com/jackc/pgx/v4"
 )
@@ -18,8 +19,9 @@ type Querier interface {
 }
 
 // BatchQuerier provides the batch interface to Querier. Methods ending with
-// Batch enqueue a query to run later. After calling SendBatch use the Scan
-// methods to parse the results.
+// Batch enqueue a query to run later in a pgx.Batch. After calling SendBatch
+// on pgx.Conn, pgxpool.Pool, or pgx.Tx, use the Scan methods to parse the
+// results.
 type BatchQuerier interface {
 	// FindAuthorsBatch enqueues a Querier.FindAuthors query into batch to be
 	// executed later by the batch.
@@ -71,13 +73,13 @@ func (q *DBQuerier) WithTx(tx pgx.Tx) (*DBQuerier, error) {
 	return &DBQuerier{conn: tx, hooks: q.hooks}, nil
 }
 
-const findAuthorsName = "find_authors"
-const findAuthorsSQL = "SELECT * from authors"
+const findAuthorsName = "FindAuthors"
+const findAuthorsSQL = `SELECT first_name, last_name FROM author WHERE first_name = $1`
 
-func (q *DBQuerier) FindAuthors(ctx context.Context, id AuthorID) ([]Author, error) {
+func (q *DBQuerier) FindAuthors(ctx context.Context, firstName string) ([]Author, error) {
 	sql := findAuthorsSQL // sql may be modified by BeforeQuery
 	ctx = q.hooks.BeforeQuery(ctx, BeforeHookParams{QueryName: findAuthorsName, SQL: &sql, IsBatch: false})
-	rows, err := q.conn.Query(ctx, sql, id) // err may be modified by AfterQuery
+	rows, err := q.conn.Query(ctx, sql, firstName) // err may be modified by AfterQuery
 	cmdTag := pgconn.CommandTag{}
 	if rows != nil {
 		cmdTag = rows.CommandTag()
@@ -87,26 +89,26 @@ func (q *DBQuerier) FindAuthors(ctx context.Context, id AuthorID) ([]Author, err
 		QueryName: findAuthorsName, SQL: findAuthorsSQL, IsBatch: false, Rows: rows,
 		CommandTag: cmdTag, QueryErr: &err})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("query FindAuthors: %w", err)
 	}
 	var items []Author
 	for rows.Next() {
 		var item Author
 		if err := rows.Scan(&item.FirstName, &item.LastName); err != nil {
-			items = append(items, item)
+			return nil, fmt.Errorf("scan FindAuthors row: %w", err)
 		}
+		items = append(items, item)
 	}
-	// TODO: when and why would rows.Err get called?
-	if rows.Err() != nil {
+	if err := rows.Err(); err != nil {
 		return nil, err
 	}
 	return items, err
 }
 
-func (q *DBQuerier) FindAuthorsBatch(ctx context.Context, batch pgx.Batch, id AuthorID) {
+func (q *DBQuerier) FindAuthorsBatch(ctx context.Context, batch pgx.Batch, firstName string) {
 	sql := findAuthorsSQL // sql may be modified by BeforeQuery
 	ctx = q.hooks.BeforeQuery(ctx, BeforeHookParams{QueryName: findAuthorsName, SQL: &sql, IsBatch: true})
-	batch.Queue(sql, id)
+	batch.Queue(sql, firstName)
 }
 
 func (q *DBQuerier) FindAuthorsScan(ctx context.Context, results pgx.BatchResults) ([]Author, error) {
@@ -126,18 +128,18 @@ func (q *DBQuerier) FindAuthorsScan(ctx context.Context, results pgx.BatchResult
 	for rows.Next() {
 		var item Author
 		if err := rows.Scan(&item.FirstName, &item.LastName); err != nil {
-			items = append(items, item)
+			return nil, fmt.Errorf("scan FindAuthors batch row: %w", err)
 		}
+		items = append(items, item)
 	}
-	// TODO: when and why would rows.Err get called?
 	if rows.Err() != nil {
 		return nil, err
 	}
 	return items, err
 }
 
-const deleteAuthorsName = "delete_authors"
-const deleteAuthorsSQL = "DELETE FROM authors where name = 'foo'"
+const deleteAuthorsName = "DeleteAuthors"
+const deleteAuthorsSQL = `DELETE FROM author where first_name = 'joe'`
 
 func (q *DBQuerier) DeleteAuthors(ctx context.Context) (pgconn.CommandTag, error) {
 	sql := deleteAuthorsSQL // sql may be modified by BeforeQuery
