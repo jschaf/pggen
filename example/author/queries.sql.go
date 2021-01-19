@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/jackc/pgconn"
 	"github.com/jackc/pgx/v4"
+	"github.com/jschaf/sqld"
 )
 
 type Author struct {
@@ -12,21 +13,20 @@ type Author struct {
 	LastName  string
 }
 
-const findAuthorsName = "FindAuthors"
 const findAuthorsSQL = `SELECT first_name, last_name FROM author WHERE first_name = $1`
 
 // FindAuthors implements Querier.FindAuthors.
-func (q *DBQuerier) FindAuthors(ctx context.Context, firstName string) ([]Author, error) {
-	ctx = q.hooks.BeforeQuery(ctx, BeforeHookParams{QueryName: findAuthorsName, SQL: findAuthorsSQL, IsBatch: false})
+func (q *DBQuerier) FindAuthors(ctx context.Context, firstName string) (auths []Author, mErr error) {
+	trace := sqld.ContextClientTrace(ctx)
+	traceSendQuery(trace, extractConfig(q.conn), findAuthorsSQL)
 	rows, err := q.conn.Query(ctx, findAuthorsSQL, firstName)
 	cmdTag := pgconn.CommandTag{}
 	if rows != nil {
 		cmdTag = rows.CommandTag()
 		defer rows.Close()
 	}
-	q.hooks.AfterQuery(ctx, AfterHookParams{
-		QueryName: findAuthorsName, SQL: findAuthorsSQL, IsBatch: false, Rows: rows,
-		CommandTag: cmdTag, QueryErr: err})
+	traceGotResponse(trace, rows, cmdTag, err)
+	defer traceScanResponse(trace, mErr)
 	if err != nil {
 		return nil, fmt.Errorf("query FindAuthors: %w", err)
 	}
@@ -46,21 +46,17 @@ func (q *DBQuerier) FindAuthors(ctx context.Context, firstName string) ([]Author
 
 // FindAuthorsBatch implements Querier.FindAuthorsBatch.
 func (q *DBQuerier) FindAuthorsBatch(ctx context.Context, batch pgx.Batch, firstName string) {
-	ctx = q.hooks.BeforeQuery(ctx, BeforeHookParams{QueryName: findAuthorsName, SQL: findAuthorsSQL, IsBatch: true})
+	traceEnqueueQuery(sqld.ContextClientTrace(ctx), findAuthorsSQL)
 	batch.Queue(findAuthorsSQL, firstName)
 }
 
 // FindAuthorsScan implements Querier.FindAuthorsScan.
-func (q *DBQuerier) FindAuthorsScan(ctx context.Context, results pgx.BatchResults) ([]Author, error) {
+func (q *DBQuerier) FindAuthorsScan(ctx context.Context, results pgx.BatchResults) (auths []Author, mErr error) {
+	defer traceScanResponse(sqld.ContextClientTrace(ctx), mErr)
 	rows, err := results.Query()
-	cmdTag := pgconn.CommandTag{}
 	if rows != nil {
-		cmdTag = rows.CommandTag()
 		defer rows.Close()
 	}
-	q.hooks.AfterQuery(ctx, AfterHookParams{
-		QueryName: findAuthorsName, SQL: findAuthorsSQL, IsBatch: false, Rows: rows,
-		CommandTag: cmdTag, QueryErr: err})
 	if err != nil {
 		return nil, err
 	}
@@ -78,30 +74,27 @@ func (q *DBQuerier) FindAuthorsScan(ctx context.Context, results pgx.BatchResult
 	return items, err
 }
 
-const deleteAuthorsName = "DeleteAuthors"
 const deleteAuthorsSQL = `DELETE FROM author where first_name = 'joe'`
 
 // DeleteAuthors implements Querier.DeleteAuthors.
 func (q *DBQuerier) DeleteAuthors(ctx context.Context) (pgconn.CommandTag, error) {
-	ctx = q.hooks.BeforeQuery(ctx, BeforeHookParams{QueryName: deleteAuthorsName, SQL: deleteAuthorsSQL, IsBatch: false})
+	trace := sqld.ContextClientTrace(ctx)
+	traceSendQuery(trace, extractConfig(q.conn), findAuthorsSQL)
 	cmdTag, err := q.conn.Exec(ctx, deleteAuthorsSQL)
-	q.hooks.AfterQuery(ctx, AfterHookParams{
-		QueryName: findAuthorsName, SQL: findAuthorsSQL, IsBatch: false,
-		CommandTag: cmdTag, QueryErr: err})
+	traceGotResponse(trace, nil, cmdTag, err)
+	traceScanResponse(trace, err)
 	return cmdTag, err
 }
 
 // DeleteAuthorsBatch implements Querier.DeleteAuthorsBatch.
 func (q *DBQuerier) DeleteAuthorsBatch(ctx context.Context, batch *pgx.Batch) {
-	ctx = q.hooks.BeforeQuery(ctx, BeforeHookParams{QueryName: deleteAuthorsName, SQL: deleteAuthorsSQL, IsBatch: true})
+	traceEnqueueQuery(sqld.ContextClientTrace(ctx), deleteAuthorsSQL)
 	batch.Queue(deleteAuthorsSQL)
 }
 
 // DeleteAuthorsScan implements Querier.DeleteAuthorsScan.
-func (q *DBQuerier) DeleteAuthorsScan(ctx context.Context, results pgx.BatchResults) (pgconn.CommandTag, error) {
+func (q *DBQuerier) DeleteAuthorsScan(ctx context.Context, results pgx.BatchResults) (tag pgconn.CommandTag, mErr error) {
+	defer traceScanResponse(sqld.ContextClientTrace(ctx), mErr)
 	cmdTag, err := results.Exec()
-	q.hooks.AfterQuery(ctx, AfterHookParams{
-		QueryName: findAuthorsName, SQL: findAuthorsSQL, IsBatch: false,
-		CommandTag: cmdTag, QueryErr: err})
 	return cmdTag, err
 }

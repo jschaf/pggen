@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/jackc/pgconn"
 	"github.com/jackc/pgx/v4"
+	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/jschaf/sqld"
 )
 
@@ -31,21 +32,56 @@ type Querier interface {
 }
 
 type DBQuerier struct {
-	conn  sqld.Conn
-	hooks QueryHook
+	conn sqld.Conn
 }
 
 var _ Querier = &DBQuerier{}
 
 // NewQuerier creates a DBQuerier that implements Querier.
-func NewQuerier(conn sqld.Conn, hooks QueryHook) *DBQuerier {
+func NewQuerier(conn sqld.Conn) *DBQuerier {
 	return &DBQuerier{
-		conn:  conn,
-		hooks: hooks,
+		conn: conn,
 	}
 }
 
 // WithTx creates a new DBQuerier that uses the transaction to run all queries.
 func (q *DBQuerier) WithTx(tx pgx.Tx) (*DBQuerier, error) {
-	return &DBQuerier{conn: tx, hooks: q.hooks}, nil
+	return &DBQuerier{conn: tx}, nil
+}
+
+func traceEnqueueQuery(trace *sqld.ClientTrace, sql string) {
+	if trace != nil && trace.EnqueueQuery != nil {
+		trace.EnqueueQuery(sql)
+	}
+}
+
+func traceSendQuery(trace *sqld.ClientTrace, config *pgx.ConnConfig, sql string) {
+	if trace != nil && trace.SendQuery != nil {
+		trace.SendQuery(config, sql)
+	}
+}
+
+func traceGotResponse(trace *sqld.ClientTrace, r pgx.Rows, tag pgconn.CommandTag, err error) {
+	if trace != nil && trace.SendQuery != nil {
+		trace.GotResponse(r, tag, err)
+	}
+}
+
+func traceScanResponse(trace *sqld.ClientTrace, err error) {
+	if trace != nil && trace.ScanResponse != nil {
+		trace.ScanResponse(err)
+	}
+}
+
+func extractConfig(conn sqld.Conn) *pgx.ConnConfig {
+	switch c := conn.(type) {
+	case *pgx.Conn:
+		return c.Config()
+	case *pgxpool.Pool:
+		return c.Config().ConnConfig
+	case pgx.Tx:
+		return c.Conn().Config()
+	default:
+		return nil
+	}
 }
