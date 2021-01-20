@@ -37,7 +37,8 @@ type DBQuerier struct {
 
 var _ Querier = &DBQuerier{}
 
-// NewQuerier creates a DBQuerier that implements Querier.
+// NewQuerier creates a DBQuerier that implements Querier. conn is typically
+// *pgx.Conn, pgx.Tx, or *pgxpool.Pool.
 func NewQuerier(conn sqld.Conn) *DBQuerier {
 	return &DBQuerier{
 		conn: conn,
