@@ -22,9 +22,8 @@ type GenerateOptions struct {
 	ConnString string
 	// Generate code for each of the SQL query file paths.
 	QueryFiles []string
-	// Paths to config files that control output. Configs are merged using a "last
-	// write wins" strategy to resolve conflicts.
-	ConfigFiles []string
+	// The overall config after merging config files and flag options.
+	Config Config
 	// Directory to write generated files. Writes one file for each query file as
 	// well as querier.go.
 	OutputDir string
@@ -39,7 +38,7 @@ func (c Config) merge(new Config) Config {
 	return c
 }
 
-// Generate generates Go code to safely wrap each SQL query in opts.QueryFiles
+// Generate generates Go code to safely wrap each SQL tmplQuery in opts.QueryFiles
 // into a callable methods.
 //
 // Generate must only be called once per output directory.
@@ -49,16 +48,11 @@ func Generate(opts GenerateOptions) error {
 		return fmt.Errorf("parse postgres conn string: %w", err)
 	}
 
-	genConfig, err := mergeConfigs(opts.ConfigFiles)
-	if err != nil {
-		return fmt.Errorf("parse pggen config files: %w", err)
-	}
-
 	pgConn, err := pgx.ConnectConfig(context.TODO(), pgConnConfig)
 	if err != nil {
 		return fmt.Errorf("connect to pggen postgres database: %w", err)
 	}
-	queries, err := parseQueries(pgConn, genConfig, opts.QueryFiles)
+	queries, err := parseQueries(pgConn, opts.Config, opts.QueryFiles)
 
 	if err := emitCode(queries); err != nil {
 		return fmt.Errorf("emit generated code: %w", err)
@@ -91,15 +85,15 @@ func parseConfig(bs []byte) (Config, error) {
 
 // queryFile represents all of the SQL queries from a single file.
 type queryFile struct {
-	src          string       // the source file
-	queries      []query      // the parsed queries in the source file
-	typedQueries []typedQuery // the typed queries
+	src             string       // the source file
+	templateQueries []tmplQuery  // the queries as they appeared in the source file
+	typedQueries    []typedQuery // the queries after inferring type information
 }
 
-// query represents a single parsed SQL query.
-type query struct {
-	// Name of the query, from the comment preceding the query. Like 'FindAuthors'
-	// in:
+// tmplQuery represents a single parsed SQL tmplQuery.
+type tmplQuery struct {
+	// Name of the query, from the comment preceding the query.
+	// Like 'FindAuthors' in:
 	//     -- name: FindAuthors :many
 	name string
 	// The SQL as it appeared in the source query file.
@@ -122,26 +116,26 @@ type param struct {
 	goType string
 }
 
-// tag is the command tag reported by Postgres when running the query.
+// cmdTag is the command tag reported by Postgres when running the tmplQuery.
 // See "command tag" in https://www.postgresql.org/docs/current/protocol-message-formats.html
-type tag string
+type cmdTag string
 
 const (
-	tagSelect tag = "select"
-	tagInsert tag = "insert"
-	tagUpdate tag = "update"
-	tagDelete tag = "delete"
+	tagSelect cmdTag = "select"
+	tagInsert cmdTag = "insert"
+	tagUpdate cmdTag = "update"
+	tagDelete cmdTag = "delete"
 )
 
-// typedQuery is an enriched form of query after running it on Postgres to get
-// information about the query.
+// typedQuery is an enriched form of tmplQuery after running it on Postgres to get
+// information about the tmplQuery.
 type typedQuery struct {
 	// Name of the query, from the comment preceding the query. Like 'FindAuthors'
 	// in:
 	//     -- name: FindAuthors :many
 	name string
 	// The command tag that Postgres reports after running the query.
-	tag string
+	tag cmdTag
 	// The SQL query, with pggen functions replaced with Postgres syntax. Ready
 	// to run with PREPARE.
 	preparedSQL string
