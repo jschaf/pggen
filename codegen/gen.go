@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/jackc/pgx/v4"
 	"io/ioutil"
+	"path/filepath"
 )
 
 // GenerateOptions are the unparsed options that controls the generated Go code.
@@ -54,7 +55,7 @@ func Generate(opts GenerateOptions) error {
 	}
 	queries, err := parseQueries(pgConn, opts.Config, opts.QueryFiles)
 
-	if err := emitCode(queries); err != nil {
+	if err := emitCode(opts.OutputDir, queries); err != nil {
 		return fmt.Errorf("emit generated code: %w", err)
 	}
 
@@ -100,8 +101,16 @@ type tmplQuery struct {
 	sql string
 }
 
-func parseQueries(conn *pgx.Conn, config Config, queryFile []string) ([]queryFile, error) {
-	return nil, nil
+func parseQueries(conn *pgx.Conn, config Config, queryFiles []string) ([]queryFile, error) {
+	files := make([]queryFile, len(queryFiles))
+	for i, file := range queryFiles {
+		files[i] = queryFile{
+			src:             file,
+			templateQueries: nil,
+			typedQueries:    nil,
+		}
+	}
+	return files, nil
 }
 
 type param struct {
@@ -145,6 +154,14 @@ type typedQuery struct {
 	outputs []param
 }
 
-func emitCode(queries []queryFile) error {
+func emitCode(outDir string, queries []queryFile) error {
+	for _, query := range queries {
+		base := filepath.Base(query.src)
+		out := filepath.Join(outDir, base+".go")
+		if err := ioutil.WriteFile(out, []byte("hello"), 0644); err != nil {
+			return fmt.Errorf("write generated Go code %s: %w", out, err)
+		}
+
+	}
 	return nil
 }
