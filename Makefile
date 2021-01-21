@@ -8,6 +8,10 @@ MAKEFLAGS += --no-builtin-rules
 start:
 	docker-compose up -d
 
+.PHONY: statik
+statik:
+	statik -m -src=codegen -include='*.gotemplate'
+
 psql:
 	PGPASSWORD=hunter2 psql --host=127.0.0.1 --port=5555 --username=postgres sqld
 
