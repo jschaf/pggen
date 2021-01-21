@@ -14,6 +14,7 @@ const (
 	String        // 'foo', $$bar$$, $a$baz$a$
 	QuotedIdent   // "foo_bar""baz"
 	QueryFragment // anything else
+	Semicolon     // semicolon ending a query
 )
 
 func (t Token) String() string {
@@ -32,6 +33,8 @@ func (t Token) String() string {
 		return "QuotedIdent"
 	case QueryFragment:
 		return "QueryFragment"
+	case Semicolon:
+		return "Semicolon"
 	default:
 		panic("unhandled token.String(): " + strconv.Itoa(int(t)))
 	}

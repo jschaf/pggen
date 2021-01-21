@@ -280,6 +280,12 @@ func (s *Scanner) scanQueryFragment() (token.Token, string) {
 	offs := s.offset
 	for s.ch > 0 {
 		switch {
+		case s.ch == eof:
+			str := string(s.src[offs:s.offset])
+			s.error(offs, "unterminated query: "+str)
+			return token.Illegal, str
+		case s.ch == ';':
+			return token.QueryFragment, string(s.src[offs:s.offset])
 		case s.ch == '-' && s.peek() == '-':
 			return token.QueryFragment, string(s.src[offs:s.offset])
 		case s.ch == '/' && s.peek() == '*':
@@ -326,6 +332,8 @@ func (s *Scanner) Scan() (pos gotok.Pos, tok token.Token, lit string) {
 	pos = s.file.Pos(s.offset)
 
 	switch s.ch {
+	case eof:
+		tok = token.EOF
 	case '-':
 		if s.peek() == '-' {
 			tok = token.LineComment
@@ -345,6 +353,9 @@ func (s *Scanner) Scan() (pos gotok.Pos, tok token.Token, lit string) {
 		tok, lit = s.scanDollarQuoteString()
 	case '"':
 		tok, lit = s.scanDoubleQuoteString()
+	case ';':
+		s.next()
+		tok = token.Semicolon
 	default:
 		tok, lit = s.scanQueryFragment()
 	}
