@@ -253,6 +253,28 @@ func (s *Scanner) scanDollarQuoteString() (token.Token, string) {
 	return token.String, string(s.src[offs:s.offset])
 }
 
+func (s *Scanner) scanDoubleQuoteString() (token.Token, string) {
+	offs := s.offset
+	s.next() // consume the opening double quote
+	for s.ch > 0 {
+		if s.ch == '"' {
+			if s.peek() == '"' {
+				// Consecutive double quotes is a literal double quote.
+				// https://www.postgresql.org/docs/13/sql-syntax-lexical.html#SQL-SYNTAX-IDENTIFIERS
+				s.next()
+				s.next()
+				continue
+			} else {
+				s.next() // consume closing double quote
+				return token.String, string(s.src[offs:s.offset])
+			}
+		}
+		s.next()
+	}
+	s.errorf(offs, "unterminated single-quote string literal: %s", string(s.src[offs:s.offset]))
+	return token.Illegal, ""
+}
+
 // scanQueryFragment scans any piece of a query that's not a string or comment.
 func (s *Scanner) scanQueryFragment() (token.Token, string) {
 	offs := s.offset
@@ -321,6 +343,8 @@ func (s *Scanner) Scan() (pos gotok.Pos, tok token.Token, lit string) {
 		tok, lit = s.scanSingleQuoteString()
 	case '$':
 		tok, lit = s.scanDollarQuoteString()
+	case '"':
+		tok, lit = s.scanDoubleQuoteString()
 	default:
 		tok, lit = s.scanQueryFragment()
 	}

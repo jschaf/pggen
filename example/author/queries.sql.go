@@ -10,12 +10,12 @@ import (
 	"github.com/jschaf/sqld"
 )
 
+const findAuthorsSQL = `SELECT first_name, last_name FROM author WHERE first_name = $1`
+
 type Author struct {
 	FirstName string
 	LastName  string
 }
-
-const findAuthorsSQL = `SELECT first_name, last_name FROM author WHERE first_name = $1`
 
 // FindAuthors implements Querier.FindAuthors.
 func (q *DBQuerier) FindAuthors(ctx context.Context, firstName string) (auths []Author, mErr error) {

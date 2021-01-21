@@ -9,10 +9,11 @@ type Token int
 const (
 	Illegal Token = iota
 	EOF
-	LineComment
-	BlockComment
-	String
-	QueryFragment
+	LineComment   // -- foo
+	BlockComment  // /* foo */
+	String        // 'foo', $$bar$$, $a$baz$a$
+	QuotedIdent   // "foo_bar""baz"
+	QueryFragment // anything else
 )
 
 func (t Token) String() string {
@@ -27,6 +28,8 @@ func (t Token) String() string {
 		return "BlockComment"
 	case String:
 		return "String"
+	case QuotedIdent:
+		return "QuotedIdent"
 	case QueryFragment:
 		return "QueryFragment"
 	default:

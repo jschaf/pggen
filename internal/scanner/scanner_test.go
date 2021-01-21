@@ -50,8 +50,9 @@ func (ec *errorCollector) asHandler() ErrorHandler {
 	}
 }
 
-func frag(lit string) stringTok { return stringTok{t: token.QueryFragment, lit: lit, raw: lit} }
-func str(lit string) stringTok  { return stringTok{t: token.String, lit: lit, raw: lit} }
+func frag(lit string) stringTok    { return stringTok{t: token.QueryFragment, lit: lit, raw: lit} }
+func str(lit string) stringTok     { return stringTok{t: token.String, lit: lit, raw: lit} }
+func ident(ident string) stringTok { return stringTok{t: token.String, lit: ident, raw: ident} }
 
 func TestScanner_Scan(t *testing.T) {
 	type testCase struct {
@@ -64,6 +65,9 @@ func TestScanner_Scan(t *testing.T) {
 		{"-- abc", []stringTok{{t: token.LineComment, lit: "-- abc"}}, nil},
 		{"'foo'", []stringTok{{t: token.String, lit: "'foo'"}}, nil},
 		{"'foo''bar'", []stringTok{str("'foo''bar'")}, nil},
+		{`"foo_bar"`, []stringTok{ident(`"foo_bar"`)}, nil},
+		{`"foo$$ $$bar"`, []stringTok{ident(`"foo$$ $$bar"`)}, nil},
+		{`"foo""bar"`, []stringTok{ident(`"foo""bar"`)}, nil},
 		{"/* abc */", []stringTok{{t: token.BlockComment, lit: "/* abc */"}}, nil},
 		{"/* /* abc */ */", []stringTok{{t: token.BlockComment, lit: "/* /* abc */ */"}}, nil},
 		{"SELECT 1", []stringTok{frag("SELECT 1")}, nil},
