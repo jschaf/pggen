@@ -3,4 +3,19 @@
 
 package {{.GoPkg}}
 
+import (
+	"context"
+	"fmt"
+	"github.com/jackc/pgconn"
+	"github.com/jackc/pgx/v4"
+	"github.com/jschaf/sqld"
+)
+
+{{- range .TypedQueries }}
+	const {{.Name}}SQL = `{{.PreparedSQL}}`
+	if q.{{.FieldName}}, err = db.PrepareContext(ctx, {{.ConstantName}}); err != nil {
+		return nil, fmt.Errorf("error preparing query {{.MethodName}}: %w", err)
+	}
+{{- end}}
+
 {{end}}

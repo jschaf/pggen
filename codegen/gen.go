@@ -2,11 +2,15 @@ package codegen
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/jackc/pgx/v4"
 	"github.com/jschaf/sqld/errs"
+	"github.com/jschaf/sqld/internal/ast"
+	"github.com/jschaf/sqld/internal/parser"
 	_ "github.com/jschaf/sqld/statik"
 	"github.com/rakyll/statik/fs"
+	gotok "go/token"
 	"html/template"
 	"io/ioutil"
 	"os"
@@ -47,8 +51,8 @@ func (c Config) merge(new Config) Config {
 	return c
 }
 
-// Generate generates Go code to safely wrap each SQL tmplQuery in opts.QueryFiles
-// into a callable methods.
+// Generate generates Go code to safely wrap each SQL TemplateQuery in
+// opts.QueryFiles into a callable methods.
 //
 // Generate must only be called once per output directory.
 func Generate(opts GenerateOptions) error {
@@ -61,7 +65,7 @@ func Generate(opts GenerateOptions) error {
 	if err != nil {
 		return fmt.Errorf("connect to pggen postgres database: %w", err)
 	}
-	queries, err := parseQueries(pgConn, opts, opts.Config, opts.QueryFiles)
+	queries, err := parseQueryFiles(pgConn, opts, opts.Config, opts.QueryFiles)
 
 	if err := emitAll(opts.OutputDir, queries); err != nil {
 		return fmt.Errorf("emit generated code: %w", err)
@@ -94,37 +98,51 @@ func parseConfig(bs []byte) (Config, error) {
 
 // queryFile represents all of the SQL queries from a single file.
 type queryFile struct {
-	GoPkg           string       // the name of the Go package for the file
-	Src             string       // the source file
-	TemplateQueries []tmplQuery  // the queries as they appeared in the source file
-	TypedQueries    []typedQuery // the queries after inferring type information
+	GoPkg           string               // the name of the Go package for the file
+	Src             string               // the source file
+	TemplateQueries []*ast.TemplateQuery // the queries as they appeared in the source file
+	TypedQueries    []typedQuery         // the queries after inferring type information
 }
 
-// tmplQuery represents a single parsed SQL tmplQuery.
-type tmplQuery struct {
-	// Name of the query, from the comment preceding the query.
-	// Like 'FindAuthors' in:
-	//     -- name: FindAuthors :many
-	name string
-	// The SQL as it appeared in the source query file.
-	sql string
-}
-
-func parseQueries(conn *pgx.Conn, opts GenerateOptions, config Config, queryFiles []string) ([]queryFile, error) {
+func parseQueryFiles(conn *pgx.Conn, opts GenerateOptions, config Config, queryFiles []string) ([]queryFile, error) {
 	files := make([]queryFile, len(queryFiles))
 	pkgName := opts.GoPackage
 	if opts.GoPackage == "" {
 		pkgName = filepath.Base(opts.OutputDir)
 	}
 	for i, file := range queryFiles {
-		files[i] = queryFile{
-			Src:             file,
-			GoPkg:           pkgName,
-			TemplateQueries: nil,
-			TypedQueries:    nil,
+		queryFile, err := parseTemplateQueries(pkgName, file)
+		if err != nil {
+			return nil, fmt.Errorf("parse template query file %q: %w", file, err)
 		}
+		files[i] = queryFile
 	}
 	return files, nil
+}
+
+func parseTemplateQueries(pkgName string, file string) (queryFile, error) {
+	astFile, err := parser.ParseFile(gotok.NewFileSet(), file, nil, 0)
+	if err != nil {
+		return queryFile{}, fmt.Errorf("parse query file %q: %w", file, err)
+	}
+	tmplQueries := make([]*ast.TemplateQuery, 0, len(astFile.Queries))
+	for _, query := range astFile.Queries {
+		switch q := query.(type) {
+		case *ast.BadQuery:
+			return queryFile{}, errors.New("parsed bad query instead of erroring")
+		case *ast.TemplateQuery:
+			tmplQueries = append(tmplQueries, q)
+		default:
+			return queryFile{}, fmt.Errorf("unhandled query ast type: %T", q)
+		}
+	}
+	return queryFile{
+		Src:             file,
+		GoPkg:           pkgName,
+		TemplateQueries: tmplQueries,
+		TypedQueries:    nil,
+	}, nil
+
 }
 
 type param struct {
@@ -139,7 +157,7 @@ type param struct {
 	goType string
 }
 
-// cmdTag is the command tag reported by Postgres when running the tmplQuery.
+// cmdTag is the command tag reported by Postgres when running the TemplateQuery.
 // See "command tag" in https://www.postgresql.org/docs/current/protocol-message-formats.html
 type cmdTag string
 
@@ -150,22 +168,22 @@ const (
 	tagDelete cmdTag = "delete"
 )
 
-// typedQuery is an enriched form of tmplQuery after running it on Postgres to get
-// information about the tmplQuery.
+// typedQuery is an enriched form of TemplateQuery after running it on Postgres to get
+// information about the TemplateQuery.
 type typedQuery struct {
 	// Name of the query, from the comment preceding the query. Like 'FindAuthors'
 	// in:
 	//     -- name: FindAuthors :many
-	name string
+	Name string
 	// The command tag that Postgres reports after running the query.
 	tag cmdTag
 	// The SQL query, with pggen functions replaced with Postgres syntax. Ready
 	// to run with PREPARE.
-	preparedSQL string
+	PreparedSQL string
 	// The input parameters to the query.
-	inputs []param
+	Inputs []param
 	// The output parameters to the query.
-	outputs []param
+	Outputs []param
 }
 
 // emitAll emits all query files.
