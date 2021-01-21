@@ -63,7 +63,7 @@ func Generate(opts GenerateOptions) error {
 	}
 	queries, err := parseQueries(pgConn, opts, opts.Config, opts.QueryFiles)
 
-	if err := emitCode(opts.OutputDir, queries); err != nil {
+	if err := emitAll(opts.OutputDir, queries); err != nil {
 		return fmt.Errorf("emit generated code: %w", err)
 	}
 
@@ -168,15 +168,15 @@ type typedQuery struct {
 	outputs []param
 }
 
-func emitCode(outDir string, queries []queryFile) error {
+// emitAll emits all query files.
+func emitAll(outDir string, queries []queryFile) error {
 	tmpl, err := parseQueryTemplate()
 	if err != nil {
 		return err
 	}
 	for _, query := range queries {
-		err2 := emitQuery(outDir, query, tmpl)
-		if err2 != nil {
-			return err2
+		if err := emitQueryFile(outDir, query, tmpl); err != nil {
+			return err
 		}
 	}
 	return nil
@@ -203,7 +203,8 @@ func parseQueryTemplate() (*template.Template, error) {
 	return tmpl, nil
 }
 
-func emitQuery(outDir string, query queryFile, tmpl *template.Template) (mErr error) {
+// emitQueryFile emits a single query file.
+func emitQueryFile(outDir string, query queryFile, tmpl *template.Template) (mErr error) {
 	base := filepath.Base(query.Src)
 	out := filepath.Join(outDir, base+".go")
 	file, err := os.OpenFile(out, os.O_CREATE|os.O_WRONLY, 0644)
