@@ -12,10 +12,7 @@ import (
 )
 
 {{- range .TypedQueries }}
-	const {{.Name}}SQL = `{{.PreparedSQL}}`
-	if q.{{.FieldName}}, err = db.PrepareContext(ctx, {{.ConstantName}}); err != nil {
-		return nil, fmt.Errorf("error preparing query {{.MethodName}}: %w", err)
-	}
+	const {{lowercaseFirstLetter .Name}}SQL = `{{.PreparedSQL}}`
 {{- end}}
 
 {{end}}

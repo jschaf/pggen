@@ -11,10 +11,11 @@ import (
 	_ "github.com/jschaf/sqld/statik"
 	"github.com/rakyll/statik/fs"
 	gotok "go/token"
-	"html/template"
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
+	"text/template"
 )
 
 // GenerateOptions are the unparsed options that controls the generated Go code.
@@ -115,6 +116,13 @@ func parseQueryFiles(conn *pgx.Conn, opts GenerateOptions, config Config, queryF
 		if err != nil {
 			return nil, fmt.Errorf("parse template query file %q: %w", file, err)
 		}
+		for _, query := range queryFile.TemplateQueries {
+			typedQuery, err := inferTypedQuery(conn, query)
+			if err != nil {
+				return nil, fmt.Errorf("infer typed named query %q: %w", query.Name, err)
+			}
+			queryFile.TypedQueries = append(queryFile.TypedQueries, typedQuery)
+		}
 		files[i] = queryFile
 	}
 	return files, nil
@@ -142,7 +150,16 @@ func parseTemplateQueries(pkgName string, file string) (queryFile, error) {
 		TemplateQueries: tmplQueries,
 		TypedQueries:    nil,
 	}, nil
+}
 
+func inferTypedQuery(conn *pgx.Conn, tmplQuery *ast.TemplateQuery) (typedQuery, error) {
+	return typedQuery{
+		Name:        tmplQuery.Name,
+		tag:         tagSelect,
+		PreparedSQL: tmplQuery.SQL,
+		Inputs:      nil,
+		Outputs:     nil,
+	}, nil
 }
 
 type param struct {
@@ -186,6 +203,19 @@ type typedQuery struct {
 	Outputs []param
 }
 
+var templateFuncs = template.FuncMap{
+	"lowercaseFirstLetter": lowercaseFirstLetter,
+}
+
+// isLast returns true if index is the last index in item.
+func lowercaseFirstLetter(s string) string {
+	if s == "" {
+		return ""
+	}
+	first, rest := s[0], s[1:]
+	return strings.ToLower(string(first)) + rest
+}
+
 // emitAll emits all query files.
 func emitAll(outDir string, queries []queryFile) error {
 	tmpl, err := parseQueryTemplate()
@@ -214,7 +244,7 @@ func parseQueryTemplate() (*template.Template, error) {
 		return nil, fmt.Errorf("read embedded template file: %w", err)
 	}
 
-	tmpl, err := template.New("gen_query").Parse(string(tmplBytes))
+	tmpl, err := template.New("gen_query").Funcs(templateFuncs).Parse(string(tmplBytes))
 	if err != nil {
 		return nil, fmt.Errorf("parse query.gotemplate: %w", err)
 	}
