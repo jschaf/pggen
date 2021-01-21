@@ -23,6 +23,7 @@ func TestGenerate_Example_Author(t *testing.T) {
 			},
 			Config:    Config{},
 			OutputDir: tmpDir,
+			GoPackage: "author",
 		})
 	if err != nil {
 		t.Fatalf("Generate() example/author: %s", err)

@@ -4,7 +4,12 @@ import (
 	"context"
 	"fmt"
 	"github.com/jackc/pgx/v4"
+	"github.com/jschaf/sqld/errs"
+	_ "github.com/jschaf/sqld/statik"
+	"github.com/rakyll/statik/fs"
+	"html/template"
 	"io/ioutil"
+	"os"
 	"path/filepath"
 )
 
@@ -25,6 +30,9 @@ type GenerateOptions struct {
 	QueryFiles []string
 	// The overall config after merging config files and flag options.
 	Config Config
+	// The name of the Go package for the file. If empty, defaults to the
+	// directory name.
+	GoPackage string
 	// Directory to write generated files. Writes one file for each query file as
 	// well as querier.go.
 	OutputDir string
@@ -53,7 +61,7 @@ func Generate(opts GenerateOptions) error {
 	if err != nil {
 		return fmt.Errorf("connect to pggen postgres database: %w", err)
 	}
-	queries, err := parseQueries(pgConn, opts.Config, opts.QueryFiles)
+	queries, err := parseQueries(pgConn, opts, opts.Config, opts.QueryFiles)
 
 	if err := emitCode(opts.OutputDir, queries); err != nil {
 		return fmt.Errorf("emit generated code: %w", err)
@@ -86,9 +94,10 @@ func parseConfig(bs []byte) (Config, error) {
 
 // queryFile represents all of the SQL queries from a single file.
 type queryFile struct {
-	src             string       // the source file
-	templateQueries []tmplQuery  // the queries as they appeared in the source file
-	typedQueries    []typedQuery // the queries after inferring type information
+	GoPkg           string       // the name of the Go package for the file
+	Src             string       // the source file
+	TemplateQueries []tmplQuery  // the queries as they appeared in the source file
+	TypedQueries    []typedQuery // the queries after inferring type information
 }
 
 // tmplQuery represents a single parsed SQL tmplQuery.
@@ -101,13 +110,18 @@ type tmplQuery struct {
 	sql string
 }
 
-func parseQueries(conn *pgx.Conn, config Config, queryFiles []string) ([]queryFile, error) {
+func parseQueries(conn *pgx.Conn, opts GenerateOptions, config Config, queryFiles []string) ([]queryFile, error) {
 	files := make([]queryFile, len(queryFiles))
+	pkgName := opts.GoPackage
+	if opts.GoPackage == "" {
+		pkgName = filepath.Base(opts.OutputDir)
+	}
 	for i, file := range queryFiles {
 		files[i] = queryFile{
-			src:             file,
-			templateQueries: nil,
-			typedQueries:    nil,
+			Src:             file,
+			GoPkg:           pkgName,
+			TemplateQueries: nil,
+			TypedQueries:    nil,
 		}
 	}
 	return files, nil
@@ -155,13 +169,50 @@ type typedQuery struct {
 }
 
 func emitCode(outDir string, queries []queryFile) error {
+	tmpl, err := parseQueryTemplate()
+	if err != nil {
+		return err
+	}
 	for _, query := range queries {
-		base := filepath.Base(query.src)
-		out := filepath.Join(outDir, base+".go")
-		if err := ioutil.WriteFile(out, []byte("hello"), 0644); err != nil {
-			return fmt.Errorf("write generated Go code %s: %w", out, err)
+		err2 := emitQuery(outDir, query, tmpl)
+		if err2 != nil {
+			return err2
 		}
+	}
+	return nil
+}
 
+func parseQueryTemplate() (*template.Template, error) {
+	statikFS, err := fs.New()
+	if err != nil {
+		return nil, fmt.Errorf("create statik filesystem: %w", err)
+	}
+	tmplFile, err := statikFS.Open("/query.gotemplate")
+	if err != nil {
+		return nil, fmt.Errorf("open embedded template file: %w", err)
+	}
+	tmplBytes, err := ioutil.ReadAll(tmplFile)
+	if err != nil {
+		return nil, fmt.Errorf("read embedded template file: %w", err)
+	}
+
+	tmpl, err := template.New("gen_query").Parse(string(tmplBytes))
+	if err != nil {
+		return nil, fmt.Errorf("parse query.gotemplate: %w", err)
+	}
+	return tmpl, nil
+}
+
+func emitQuery(outDir string, query queryFile, tmpl *template.Template) (mErr error) {
+	base := filepath.Base(query.Src)
+	out := filepath.Join(outDir, base+".go")
+	file, err := os.OpenFile(out, os.O_CREATE|os.O_WRONLY, 0644)
+	defer errs.Capture(&mErr, file.Close, "close emit query file")
+	if err != nil {
+		return fmt.Errorf("open generated query file for writing: %w", err)
+	}
+	if err := tmpl.ExecuteTemplate(file, "gen_query", query); err != nil {
+		return fmt.Errorf("execute generated query file template %s: %w", out, err)
 	}
 	return nil
 }
