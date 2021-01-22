@@ -8,6 +8,7 @@ import (
 	"github.com/jschaf/sqld/errs"
 	"github.com/jschaf/sqld/internal/ast"
 	"github.com/jschaf/sqld/internal/parser"
+	"github.com/jschaf/sqld/internal/pginfer"
 	_ "github.com/jschaf/sqld/statik"
 	"github.com/rakyll/statik/fs"
 	gotok "go/token"
@@ -62,13 +63,25 @@ func Generate(opts GenerateOptions) error {
 		return fmt.Errorf("parse postgres conn string: %w", err)
 	}
 
+	queriesFiles, err := parseQueryFiles(opts, opts.QueryFiles)
+	if err != nil {
+		return fmt.Errorf("parse query files: %w", err)
+	}
+
 	pgConn, err := pgx.ConnectConfig(context.TODO(), pgConnConfig)
 	if err != nil {
 		return fmt.Errorf("connect to pggen postgres database: %w", err)
 	}
-	queries, err := parseQueryFiles(pgConn, opts, opts.Config, opts.QueryFiles)
+	inferrer := pginfer.NewInferrer(pgConn)
+	for i, file := range queriesFiles {
+		typedFile, err := inferTypedQueries(inferrer, file)
+		if err != nil {
+			return fmt.Errorf("infer typed query: %w", err)
+		}
+		queriesFiles[i] = typedFile
+	}
 
-	if err := emitAll(opts.OutputDir, queries); err != nil {
+	if err := emitAll(opts.OutputDir, queriesFiles); err != nil {
 		return fmt.Errorf("emit generated code: %w", err)
 	}
 
@@ -102,10 +115,10 @@ type queryFile struct {
 	GoPkg           string               // the name of the Go package for the file
 	Src             string               // the source file
 	TemplateQueries []*ast.TemplateQuery // the queries as they appeared in the source file
-	TypedQueries    []typedQuery         // the queries after inferring type information
+	TypedQueries    []pginfer.TypedQuery // the queries after inferring type information
 }
 
-func parseQueryFiles(conn *pgx.Conn, opts GenerateOptions, config Config, queryFiles []string) ([]queryFile, error) {
+func parseQueryFiles(opts GenerateOptions, queryFiles []string) ([]queryFile, error) {
 	files := make([]queryFile, len(queryFiles))
 	pkgName := opts.GoPackage
 	if opts.GoPackage == "" {
@@ -115,13 +128,6 @@ func parseQueryFiles(conn *pgx.Conn, opts GenerateOptions, config Config, queryF
 		queryFile, err := parseTemplateQueries(pkgName, file)
 		if err != nil {
 			return nil, fmt.Errorf("parse template query file %q: %w", file, err)
-		}
-		for _, query := range queryFile.TemplateQueries {
-			typedQuery, err := inferTypedQuery(conn, query)
-			if err != nil {
-				return nil, fmt.Errorf("infer typed named query %q: %w", query.Name, err)
-			}
-			queryFile.TypedQueries = append(queryFile.TypedQueries, typedQuery)
 		}
 		files[i] = queryFile
 	}
@@ -152,55 +158,15 @@ func parseTemplateQueries(pkgName string, file string) (queryFile, error) {
 	}, nil
 }
 
-func inferTypedQuery(conn *pgx.Conn, tmplQuery *ast.TemplateQuery) (typedQuery, error) {
-	return typedQuery{
-		Name:        tmplQuery.Name,
-		tag:         tagSelect,
-		PreparedSQL: tmplQuery.SQL,
-		Inputs:      nil,
-		Outputs:     nil,
-	}, nil
-}
-
-type param struct {
-	// Name of the param, like 'FirstName' in pggen.arg('FirstName').
-	name string
-	// Default value to use for the param when executing the query on Postgres.
-	// Like 'joe' in pggen.arg('FirstName', 'joe').
-	defaultVal string
-	// The postgres type of this param as reported by Postgres.
-	pgType string
-	// The Go type to use in generated for this param.
-	goType string
-}
-
-// cmdTag is the command tag reported by Postgres when running the TemplateQuery.
-// See "command tag" in https://www.postgresql.org/docs/current/protocol-message-formats.html
-type cmdTag string
-
-const (
-	tagSelect cmdTag = "select"
-	tagInsert cmdTag = "insert"
-	tagUpdate cmdTag = "update"
-	tagDelete cmdTag = "delete"
-)
-
-// typedQuery is an enriched form of TemplateQuery after running it on Postgres to get
-// information about the TemplateQuery.
-type typedQuery struct {
-	// Name of the query, from the comment preceding the query. Like 'FindAuthors'
-	// in:
-	//     -- name: FindAuthors :many
-	Name string
-	// The command tag that Postgres reports after running the query.
-	tag cmdTag
-	// The SQL query, with pggen functions replaced with Postgres syntax. Ready
-	// to run with PREPARE.
-	PreparedSQL string
-	// The input parameters to the query.
-	Inputs []param
-	// The output parameters to the query.
-	Outputs []param
+func inferTypedQueries(inf *pginfer.Inferrer, file queryFile) (queryFile, error) {
+	for _, query := range file.TemplateQueries {
+		typedQuery, err := inf.InferTypes(query)
+		if err != nil {
+			return queryFile{}, fmt.Errorf("infer typed named query %q: %w", query.Name, err)
+		}
+		file.TypedQueries = append(file.TypedQueries, typedQuery)
+	}
+	return file, nil
 }
 
 var templateFuncs = template.FuncMap{
