@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"github.com/jackc/pgx/v4"
-	"github.com/jschaf/sqld/errs"
 	"github.com/jschaf/sqld/internal/ast"
 	"time"
 )
@@ -98,17 +97,6 @@ func (inf *Inferrer) inferInputTypes(query *ast.TemplateQuery) (inputs []InputPa
 	if err != nil {
 		return nil, fmt.Errorf("exec prepare statement to infer input query types for query %s: %w", query.Name, err)
 	}
-	// Deallocate in case we reuse this database.
-	defer errs.Capture(&mErr,
-		func() error { return inf.deallocatePreparedQuery(name) },
-		"deallocate prepared query")
-
-	ctx, cancel = context.WithTimeout(context.Background(), defaultTimeout)
-	defer cancel()
-	_, err = inf.conn.Exec(ctx, `SET search_path TO public`)
-	if err != nil {
-		return nil, fmt.Errorf("set search_path to public: %w", err)
-	}
 
 	// Get the parameter types from the pg_prepared_statements table.
 	ctx, cancel = context.WithTimeout(context.Background(), defaultTimeout)
@@ -136,14 +124,6 @@ func (inf *Inferrer) inferInputTypes(query *ast.TemplateQuery) (inputs []InputPa
 		params[i].GoType = chooseGoType(types[i])
 	}
 	return params, nil
-}
-
-func (inf *Inferrer) deallocatePreparedQuery(name string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
-	defer cancel()
-	query := `DEALLOCATE ` + name
-	_, err := inf.conn.Exec(ctx, query)
-	return err
 }
 
 func chooseGoType(s string) string {
