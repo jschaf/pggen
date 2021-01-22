@@ -55,6 +55,8 @@ type InputParam struct {
 type OutputColumn struct {
 	// Name of an output column, named by Postgres, like "foo" in "SELECT 1 as foo".
 	PgName string
+	// The Go name to use for the column.
+	GoName string
 	// The postgres type of the column as reported by Postgres.
 	PgType string
 	// The Go type to use for the column.
@@ -76,17 +78,20 @@ func (inf *Inferrer) InferTypes(query *ast.TemplateQuery) (TypedQuery, error) {
 	if err != nil {
 		return TypedQuery{}, fmt.Errorf("infer input types for query %s: %w", query.Name, err)
 	}
-	// determine input types
+	outputs, err := inf.inferOutputTypes(query)
+	if err != nil {
+		return TypedQuery{}, fmt.Errorf("infer output types for query %s: %w", query.Name, err)
+	}
 	return TypedQuery{
 		Name:        query.Name,
 		Tag:         TagSelect,
 		PreparedSQL: query.PreparedSQL,
 		Inputs:      inputs,
-		Outputs:     nil,
+		Outputs:     outputs,
 	}, nil
 }
 
-func (inf *Inferrer) inferInputTypes(query *ast.TemplateQuery) (inputs []InputParam, mErr error) {
+func (inf *Inferrer) inferInputTypes(query *ast.TemplateQuery) ([]InputParam, error) {
 	// Prepare the query so we can get the parameter types from Postgres.
 	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
 	defer cancel()
@@ -119,6 +124,86 @@ func (inf *Inferrer) inferInputTypes(query *ast.TemplateQuery) (inputs []InputPa
 		params[i].GoType = chooseGoType(types[i])
 	}
 	return params, nil
+}
+
+func (inf *Inferrer) inferOutputTypes(query *ast.TemplateQuery) ([]OutputColumn, error) {
+	if hasOutput, err := inf.hasOutput(query); err != nil {
+		return nil, fmt.Errorf("check query has output: %w", err)
+	} else if !hasOutput {
+		// If the query has no output, we don't have to infer the output types.
+		return nil, nil
+	}
+
+	// Create a temp table from the query to determine the output params.
+	// https://stackoverflow.com/questions/65733271
+	tblName := `pggen_table_` + query.Name
+	ctasQuery := fmt.Sprintf(`CREATE TEMP TABLE %s AS %s`, tblName, query.PreparedSQL)
+	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
+	defer cancel()
+	_, err := inf.conn.Exec(ctx, ctasQuery, createParamArgs(query)...)
+	if err != nil {
+		return nil, fmt.Errorf("create temp table %s: %w", tblName, err)
+	}
+
+	// Query the pg_attribute table to get the columns of the temp table, which
+	// correspond to the output columns of the original query.
+	attrQuery := `
+		SELECT attname, format_type(atttypid, atttypmod) AS type
+			FROM pg_attribute
+		WHERE attrelid = $1::regclass
+		AND attnum > 0
+		AND NOT attisdropped
+		ORDER BY attnum;
+  `
+	ctx, cancel = context.WithTimeout(context.Background(), defaultTimeout)
+	defer cancel()
+	rows, err := inf.conn.Query(ctx, attrQuery, tblName)
+	if err != nil {
+		return nil, fmt.Errorf("query temp table %s attributes: %w", tblName, err)
+	}
+	outCols := make([]OutputColumn, 0, 4)
+	for rows.Next() {
+		out := OutputColumn{}
+		if err := rows.Scan(&out.PgName, &out.PgType); err != nil {
+			return nil, fmt.Errorf("scan temp table attributes: %w", err)
+		}
+		out.GoType = chooseGoType(out.PgType)
+		out.GoName = chooseGoName(out.PgName)
+		outCols = append(outCols, out)
+	}
+	return outCols, nil
+}
+
+// hasOutput explains the query to determine if it has any output columns.
+func (inf *Inferrer) hasOutput(query *ast.TemplateQuery) (bool, error) {
+	explainQuery := `EXPLAIN (VERBOSE, FORMAT JSON) ` + query.PreparedSQL
+	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
+	defer cancel()
+	row := inf.conn.QueryRow(ctx, explainQuery, createParamArgs(query)...)
+	explain := make([]map[string]map[string]interface{}, 0, 1)
+	if err := row.Scan(&explain); err != nil {
+		return false, fmt.Errorf("explain prepared query: %w", err)
+	}
+	if len(explain) == 0 {
+		return false, fmt.Errorf("no explain output")
+	}
+	plan, ok := explain[0]["Plan"]
+	if !ok {
+		return false, fmt.Errorf("explain output no 'Plan' node")
+	}
+	rawOuts, ok := plan["Output"]
+	if !ok {
+		return false, nil
+	}
+	outs, ok := rawOuts.([]interface{})
+	if !ok {
+		return false, fmt.Errorf("explain output 'Plan.Output' is not []interface")
+	}
+	return len(outs) > 0, nil
+}
+
+func chooseGoName(s string) string {
+	return s
 }
 
 func chooseGoType(s string) string {

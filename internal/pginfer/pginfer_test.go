@@ -28,13 +28,11 @@ func TestInferrer_InferTypes(t *testing.T) {
 				Tag:         TagSelect,
 				PreparedSQL: "SELECT first_name FROM author WHERE first_name = $1;",
 				Inputs: []InputParam{
-					{
-						Name:   "FirstName",
-						PgType: "text",
-						GoType: "string",
-					},
+					{Name: "FirstName", PgType: "text", GoType: "string"},
 				},
-				Outputs: nil,
+				Outputs: []OutputColumn{
+					{PgName: "first_name", GoName: "first_name", PgType: "text", GoType: "string"},
+				},
 			},
 		},
 	}
