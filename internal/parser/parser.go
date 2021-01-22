@@ -8,6 +8,7 @@ import (
 	goscan "go/scanner"
 	gotok "go/token"
 	"regexp"
+	"strconv"
 	"strings"
 )
 
@@ -236,13 +237,45 @@ func (p *parser) parseQuery() ast.Query {
 		return &ast.BadQuery{From: pos, To: p.pos}
 	}
 
+	templateSQL := sql.String()
 	return &ast.TemplateQuery{
-		Name:  name[1],
-		Doc:   doc,
-		Entry: pos,
-		SQL:   sql.String(),
-		Semi:  semi,
+		Name:        name[1],
+		Doc:         doc,
+		Start:       pos,
+		TemplateSQL: templateSQL,
+		PreparedSQL: prepareSQL(templateSQL),
+		Semi:        semi,
 	}
+}
+
+var argRegexp = regexp.MustCompile(`pggen[.]arg\('([a-zA-Z0-9_$]+)'\)`)
+
+// prepareSQL replaces each pggen.arg with the $n, reflecting the order that the
+// arg first appeared. Args with the same name use the same $n.
+func prepareSQL(sql string) string {
+	matches := argRegexp.FindAllStringSubmatch(sql, -1)
+	if len(matches) == 0 {
+		return sql
+	}
+	// Figure out the order of each prepare arg.
+	paramOrder := make(map[string]int, len(matches))
+	idx := 1
+	for _, match := range matches {
+		name := match[1]
+		if _, ok := paramOrder[name]; !ok {
+			paramOrder[name] = idx
+			idx++
+		}
+	}
+	// Replace each arg with the prepare order, like $1.
+	replacements := make([]string, 0, len(matches)*2)
+	for name, idx := range paramOrder {
+		arg := `pggen.arg('` + name + `')`
+		ord := `$` + strconv.Itoa(idx)
+		replacements = append(replacements, arg, ord)
+	}
+	replacer := strings.NewReplacer(replacements...)
+	return replacer.Replace(sql)
 }
 
 // ----------------------------------------------------------------------------

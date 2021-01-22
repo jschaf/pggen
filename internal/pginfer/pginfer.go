@@ -70,7 +70,7 @@ func (inf *Inferrer) InferTypes(query *ast.TemplateQuery) (TypedQuery, error) {
 	return TypedQuery{
 		Name:        query.Name,
 		Tag:         TagSelect,
-		PreparedSQL: query.SQL,
+		PreparedSQL: query.PreparedSQL,
 		Inputs:      nil,
 		Outputs:     nil,
 	}, nil

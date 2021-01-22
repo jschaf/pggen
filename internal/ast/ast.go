@@ -72,11 +72,12 @@ type (
 
 	// An TemplateQuery node represents a query entry.
 	TemplateQuery struct {
-		Name  string        // name of the query
-		Doc   *CommentGroup // associated documentation; or nil
-		Entry gotok.Pos     // position of the start token, like 'SELECT' or 'UPDATE'
-		SQL   string        // the complete sql query
-		Semi  gotok.Pos     // position of the closing semicolon
+		Name        string        // name of the query
+		Doc         *CommentGroup // associated documentation; or nil
+		Start       gotok.Pos     // position of the start token, like 'SELECT' or 'UPDATE'
+		TemplateSQL string        // the complete sql query as it appeared in the source file
+		PreparedSQL string        // the sql query with args replaced by $1, $2, etc.
+		Semi        gotok.Pos     // position of the closing semicolon
 	}
 )
 
@@ -85,7 +86,7 @@ func (q *BadQuery) End() gotok.Pos { return q.To }
 func (q *BadQuery) Kind() NodeKind { return KindBadQuery }
 func (*BadQuery) queryNode()       {}
 
-func (q *TemplateQuery) Pos() gotok.Pos { return q.Entry }
+func (q *TemplateQuery) Pos() gotok.Pos { return q.Start }
 func (q *TemplateQuery) End() gotok.Pos { return q.Semi }
 func (q *TemplateQuery) Kind() NodeKind { return KindTemplateQuery }
 func (*TemplateQuery) queryNode()       {}
