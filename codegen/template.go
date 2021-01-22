@@ -2,7 +2,7 @@ package codegen
 
 import (
 	"fmt"
-	"github.com/jschaf/sqld/errs"
+	"github.com/jschaf/sqld/internal/errs"
 	"github.com/rakyll/statik/fs"
 	"io/ioutil"
 	"os"

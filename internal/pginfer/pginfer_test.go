@@ -2,7 +2,7 @@ package pginfer
 
 import (
 	"github.com/jschaf/sqld/internal/ast"
-	"github.com/jschaf/sqld/pgtest"
+	"github.com/jschaf/sqld/internal/pgtest"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
