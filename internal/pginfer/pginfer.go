@@ -6,6 +6,7 @@ import (
 	"github.com/jackc/pgproto3/v2"
 	"github.com/jackc/pgx/v4"
 	"github.com/jschaf/sqld/internal/ast"
+	"github.com/jschaf/sqld/internal/pg"
 	"time"
 )
 
@@ -35,7 +36,7 @@ type InputParam struct {
 	// Like 'joe' in pggen.arg('FirstName', 'joe').
 	DefaultVal string
 	// The postgres type of this param as reported by Postgres.
-	PgType string
+	PgType pg.Type
 	// The Go type to use generated for this param.
 	GoType string
 }
@@ -46,7 +47,7 @@ type OutputColumn struct {
 	// The Go name to use for the column.
 	GoName string
 	// The postgres type of the column as reported by Postgres.
-	PgType string
+	PgType pg.Type
 	// The Go type to use for the column.
 	GoType string
 }
@@ -92,23 +93,31 @@ func (inf *Inferrer) inferInputTypes(query *ast.TemplateQuery) ([]InputParam, er
 	// Get the parameter types from the pg_prepared_statements table.
 	ctx, cancel = context.WithTimeout(context.Background(), defaultTimeout)
 	defer cancel()
-	catalogQuery := `SELECT parameter_types::text[] FROM pg_prepared_statements WHERE lower(name) = lower($1)`
+	catalogQuery := `SELECT parameter_types::int[] FROM pg_prepared_statements WHERE lower(name) = lower($1)`
 	row := inf.conn.QueryRow(ctx, catalogQuery, prepareName)
-	types := make([]string, 0, len(query.ParamNames))
-	if err := row.Scan(&types); err != nil {
+	oids := make([]uint32, 0, len(query.ParamNames))
+	if err := row.Scan(&oids); err != nil {
 		return nil, fmt.Errorf("scan prepared parameter types: %w", err)
 	}
-	if len(types) != len(query.ParamNames) {
+	if len(oids) != len(query.ParamNames) {
 		return nil, fmt.Errorf("expected %d parameter types for query; got %d",
-			len(query.ParamNames), len(types))
+			len(query.ParamNames), len(oids))
+	}
+	types, err := pg.FetchOIDTypes(inf.conn, oids...)
+	if err != nil {
+		return nil, fmt.Errorf("fetch oid types: %w", err)
 	}
 
 	// Build up the input params, mapping from Postgres types to Go types.
 	params := make([]InputParam, len(query.ParamNames))
 	for i := 0; i < len(params); i++ {
-		params[i].Name = query.ParamNames[i]
-		params[i].PgType = types[i]
-		params[i].GoType = chooseGoType(types[i])
+		pgType := types[oids[i]]
+		params[i] = InputParam{
+			Name:       query.ParamNames[i],
+			DefaultVal: "",
+			PgType:     pgType,
+			GoType:     pgToGoType(pgType),
+		}
 	}
 	return params, nil
 }
@@ -133,34 +142,19 @@ func (inf *Inferrer) inferOutputTypes(query *ast.TemplateQuery) ([]OutputColumn,
 	rows.Close()
 
 	// Resolve type names of output column data type OIDs.
-	typeNameQuery := `SELECT oid, typname FROM pg_type WHERE oid = ANY($1)`
-	ctx, cancel = context.WithTimeout(context.Background(), defaultTimeout)
-	defer cancel()
 	typeOIDs := make([]uint32, len(descriptions))
 	for i, desc := range descriptions {
 		typeOIDs[i] = desc.DataTypeOID
 	}
-	typeRows, err := inf.conn.Query(ctx, typeNameQuery, typeOIDs)
+	types, err := pg.FetchOIDTypes(inf.conn, typeOIDs...)
 	if err != nil {
-		return nil, fmt.Errorf("fetch type names by OID: %w", err)
-	}
-	oidNames := make(map[uint32]string, len(typeOIDs))
-	for typeRows.Next() {
-		var oid uint32
-		name := ""
-		if err := typeRows.Scan(&oid, &name); err != nil {
-			return nil, fmt.Errorf("scan oid name: %w", err)
-		}
-		oidNames[oid] = name
-	}
-	if err := typeRows.Err(); err != nil {
-		return nil, fmt.Errorf("oid names rows error: %w", err)
+		return nil, fmt.Errorf("fetch oid types: %w", err)
 	}
 
 	// Create output columns
 	outs := make([]OutputColumn, len(descriptions))
 	for i, desc := range descriptions {
-		pgType, ok := oidNames[desc.DataTypeOID]
+		pgType, ok := types[desc.DataTypeOID]
 		if !ok {
 			return nil, fmt.Errorf("no type name found for oid %d", desc.DataTypeOID)
 		}
@@ -168,7 +162,7 @@ func (inf *Inferrer) inferOutputTypes(query *ast.TemplateQuery) ([]OutputColumn,
 			PgName: string(desc.Name),
 			GoName: chooseGoName(string(desc.Name)),
 			PgType: pgType,
-			GoType: chooseGoType(pgType),
+			GoType: pgToGoType(pgType),
 		}
 		typeOIDs[i] = desc.DataTypeOID
 	}
@@ -205,19 +199,6 @@ func (inf *Inferrer) hasOutput(query *ast.TemplateQuery) (bool, error) {
 
 func chooseGoName(s string) string {
 	return s
-}
-
-func chooseGoType(s string) string {
-	switch s {
-	case "text":
-		return "string"
-	case "int4":
-		return "int32"
-	case "integer", "int8":
-		return "int64"
-	default:
-		return s
-	}
 }
 
 func createParamArgs(query *ast.TemplateQuery) []interface{} {

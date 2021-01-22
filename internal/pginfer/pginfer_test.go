@@ -2,16 +2,17 @@ package pginfer
 
 import (
 	"github.com/jschaf/sqld/internal/ast"
+	"github.com/jschaf/sqld/internal/pg"
 	"github.com/jschaf/sqld/internal/pgtest"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
 
 func TestInferrer_InferTypes(t *testing.T) {
-	conn, _ := pgtest.NewPostgresSchema(t, []string{
+	conn, cleanupFunc := pgtest.NewPostgresSchema(t, []string{
 		"../../example/author/schema.sql",
 	})
-	// defer cleanupFunc()
+	defer cleanupFunc()
 
 	tests := []struct {
 		query *ast.TemplateQuery
@@ -27,10 +28,10 @@ func TestInferrer_InferTypes(t *testing.T) {
 				Name:        "FindByFirstName",
 				PreparedSQL: "SELECT first_name FROM author WHERE first_name = $1;",
 				Inputs: []InputParam{
-					{Name: "FirstName", PgType: "text", GoType: "string"},
+					{Name: "FirstName", PgType: pg.Text, GoType: "string"},
 				},
 				Outputs: []OutputColumn{
-					{PgName: "first_name", GoName: "first_name", PgType: "text", GoType: "string"},
+					{PgName: "first_name", GoName: "first_name", PgType: pg.Text, GoType: "string"},
 				},
 			},
 		},
@@ -44,7 +45,7 @@ func TestInferrer_InferTypes(t *testing.T) {
 				Name:        "DeleteAuthorByID",
 				PreparedSQL: "DELETE FROM author WHERE author_id = $1;",
 				Inputs: []InputParam{
-					{Name: "AuthorID", PgType: "integer", GoType: "int64"},
+					{Name: "AuthorID", PgType: pg.Int4, GoType: "int32"},
 				},
 				Outputs: nil,
 			},
@@ -59,11 +60,11 @@ func TestInferrer_InferTypes(t *testing.T) {
 				Name:        "DeleteAuthorByIDReturning",
 				PreparedSQL: "DELETE FROM author WHERE author_id = $1 RETURNING author_id, first_name;",
 				Inputs: []InputParam{
-					{Name: "AuthorID", PgType: "integer", GoType: "int64"},
+					{Name: "AuthorID", PgType: pg.Int4, GoType: "int32"},
 				},
 				Outputs: []OutputColumn{
-					{PgName: "author_id", GoName: "author_id", PgType: "int4", GoType: "int32"},
-					{PgName: "first_name", GoName: "first_name", PgType: "text", GoType: "string"},
+					{PgName: "author_id", GoName: "author_id", PgType: pg.Int4, GoType: "int32"},
+					{PgName: "first_name", GoName: "first_name", PgType: pg.Text, GoType: "string"},
 				},
 			},
 		},
