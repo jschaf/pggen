@@ -11,6 +11,7 @@ start:
 .PHONY: statik
 statik:
 	statik -m -src=codegen -include='*.gotemplate'
+	gofmt -w statik/statik.go
 
 psql:
 	PGPASSWORD=hunter2 psql --host=127.0.0.1 --port=5555 --username=postgres sqld
