@@ -29,12 +29,13 @@ type TypedQuery struct {
 	// to run with PREPARE.
 	PreparedSQL string
 	// The input parameters to the query.
-	Inputs []Param
-	// The output parameters to the query.
-	Outputs []Param
+	Inputs []InputParam
+	// The output columns of the query.
+	Outputs []OutputColumn
 }
 
-type Param struct {
+// InputParam is an input parameter for a prepared query.
+type InputParam struct {
 	// Name of the param, like 'FirstName' in pggen.arg('FirstName').
 	Name string
 	// Default value to use for the param when executing the query on Postgres.
@@ -42,7 +43,16 @@ type Param struct {
 	DefaultVal string
 	// The postgres type of this param as reported by Postgres.
 	PgType string
-	// The Go type to use in generated for this param.
+	// The Go type to use generated for this param.
+	GoType string
+}
+
+type OutputColumn struct {
+	// Name of an output column, named by Postgres, like "foo" in "SELECT 1 as foo".
+	PgName string
+	// The postgres type of the column as reported by Postgres.
+	PgType string
+	// The Go type to use for the column.
 	GoType string
 }
 
@@ -50,7 +60,8 @@ type Inferrer struct {
 	conn *pgx.Conn
 }
 
-// NewInferrer infers information about a query by running them on Postgres.
+// NewInferrer infers information about a query by running the query on
+// Postgres and extracting information from the catalog tables.
 func NewInferrer(conn *pgx.Conn) *Inferrer {
 	return &Inferrer{conn: conn}
 }
