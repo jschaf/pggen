@@ -1,9 +1,15 @@
 package pginfer
 
 import (
+	"context"
+	"fmt"
 	"github.com/jackc/pgx/v4"
+	"github.com/jschaf/sqld/errs"
 	"github.com/jschaf/sqld/internal/ast"
+	"time"
 )
+
+const defaultTimeout = 3 * time.Second
 
 // CmdTag is the command tag reported by Postgres when running the TemplateQuery.
 // See "command tag" in https://www.postgresql.org/docs/current/protocol-message-formats.html
@@ -67,11 +73,92 @@ func NewInferrer(conn *pgx.Conn) *Inferrer {
 }
 
 func (inf *Inferrer) InferTypes(query *ast.TemplateQuery) (TypedQuery, error) {
+	inputs, err := inf.inferInputTypes(query)
+	if err != nil {
+		return TypedQuery{}, fmt.Errorf("infer input types for query %s: %w", query.Name, err)
+	}
+	// determine input types
 	return TypedQuery{
 		Name:        query.Name,
 		Tag:         TagSelect,
 		PreparedSQL: query.PreparedSQL,
-		Inputs:      nil,
+		Inputs:      inputs,
 		Outputs:     nil,
 	}, nil
+}
+
+func (inf *Inferrer) inferInputTypes(query *ast.TemplateQuery) (inputs []InputParam, mErr error) {
+	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
+	defer cancel()
+
+	// Prepare the query so we can get the parameter types from Postgres.
+	name := "pggen_" + query.Name
+	prepareQuery := fmt.Sprintf(`PREPARE %s AS %s`, name, query.PreparedSQL)
+	_, err := inf.conn.Exec(ctx, prepareQuery)
+	if err != nil {
+		return nil, fmt.Errorf("exec prepare statement to infer input query types for query %s: %w", query.Name, err)
+	}
+	// Deallocate in case we reuse this database.
+	defer errs.Capture(&mErr,
+		func() error { return inf.deallocatePreparedQuery(name) },
+		"deallocate prepared query")
+
+	ctx, cancel = context.WithTimeout(context.Background(), defaultTimeout)
+	defer cancel()
+	_, err = inf.conn.Exec(ctx, `SET search_path TO public`)
+	if err != nil {
+		return nil, fmt.Errorf("set search_path to public: %w", err)
+	}
+
+	// Get the parameter types from the pg_prepared_statements table.
+	ctx, cancel = context.WithTimeout(context.Background(), defaultTimeout)
+	defer cancel()
+	catalogQuery := fmt.Sprintf(`
+      SELECT parameter_types 
+      FROM pg_prepared_statements 
+      WHERE name = '%s';
+  `, name)
+	row := inf.conn.QueryRow(ctx, catalogQuery)
+	types := make([]string, 0, len(query.ParamNames))
+	if err := row.Scan(types); err != nil {
+		return nil, fmt.Errorf("scan parameter_types for query %s: %w", query.Name, err)
+	}
+	if len(types) != len(query.ParamNames) {
+		return nil, fmt.Errorf("expected %d parameter types for query %s; got %d",
+			len(query.ParamNames), query.Name, len(types))
+	}
+
+	// Build up the input params.
+	params := make([]InputParam, len(query.ParamNames))
+	for i := 0; i < len(params); i++ {
+		params[i].Name = query.ParamNames[i]
+		params[i].PgType = types[i]
+		params[i].GoType = chooseGoType(types[i])
+	}
+	return params, nil
+}
+
+func (inf *Inferrer) deallocatePreparedQuery(name string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
+	defer cancel()
+	query := `DEALLOCATE ` + name
+	_, err := inf.conn.Exec(ctx, query)
+	return err
+}
+
+func chooseGoType(s string) string {
+	switch s {
+	case "text":
+		return "string"
+	default:
+		return s
+	}
+}
+
+func createParamArgs(query *ast.TemplateQuery) []interface{} {
+	args := make([]interface{}, len(query.ParamNames))
+	for i := range query.ParamNames {
+		args[i] = nil
+	}
+	return args
 }
