@@ -5,6 +5,7 @@ SHELL := bash
 MAKEFLAGS += --warn-undefined-variables
 MAKEFLAGS += --no-builtin-rules
 
+.PHONY: start
 start:
 	docker-compose up -d
 
@@ -13,8 +14,10 @@ statik:
 	statik -m -src=codegen -include='*.gotemplate'
 	gofmt -w statik/statik.go
 
+.PHONY: psql
 psql:
 	PGPASSWORD=hunter2 psql --host=127.0.0.1 --port=5555 --username=postgres sqld
 
+.PHONY: test-examples
 test-examples:
 	go test --tags=example ./...
