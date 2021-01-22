@@ -10,7 +10,7 @@ import (
 	"github.com/jschaf/sqld"
 )
 
-const findAuthorsSQL = `SELECT first_name, last_name FROM author WHERE first_name = $1`
+const findAuthorsSQL = `SELECT * FROM author WHERE first_name = $1;`
 
 type Author struct {
 	FirstName string

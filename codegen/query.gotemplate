@@ -11,8 +11,8 @@ import (
 	"github.com/jschaf/sqld"
 )
 
-{{- range .TypedQueries }}
+{{range .TypedQueries -}}
 	const {{lowercaseFirstLetter .Name}}SQL = `{{.PreparedSQL}}`
-{{- end}}
+{{end}}
 
 {{end}}
