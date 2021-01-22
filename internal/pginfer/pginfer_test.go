@@ -8,10 +8,10 @@ import (
 )
 
 func TestInferrer_InferTypes(t *testing.T) {
-	conn, cleanupFunc := pgtest.NewPostgresSchema(t, []string{
+	conn, _ := pgtest.NewPostgresSchema(t, []string{
 		"../../example/author/schema.sql",
 	})
-	defer cleanupFunc()
+	// defer cleanupFunc()
 
 	tests := []struct {
 		query *ast.TemplateQuery
@@ -47,6 +47,24 @@ func TestInferrer_InferTypes(t *testing.T) {
 					{Name: "AuthorID", PgType: "integer", GoType: "int64"},
 				},
 				Outputs: nil,
+			},
+		},
+		{
+			&ast.TemplateQuery{
+				Name:        "DeleteAuthorByIDReturning",
+				PreparedSQL: "DELETE FROM author WHERE author_id = $1 RETURNING author_id, first_name;",
+				ParamNames:  []string{"AuthorID"},
+			},
+			TypedQuery{
+				Name:        "DeleteAuthorByIDReturning",
+				PreparedSQL: "DELETE FROM author WHERE author_id = $1 RETURNING author_id, first_name;",
+				Inputs: []InputParam{
+					{Name: "AuthorID", PgType: "integer", GoType: "int64"},
+				},
+				Outputs: []OutputColumn{
+					{PgName: "author_id", GoName: "author_id", PgType: "int4", GoType: "int32"},
+					{PgName: "first_name", GoName: "first_name", PgType: "text", GoType: "string"},
+				},
 			},
 		},
 	}

@@ -3,6 +3,7 @@ package pginfer
 import (
 	"context"
 	"fmt"
+	"github.com/jackc/pgproto3/v2"
 	"github.com/jackc/pgx/v4"
 	"github.com/jschaf/sqld/internal/ast"
 	"time"
@@ -113,51 +114,65 @@ func (inf *Inferrer) inferInputTypes(query *ast.TemplateQuery) ([]InputParam, er
 }
 
 func (inf *Inferrer) inferOutputTypes(query *ast.TemplateQuery) ([]OutputColumn, error) {
+	// If the query has no output, we don't have to infer the output types.
 	if hasOutput, err := inf.hasOutput(query); err != nil {
 		return nil, fmt.Errorf("check query has output: %w", err)
 	} else if !hasOutput {
-		// If the query has no output, we don't have to infer the output types.
 		return nil, nil
 	}
 
-	// Create a temp table from the query to determine the output params.
-	// https://stackoverflow.com/questions/65733271
-	tblName := `pggen_table_` + query.Name
-	ctasQuery := fmt.Sprintf(`CREATE TEMP TABLE %s AS %s`, tblName, query.PreparedSQL)
+	// Execute the query to get field descriptions of the output columns.
 	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
 	defer cancel()
-	_, err := inf.conn.Exec(ctx, ctasQuery, createParamArgs(query)...)
+	rows, err := inf.conn.Query(ctx, query.PreparedSQL, createParamArgs(query)...)
 	if err != nil {
-		return nil, fmt.Errorf("create temp table %s: %w", tblName, err)
+		return nil, fmt.Errorf("execute output query: %w", err)
 	}
+	descriptions := make([]pgproto3.FieldDescription, len(rows.FieldDescriptions()))
+	copy(descriptions, rows.FieldDescriptions()) // pgx reuses row objects
+	rows.Close()
 
-	// Query the pg_attribute table to get the columns of the temp table, which
-	// correspond to the output columns of the original query.
-	attrQuery := `
-		SELECT attname, format_type(atttypid, atttypmod) AS type
-			FROM pg_attribute
-		WHERE attrelid = $1::regclass
-		AND attnum > 0
-		AND NOT attisdropped
-		ORDER BY attnum;
-  `
+	// Resolve type names of output column data type OIDs.
+	typeNameQuery := `SELECT oid, typname FROM pg_type WHERE oid = ANY($1)`
 	ctx, cancel = context.WithTimeout(context.Background(), defaultTimeout)
 	defer cancel()
-	rows, err := inf.conn.Query(ctx, attrQuery, tblName)
+	typeOIDs := make([]uint32, len(descriptions))
+	for i, desc := range descriptions {
+		typeOIDs[i] = desc.DataTypeOID
+	}
+	typeRows, err := inf.conn.Query(ctx, typeNameQuery, typeOIDs)
 	if err != nil {
-		return nil, fmt.Errorf("query temp table %s attributes: %w", tblName, err)
+		return nil, fmt.Errorf("fetch type names by OID: %w", err)
 	}
-	outCols := make([]OutputColumn, 0, 4)
-	for rows.Next() {
-		out := OutputColumn{}
-		if err := rows.Scan(&out.PgName, &out.PgType); err != nil {
-			return nil, fmt.Errorf("scan temp table attributes: %w", err)
+	oidNames := make(map[uint32]string, len(typeOIDs))
+	for typeRows.Next() {
+		var oid uint32
+		name := ""
+		if err := typeRows.Scan(&oid, &name); err != nil {
+			return nil, fmt.Errorf("scan oid name: %w", err)
 		}
-		out.GoType = chooseGoType(out.PgType)
-		out.GoName = chooseGoName(out.PgName)
-		outCols = append(outCols, out)
+		oidNames[oid] = name
 	}
-	return outCols, nil
+	if err := typeRows.Err(); err != nil {
+		return nil, fmt.Errorf("oid names rows error: %w", err)
+	}
+
+	// Create output columns
+	outs := make([]OutputColumn, len(descriptions))
+	for i, desc := range descriptions {
+		pgType, ok := oidNames[desc.DataTypeOID]
+		if !ok {
+			return nil, fmt.Errorf("no type name found for oid %d", desc.DataTypeOID)
+		}
+		outs[i] = OutputColumn{
+			PgName: string(desc.Name),
+			GoName: chooseGoName(string(desc.Name)),
+			PgType: pgType,
+			GoType: chooseGoType(pgType),
+		}
+		typeOIDs[i] = desc.DataTypeOID
+	}
+	return outs, nil
 }
 
 // hasOutput explains the query to determine if it has any output columns.
@@ -196,7 +211,9 @@ func chooseGoType(s string) string {
 	switch s {
 	case "text":
 		return "string"
-	case "integer":
+	case "int4":
+		return "int32"
+	case "integer", "int8":
 		return "int64"
 	default:
 		return s
