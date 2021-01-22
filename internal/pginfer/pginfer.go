@@ -10,17 +10,6 @@ import (
 
 const defaultTimeout = 3 * time.Second
 
-// CmdTag is the command tag reported by Postgres when running the TemplateQuery.
-// See "command tag" in https://www.postgresql.org/docs/current/protocol-message-formats.html
-type CmdTag string
-
-const (
-	TagSelect CmdTag = "select"
-	TagInsert CmdTag = "insert"
-	TagUpdate CmdTag = "update"
-	TagDelete CmdTag = "delete"
-)
-
 // TypedQuery is an enriched form of TemplateQuery after running it on Postgres to get
 // information about the TemplateQuery.
 type TypedQuery struct {
@@ -28,8 +17,6 @@ type TypedQuery struct {
 	// in:
 	//     -- name: FindAuthors :many
 	Name string
-	// The command tag that Postgres reports after running the query.
-	Tag CmdTag
 	// The SQL query, with pggen functions replaced with Postgres syntax. Ready
 	// to run with PREPARE.
 	PreparedSQL string
@@ -84,7 +71,6 @@ func (inf *Inferrer) InferTypes(query *ast.TemplateQuery) (TypedQuery, error) {
 	}
 	return TypedQuery{
 		Name:        query.Name,
-		Tag:         TagSelect,
 		PreparedSQL: query.PreparedSQL,
 		Inputs:      inputs,
 		Outputs:     outputs,
@@ -112,8 +98,8 @@ func (inf *Inferrer) inferInputTypes(query *ast.TemplateQuery) ([]InputParam, er
 		return nil, fmt.Errorf("scan prepared parameter types: %w", err)
 	}
 	if len(types) != len(query.ParamNames) {
-		return nil, fmt.Errorf("expected %d parameter types for query %s; got %d",
-			len(query.ParamNames), query.Name, len(types))
+		return nil, fmt.Errorf("expected %d parameter types for query; got %d",
+			len(query.ParamNames), len(types))
 	}
 
 	// Build up the input params, mapping from Postgres types to Go types.
@@ -210,6 +196,8 @@ func chooseGoType(s string) string {
 	switch s {
 	case "text":
 		return "string"
+	case "integer":
+		return "int64"
 	default:
 		return s
 	}
