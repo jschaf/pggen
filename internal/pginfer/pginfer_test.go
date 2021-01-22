@@ -23,7 +23,19 @@ func TestInferrer_InferTypes(t *testing.T) {
 				PreparedSQL: "SELECT first_name FROM author WHERE first_name = $1;",
 				ParamNames:  []string{"FirstName"},
 			},
-			TypedQuery{},
+			TypedQuery{
+				Name:        "FindByFirstName",
+				Tag:         TagSelect,
+				PreparedSQL: "SELECT first_name FROM author WHERE first_name = $1;",
+				Inputs: []InputParam{
+					{
+						Name:   "FirstName",
+						PgType: "text",
+						GoType: "string",
+					},
+				},
+				Outputs: nil,
+			},
 		},
 	}
 	for _, tt := range tests {

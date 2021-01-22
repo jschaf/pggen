@@ -87,36 +87,31 @@ func (inf *Inferrer) InferTypes(query *ast.TemplateQuery) (TypedQuery, error) {
 }
 
 func (inf *Inferrer) inferInputTypes(query *ast.TemplateQuery) (inputs []InputParam, mErr error) {
+	// Prepare the query so we can get the parameter types from Postgres.
 	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
 	defer cancel()
-
-	// Prepare the query so we can get the parameter types from Postgres.
-	name := "pggen_" + query.Name
-	prepareQuery := fmt.Sprintf(`PREPARE %s AS %s`, name, query.PreparedSQL)
+	prepareName := "pggen_" + query.Name
+	prepareQuery := fmt.Sprintf(`PREPARE %s AS %s`, prepareName, query.PreparedSQL)
 	_, err := inf.conn.Exec(ctx, prepareQuery)
 	if err != nil {
-		return nil, fmt.Errorf("exec prepare statement to infer input query types for query %s: %w", query.Name, err)
+		return nil, fmt.Errorf("exec prepare statement to infer input query types: %w", err)
 	}
 
 	// Get the parameter types from the pg_prepared_statements table.
 	ctx, cancel = context.WithTimeout(context.Background(), defaultTimeout)
 	defer cancel()
-	catalogQuery := fmt.Sprintf(`
-      SELECT parameter_types 
-      FROM pg_prepared_statements 
-      WHERE name = '%s';
-  `, name)
-	row := inf.conn.QueryRow(ctx, catalogQuery)
+	catalogQuery := `SELECT parameter_types::text[] FROM pg_prepared_statements WHERE lower(name) = lower($1)`
+	row := inf.conn.QueryRow(ctx, catalogQuery, prepareName)
 	types := make([]string, 0, len(query.ParamNames))
-	if err := row.Scan(types); err != nil {
-		return nil, fmt.Errorf("scan parameter_types for query %s: %w", query.Name, err)
+	if err := row.Scan(&types); err != nil {
+		return nil, fmt.Errorf("scan prepared parameter types: %w", err)
 	}
 	if len(types) != len(query.ParamNames) {
 		return nil, fmt.Errorf("expected %d parameter types for query %s; got %d",
 			len(query.ParamNames), query.Name, len(types))
 	}
 
-	// Build up the input params.
+	// Build up the input params, mapping from Postgres types to Go types.
 	params := make([]InputParam, len(query.ParamNames))
 	for i := 0; i < len(params); i++ {
 		params[i].Name = query.ParamNames[i]
