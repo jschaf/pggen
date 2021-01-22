@@ -77,6 +77,7 @@ type (
 		Start       gotok.Pos     // position of the start token, like 'SELECT' or 'UPDATE'
 		TemplateSQL string        // the complete sql query as it appeared in the source file
 		PreparedSQL string        // the sql query with args replaced by $1, $2, etc.
+		ParamNames  []string      // the name of each param in the PreparedSQL, the nth entry is the $n+1 param
 		Semi        gotok.Pos     // position of the closing semicolon
 	}
 )

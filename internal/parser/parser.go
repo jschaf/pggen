@@ -238,12 +238,15 @@ func (p *parser) parseQuery() ast.Query {
 	}
 
 	templateSQL := sql.String()
+	preparedSQL, params := prepareSQL(templateSQL)
+
 	return &ast.TemplateQuery{
 		Name:        name[1],
 		Doc:         doc,
 		Start:       pos,
 		TemplateSQL: templateSQL,
-		PreparedSQL: prepareSQL(templateSQL),
+		PreparedSQL: preparedSQL,
+		ParamNames:  params,
 		Semi:        semi,
 	}
 }
@@ -252,17 +255,20 @@ var argRegexp = regexp.MustCompile(`pggen[.]arg\('([a-zA-Z0-9_$]+)'\)`)
 
 // prepareSQL replaces each pggen.arg with the $n, reflecting the order that the
 // arg first appeared. Args with the same name use the same $n.
-func prepareSQL(sql string) string {
+func prepareSQL(sql string) (string, []string) {
 	matches := argRegexp.FindAllStringSubmatch(sql, -1)
 	if len(matches) == 0 {
-		return sql
+		return sql, nil
 	}
+
 	// Figure out the order of each prepare arg.
+	params := make([]string, 0, len(matches))
 	paramOrder := make(map[string]int, len(matches))
 	idx := 1
 	for _, match := range matches {
 		name := match[1]
 		if _, ok := paramOrder[name]; !ok {
+			params = append(params, name)
 			paramOrder[name] = idx
 			idx++
 		}
@@ -275,7 +281,7 @@ func prepareSQL(sql string) string {
 		replacements = append(replacements, arg, ord)
 	}
 	replacer := strings.NewReplacer(replacements...)
-	return replacer.Replace(sql)
+	return replacer.Replace(sql), params
 }
 
 // ----------------------------------------------------------------------------

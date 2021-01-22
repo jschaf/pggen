@@ -46,6 +46,7 @@ func TestParseFile_Queries(t *testing.T) {
 				Doc:         &ast.CommentGroup{List: []*ast.LineComment{{Text: "-- name: Qux"}}},
 				TemplateSQL: "SELECT pggen.arg('Bar');",
 				PreparedSQL: "SELECT $1;",
+				ParamNames:  []string{"Bar"},
 			},
 		},
 		{
@@ -55,6 +56,7 @@ func TestParseFile_Queries(t *testing.T) {
 				Doc:         &ast.CommentGroup{List: []*ast.LineComment{{Text: "-- name: Qux"}}},
 				TemplateSQL: "SELECT pggen.arg('A$_$$B123');",
 				PreparedSQL: "SELECT $1;",
+				ParamNames:  []string{"A$_$$B123"},
 			},
 		},
 		{
@@ -64,6 +66,7 @@ func TestParseFile_Queries(t *testing.T) {
 				Doc:         &ast.CommentGroup{List: []*ast.LineComment{{Text: "-- name: Qux"}}},
 				TemplateSQL: "SELECT pggen.arg('Bar'), pggen.arg('Qux'), pggen.arg('Bar');",
 				PreparedSQL: "SELECT $1, $2, $1;",
+				ParamNames:  []string{"Bar", "Qux"},
 			},
 		},
 	}
