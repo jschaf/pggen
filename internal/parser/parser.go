@@ -273,6 +273,7 @@ func prepareSQL(sql string) (string, []string) {
 			idx++
 		}
 	}
+
 	// Replace each arg with the prepare order, like $1.
 	replacements := make([]string, 0, len(matches)*2)
 	for name, idx := range paramOrder {
