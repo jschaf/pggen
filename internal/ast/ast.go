@@ -62,6 +62,15 @@ func (g *CommentGroup) Kind() NodeKind { return KindCommentGroup }
 // ----------------------------------------------------------------------------
 // Queries
 
+// The kind of result. Controls the output type of the query.
+type ResultKind string
+
+const (
+	ResultKindMany ResultKind = ":many"
+	ResultKindOne  ResultKind = ":one"
+	ResultKindExec ResultKind = ":exec"
+)
+
 // An query is represented by one of the following query nodes.
 type (
 	// A BadQuery node is a placeholder for queries containing syntax errors
@@ -78,6 +87,7 @@ type (
 		TemplateSQL string        // the complete sql query as it appeared in the source file
 		PreparedSQL string        // the sql query with args replaced by $1, $2, etc.
 		ParamNames  []string      // the name of each param in the PreparedSQL, the nth entry is the $n+1 param
+		ResultKind  ResultKind    // the result output type
 		Semi        gotok.Pos     // position of the closing semicolon
 	}
 )

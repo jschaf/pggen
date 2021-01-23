@@ -200,8 +200,8 @@ func (p *parser) errorExpected(pos gotok.Pos, msg string) {
 	p.error(pos, msg)
 }
 
-// Regexp to extract query names.
-var NameRegexp = regexp.MustCompile(`name: ([a-zA-Z0-9_$]+)`)
+// Regexp to extract query annotations that control output.
+var annotationRegexp = regexp.MustCompile(`name: ([a-zA-Z0-9_$]+)[ \t]+(:many|:one|:exec)`)
 
 func (p *parser) parseQuery() ast.Query {
 	if p.trace {
@@ -225,15 +225,15 @@ func (p *parser) parseQuery() ast.Query {
 	p.expect(token.Semicolon)
 	sql.WriteRune(';')
 
-	// Extract name
+	// Extract annotations
 	if doc == nil || doc.List == nil || len(doc.List) == 0 {
 		p.error(pos, "no comment preceding query")
 		return &ast.BadQuery{From: pos, To: p.pos}
 	}
 	last := doc.List[len(doc.List)-1]
-	name := NameRegexp.FindStringSubmatch(last.Text)
-	if name == nil {
-		p.error(pos, `no "name: <name>" token found in comment before query"`)
+	annotations := annotationRegexp.FindStringSubmatch(last.Text)
+	if annotations == nil {
+		p.error(pos, "no 'name: <name> :<type>' token found in comment before query; comment line: \""+last.Text+`"`)
 		return &ast.BadQuery{From: pos, To: p.pos}
 	}
 
@@ -241,12 +241,13 @@ func (p *parser) parseQuery() ast.Query {
 	preparedSQL, params := prepareSQL(templateSQL)
 
 	return &ast.TemplateQuery{
-		Name:        name[1],
+		Name:        annotations[1],
 		Doc:         doc,
 		Start:       pos,
 		TemplateSQL: templateSQL,
 		PreparedSQL: preparedSQL,
 		ParamNames:  params,
+		ResultKind:  ast.ResultKind(annotations[2]),
 		Semi:        semi,
 	}
 }

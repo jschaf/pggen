@@ -22,51 +22,56 @@ func TestParseFile_Queries(t *testing.T) {
 		want ast.Query
 	}{
 		{
-			"-- name: Qux\nSELECT 1;",
+			"-- name: Qux :many\nSELECT 1;",
 			&ast.TemplateQuery{
 				Name:        "Qux",
-				Doc:         &ast.CommentGroup{List: []*ast.LineComment{{Text: "-- name: Qux"}}},
+				Doc:         &ast.CommentGroup{List: []*ast.LineComment{{Text: "-- name: Qux :many"}}},
 				TemplateSQL: "SELECT 1;",
 				PreparedSQL: "SELECT 1;",
+				ResultKind:  ast.ResultKindMany,
 			},
 		},
 		{
-			"-- name: Foo\nSELECT 1;",
+			"-- name: Foo :one\nSELECT 1;",
 			&ast.TemplateQuery{
 				Name:        "Foo",
-				Doc:         &ast.CommentGroup{List: []*ast.LineComment{{Text: "-- name: Foo"}}},
+				Doc:         &ast.CommentGroup{List: []*ast.LineComment{{Text: "-- name: Foo :one"}}},
 				TemplateSQL: "SELECT 1;",
 				PreparedSQL: "SELECT 1;",
+				ResultKind:  ast.ResultKindOne,
 			},
 		},
 		{
-			"-- name: Qux\nSELECT pggen.arg('Bar');",
+			"-- name: Qux   :exec\nSELECT pggen.arg('Bar');",
 			&ast.TemplateQuery{
 				Name:        "Qux",
-				Doc:         &ast.CommentGroup{List: []*ast.LineComment{{Text: "-- name: Qux"}}},
+				Doc:         &ast.CommentGroup{List: []*ast.LineComment{{Text: "-- name: Qux   :exec"}}},
 				TemplateSQL: "SELECT pggen.arg('Bar');",
 				PreparedSQL: "SELECT $1;",
 				ParamNames:  []string{"Bar"},
+				ResultKind:  ast.ResultKindExec,
 			},
 		},
 		{
-			"-- name: Qux\nSELECT pggen.arg('A$_$$B123');",
+			"-- name: Qux :one\nSELECT pggen.arg('A$_$$B123');",
 			&ast.TemplateQuery{
 				Name:        "Qux",
-				Doc:         &ast.CommentGroup{List: []*ast.LineComment{{Text: "-- name: Qux"}}},
+				Doc:         &ast.CommentGroup{List: []*ast.LineComment{{Text: "-- name: Qux :one"}}},
 				TemplateSQL: "SELECT pggen.arg('A$_$$B123');",
 				PreparedSQL: "SELECT $1;",
 				ParamNames:  []string{"A$_$$B123"},
+				ResultKind:  ast.ResultKindOne,
 			},
 		},
 		{
-			"-- name: Qux\nSELECT pggen.arg('Bar'), pggen.arg('Qux'), pggen.arg('Bar');",
+			"-- name: Qux :many\nSELECT pggen.arg('Bar'), pggen.arg('Qux'), pggen.arg('Bar');",
 			&ast.TemplateQuery{
 				Name:        "Qux",
-				Doc:         &ast.CommentGroup{List: []*ast.LineComment{{Text: "-- name: Qux"}}},
+				Doc:         &ast.CommentGroup{List: []*ast.LineComment{{Text: "-- name: Qux :many"}}},
 				TemplateSQL: "SELECT pggen.arg('Bar'), pggen.arg('Qux'), pggen.arg('Bar');",
 				PreparedSQL: "SELECT $1, $2, $1;",
 				ParamNames:  []string{"Bar", "Qux"},
+				ResultKind:  ast.ResultKindMany,
 			},
 		},
 	}
