@@ -78,13 +78,6 @@ var (
 	}
 )
 
-func FindOIDType(oid OID) (Type, bool) {
-	typeMapLock.Lock()
-	defer typeMapLock.Unlock()
-	t, ok := typeMap[oid]
-	return t, ok
-}
-
 func FetchOIDTypes(conn *pgx.Conn, oids ...OID) (map[OID]Type, error) {
 	types := make(map[OID]Type, len(oids))
 	oidsToFetch := make([]OID, 0, len(oids))
