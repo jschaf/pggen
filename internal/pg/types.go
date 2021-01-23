@@ -85,22 +85,19 @@ func FetchOIDTypes(conn *pgx.Conn, oids ...OID) (map[OID]Type, error) {
 	for _, oid := range oids {
 		if t, ok := typeMap[oid]; ok {
 			types[oid] = t
+		} else {
+			oidsToFetch = append(oidsToFetch, oid)
 		}
-		oidsToFetch = append(oidsToFetch, oid)
 	}
 	typeMapLock.Unlock()
 
 	// TODO: fetch from database
 
-	if len(oids) > len(types) {
-		var missing OID
-		for _, oid := range oids {
-			if _, ok := types[oid]; !ok {
-				missing = oid
-				break
-			}
+	// Check that we found all OIDs.
+	for _, oid := range oids {
+		if _, ok := types[oid]; !ok {
+			return nil, fmt.Errorf("did not find all OIDs; missing OID %d", oid)
 		}
-		return nil, fmt.Errorf("did not find all OIDs; missing %d", missing)
 	}
 
 	return types, nil
