@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/iancoleman/strcase"
 	"github.com/jackc/pgx/v4"
 	"github.com/jschaf/pggen/internal/ast"
 	"github.com/jschaf/pggen/internal/parser"
@@ -67,6 +68,16 @@ func Generate(opts GenerateOptions) error {
 	return nil
 }
 
+type goInputParam struct {
+	Name   string // name of the param, like 'FirstName' in pggen.arg('FirstName')
+	GoType string // Go type to use generated for this param
+}
+
+type goOutputColumn struct {
+	GoName string // name in Go-style to use for the column
+	GoType string // Go type to use for the column
+}
+
 // templateQuery is a query ready for rendering to a Go template.
 type templateQuery struct {
 	// Name of the query, from the comment preceding the query. Like 'FindAuthors'
@@ -80,9 +91,9 @@ type templateQuery struct {
 	// to run on Postgres with the PREPARE statement.
 	PreparedSQL string
 	// The input parameters to the query.
-	Inputs []pginfer.InputParam
+	Inputs []goInputParam
 	// The output columns of the query.
-	Outputs []pginfer.OutputColumn
+	Outputs []goOutputColumn
 }
 
 // queryFile represents all of the SQL queries from a single file.
@@ -141,14 +152,32 @@ func parseQueries(pkgName string, file string, inferrer *pginfer.Inferrer) (quer
 			docs.WriteRune('\n')
 		}
 
+		// Build inputs.
+		inputs := make([]goInputParam, len(typedQuery.Inputs))
+		for i, input := range typedQuery.Inputs {
+			inputs[i] = goInputParam{
+				Name:   strcase.ToCamel(input.PgName),
+				GoType: pgToGoType(input.PgType),
+			}
+		}
+
+		// Build outputs.
+		outputs := make([]goOutputColumn, len(typedQuery.Outputs))
+		for i, out := range typedQuery.Outputs {
+			outputs[i] = goOutputColumn{
+				GoName: strcase.ToCamel(out.PgName),
+				GoType: pgToGoType(out.PgType),
+			}
+		}
+
 		// Param types
 		tmplQuery := templateQuery{
 			Name:        typedQuery.Name,
 			ResultKind:  typedQuery.ResultKind,
 			Docs:        docs.String(),
 			PreparedSQL: typedQuery.PreparedSQL,
-			Inputs:      typedQuery.Inputs,
-			Outputs:     typedQuery.Outputs,
+			Inputs:      inputs,
+			Outputs:     outputs,
 		}
 
 		queries = append(queries, tmplQuery)

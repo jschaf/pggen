@@ -36,25 +36,19 @@ type TypedQuery struct {
 // InputParam is an input parameter for a prepared query.
 type InputParam struct {
 	// Name of the param, like 'FirstName' in pggen.arg('FirstName').
-	Name string
+	PgName string
 	// Default value to use for the param when executing the query on Postgres.
 	// Like 'joe' in pggen.arg('FirstName', 'joe').
 	DefaultVal string
 	// The postgres type of this param as reported by Postgres.
 	PgType pg.Type
-	// The Go type to use generated for this param.
-	GoType string
 }
 
 type OutputColumn struct {
 	// Name of an output column, named by Postgres, like "foo" in "SELECT 1 as foo".
 	PgName string
-	// The Go name to use for the column.
-	GoName string
 	// The postgres type of the column as reported by Postgres.
 	PgType pg.Type
-	// The Go type to use for the column.
-	GoType string
 }
 
 type Inferrer struct {
@@ -127,15 +121,14 @@ func (inf *Inferrer) inferInputTypes(query *ast.SourceQuery) (ps []InputParam, m
 		return nil, fmt.Errorf("fetch oid types: %w", err)
 	}
 
-	// Build up the input params, mapping from Postgres types to Go types.
+	// Build up the input params.
 	params := make([]InputParam, len(query.ParamNames))
 	for i := 0; i < len(params); i++ {
 		pgType := types[oids[i]]
 		params[i] = InputParam{
-			Name:       query.ParamNames[i],
+			PgName:     query.ParamNames[i],
 			DefaultVal: "",
 			PgType:     pgType,
-			GoType:     pgToGoType(pgType),
 		}
 	}
 	return params, nil
@@ -191,9 +184,7 @@ func (inf *Inferrer) inferOutputTypes(query *ast.SourceQuery) ([]OutputColumn, e
 		}
 		outs[i] = OutputColumn{
 			PgName: string(desc.Name),
-			GoName: chooseGoName(string(desc.Name)),
 			PgType: pgType,
-			GoType: pgToGoType(pgType),
 		}
 		typeOIDs[i] = desc.DataTypeOID
 	}
@@ -226,10 +217,6 @@ func (inf *Inferrer) hasOutput(query *ast.SourceQuery) (bool, error) {
 		return false, fmt.Errorf("explain output 'Plan.Output' is not []interface")
 	}
 	return len(outs) > 0, nil
-}
-
-func chooseGoName(s string) string {
-	return s
 }
 
 func createParamArgs(query *ast.SourceQuery) []interface{} {

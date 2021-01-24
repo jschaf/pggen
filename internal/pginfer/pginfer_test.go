@@ -30,8 +30,8 @@ func TestInferrer_InferTypes(t *testing.T) {
 				ResultKind:  ast.ResultKindOne,
 				PreparedSQL: "SELECT 1 as one, 'foo' as two",
 				Outputs: []OutputColumn{
-					{PgName: "one", GoName: "one", PgType: pg.Int4, GoType: "int32"},
-					{PgName: "two", GoName: "two", PgType: pg.Text, GoType: "string"},
+					{PgName: "one", PgType: pg.Int4},
+					{PgName: "two", PgType: pg.Text},
 				},
 			},
 		},
@@ -49,10 +49,10 @@ func TestInferrer_InferTypes(t *testing.T) {
 				Doc:         []string{"Hello"},
 				PreparedSQL: "SELECT first_name FROM author WHERE first_name = $1;",
 				Inputs: []InputParam{
-					{Name: "FirstName", PgType: pg.Text, GoType: "string"},
+					{PgName: "FirstName", PgType: pg.Text},
 				},
 				Outputs: []OutputColumn{
-					{PgName: "first_name", GoName: "first_name", PgType: pg.Text, GoType: "string"},
+					{PgName: "first_name", PgType: pg.Text},
 				},
 			},
 		},
@@ -70,7 +70,7 @@ func TestInferrer_InferTypes(t *testing.T) {
 				Doc:         []string{"One", "- two"},
 				PreparedSQL: "DELETE FROM author WHERE author_id = $1;",
 				Inputs: []InputParam{
-					{Name: "AuthorID", PgType: pg.Int4, GoType: "int32"},
+					{PgName: "AuthorID", PgType: pg.Int4},
 				},
 				Outputs: nil,
 			},
@@ -87,11 +87,11 @@ func TestInferrer_InferTypes(t *testing.T) {
 				ResultKind:  ast.ResultKindMany,
 				PreparedSQL: "DELETE FROM author WHERE author_id = $1 RETURNING author_id, first_name;",
 				Inputs: []InputParam{
-					{Name: "AuthorID", PgType: pg.Int4, GoType: "int32"},
+					{PgName: "AuthorID", PgType: pg.Int4},
 				},
 				Outputs: []OutputColumn{
-					{PgName: "author_id", GoName: "author_id", PgType: pg.Int4, GoType: "int32"},
-					{PgName: "first_name", GoName: "first_name", PgType: pg.Text, GoType: "string"},
+					{PgName: "author_id", PgType: pg.Int4},
+					{PgName: "first_name", PgType: pg.Text},
 				},
 			},
 		},

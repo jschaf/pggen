@@ -1,11 +1,8 @@
-package pginfer
+package codegen
 
 import "github.com/jschaf/pggen/internal/pg"
 
-type GoType interface {
-	goType()
-}
-
+// pgToGoType maps a Postgres type to a Go type.
 func pgToGoType(pgType pg.Type) string {
 	switch pgType.String() {
 	case "bool":
