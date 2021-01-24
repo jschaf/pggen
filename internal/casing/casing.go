@@ -18,6 +18,10 @@ func (cs Caser) AddAcronyms(acros map[string]string) {
 	}
 }
 
+func (cs Caser) AddAcronym(str, acronym string) {
+	cs.acronyms[str] = acronym
+}
+
 func isLower(ch byte) bool { return 'a' <= ch && ch <= 'z' }
 func isUpper(ch byte) bool { return 'A' <= ch && ch <= 'Z' }
 
