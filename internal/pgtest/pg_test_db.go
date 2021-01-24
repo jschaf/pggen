@@ -25,14 +25,14 @@ type CleanupFunc func()
 func NewPostgresSchema(t *testing.T, sqlFiles []string) (*pgx.Conn, CleanupFunc) {
 	t.Helper()
 	// Create a new schema.
-	connStr := "user=postgres password=hunter2 host=localhost port=5555 dbname=sqld"
+	connStr := "user=postgres password=hunter2 host=localhost port=5555 dbname=pggen"
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	conn, err := pgx.Connect(ctx, connStr)
 	if err != nil {
 		t.Fatalf("connect to docker postgres: %s", err)
 	}
-	schema := "sqld_test_" + strconv.Itoa(int(rand.Int31()))
+	schema := "pggen_test_" + strconv.Itoa(int(rand.Int31()))
 	if _, err = conn.Exec(ctx, "CREATE SCHEMA "+schema); err != nil {
 		t.Fatalf("create new schema: %s", err)
 	}

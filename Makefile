@@ -20,7 +20,7 @@ statik:
 
 .PHONY: psql
 psql:
-	PGPASSWORD=hunter2 psql --host=127.0.0.1 --port=5555 --username=postgres sqld
+	PGPASSWORD=hunter2 psql --host=127.0.0.1 --port=5555 --username=postgres pggen
 
 .PHONY: test-examples
 test-examples:

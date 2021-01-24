@@ -2,8 +2,8 @@ package codegen
 
 import (
 	"fmt"
-	"github.com/jschaf/sqld/internal/ast"
-	"github.com/jschaf/sqld/internal/errs"
+	"github.com/jschaf/pggen/internal/ast"
+	"github.com/jschaf/pggen/internal/errs"
 	"github.com/rakyll/statik/fs"
 	"io/ioutil"
 	"os"

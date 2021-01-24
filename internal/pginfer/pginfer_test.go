@@ -2,9 +2,9 @@ package pginfer
 
 import (
 	"errors"
-	"github.com/jschaf/sqld/internal/ast"
-	"github.com/jschaf/sqld/internal/pg"
-	"github.com/jschaf/sqld/internal/pgtest"
+	"github.com/jschaf/pggen/internal/ast"
+	"github.com/jschaf/pggen/internal/pg"
+	"github.com/jschaf/pggen/internal/pgtest"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
@@ -125,7 +125,9 @@ func TestInferrer_InferTypes_Error(t *testing.T) {
 				ParamNames:  []string{"AuthorID"},
 				ResultKind:  ast.ResultKindMany,
 			},
-			errors.New("query DeleteAuthorByIDMany has incompatible result kind :many; the query doesn't return any rows"),
+			errors.New("query DeleteAuthorByIDMany has incompatible result kind :many; " +
+				"the query doesn't return any rows; " +
+				"use :exec if query shouldn't return rows"),
 		},
 		{
 			&ast.SourceQuery{
@@ -134,7 +136,10 @@ func TestInferrer_InferTypes_Error(t *testing.T) {
 				ParamNames:  []string{"AuthorID"},
 				ResultKind:  ast.ResultKindOne,
 			},
-			errors.New("query DeleteAuthorByIDOne has incompatible result kind :one; the query doesn't return any rows"),
+			errors.New(
+				"query DeleteAuthorByIDOne has incompatible result kind :one; " +
+					"the query doesn't return any rows; " +
+					"use :exec if query shouldn't return rows"),
 		},
 	}
 	for _, tt := range tests {

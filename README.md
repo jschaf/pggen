@@ -1,4 +1,4 @@
-# sqld - Experiment to generate type safe Go from Postgres SQL
+# pggen - Experiment to generate type safe Go from Postgres SQL
 
 This is very much a work in progress.
 
@@ -8,8 +8,8 @@ This is very much a work in progress.
 
 See the design doc for a complete overview. To summarize:
 
-sqld is a binary that generates Go code that provides a typesafe wrapper to 
-Postgres queries. sqld has the same goals as sqlc, to "compile SQL to type-safe 
+pggen is a binary that generates Go code that provides a typesafe wrapper to 
+Postgres queries. pggen has the same goals as sqlc, to "compile SQL to type-safe 
 Go". The sqlc documentation provides a concise overview of the benefits of the 
 code generation approach:
 
@@ -20,10 +20,10 @@ code generation approach:
 >   those queries
 > - You write application code that calls the methods sqlc generated.
 
-The primary difference between sqld and sqlc is how sqld generates the Go code. 
+The primary difference between pggen and sqlc is how pggen generates the Go code. 
 sqlc parses the queries in Go code, using Cgo to call the Postgres parser.c 
 code. After parsing, sqlc infers the types of the query parameters and result 
-columns using custom logic in Go. In contrast, sqld gets the same type 
+columns using custom logic in Go. In contrast, pggen gets the same type 
 information by running the queries on Postgres and then fetching the 
 type information for Postgres catalog tables. 
 

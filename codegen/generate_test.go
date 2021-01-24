@@ -1,7 +1,7 @@
 package codegen
 
 import (
-	"github.com/jschaf/sqld/internal/pgtest"
+	"github.com/jschaf/pggen/internal/pgtest"
 	"github.com/stretchr/testify/assert"
 	"io/ioutil"
 	"path/filepath"

@@ -1,6 +1,6 @@
 package pginfer
 
-import "github.com/jschaf/sqld/internal/pg"
+import "github.com/jschaf/pggen/internal/pg"
 
 type GoType interface {
 	goType()

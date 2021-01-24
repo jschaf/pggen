@@ -4,7 +4,7 @@ package parser
 import (
 	"bytes"
 	"errors"
-	"github.com/jschaf/sqld/internal/ast"
+	"github.com/jschaf/pggen/internal/ast"
 	gotok "go/token"
 	"io"
 	"io/ioutil"

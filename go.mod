@@ -1,4 +1,4 @@
-module github.com/jschaf/sqld
+module github.com/jschaf/pggen
 
 go 1.15
 

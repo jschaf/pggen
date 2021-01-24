@@ -7,6 +7,6 @@ services:
     restart: always
     command: ["postgres", "-c", "log_statement=all"]
     environment:
-      POSTGRES_DB: sqld
+      POSTGRES_DB: pggen
       POSTGRES_PASSWORD: hunter2
       POSTGRES_USER: postgres

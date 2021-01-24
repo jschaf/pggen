@@ -5,7 +5,7 @@ package scanner
 import (
 	"bytes"
 	"fmt"
-	"github.com/jschaf/sqld/internal/token"
+	"github.com/jschaf/pggen/internal/token"
 	gotok "go/token"
 	"unicode"
 	"unicode/utf8"

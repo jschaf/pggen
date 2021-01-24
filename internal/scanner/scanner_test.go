@@ -1,7 +1,7 @@
 package scanner
 
 import (
-	"github.com/jschaf/sqld/internal/token"
+	"github.com/jschaf/pggen/internal/token"
 	"github.com/stretchr/testify/assert"
 	gotok "go/token"
 	"testing"

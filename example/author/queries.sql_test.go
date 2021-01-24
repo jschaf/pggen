@@ -5,7 +5,7 @@ package author
 import (
 	"context"
 	"github.com/jackc/pgx/v4"
-	"github.com/jschaf/sqld/internal/pgtest"
+	"github.com/jschaf/pggen/internal/pgtest"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
