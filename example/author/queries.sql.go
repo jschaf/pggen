@@ -73,6 +73,7 @@ func (q *DBQuerier) WithTx(tx pgx.Tx) (*DBQuerier, error) {
 const findAuthorsSQL = `SELECT * FROM author WHERE first_name = $1;`
 
 type FindAuthorsRow struct {
+	AuthorID  int32
 	FirstName string
 	LastName  string
 }
