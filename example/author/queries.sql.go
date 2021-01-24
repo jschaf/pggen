@@ -18,7 +18,7 @@ type Author struct {
 }
 
 // FindAuthors implements Querier.FindAuthors.
-func (q *DBQuerier) FindAuthors(ctx context.Context, firstName string) (auths []Author, mErr error) {
+func (q *DBQuerier) FindAuthors(ctx context.Context, firstName string) (result []Author, mErr error) {
 	trace := sqld.ContextClientTrace(ctx)
 	traceSendQuery(trace, extractConfig(q.conn), findAuthorsSQL)
 	rows, err := q.conn.Query(ctx, findAuthorsSQL, firstName)
@@ -53,7 +53,7 @@ func (q *DBQuerier) FindAuthorsBatch(ctx context.Context, batch pgx.Batch, first
 }
 
 // FindAuthorsScan implements Querier.FindAuthorsScan.
-func (q *DBQuerier) FindAuthorsScan(ctx context.Context, results pgx.BatchResults) (auths []Author, mErr error) {
+func (q *DBQuerier) FindAuthorsScan(ctx context.Context, results pgx.BatchResults) (result []Author, mErr error) {
 	defer traceScanResponse(sqld.ContextClientTrace(ctx), mErr)
 	rows, err := results.Query()
 	if rows != nil {
