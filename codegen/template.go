@@ -13,6 +13,8 @@ import (
 
 var templateFuncs = template.FuncMap{
 	"lowercaseFirstLetter": lowercaseFirstLetter,
+	"trimTrailingNewline":  func(s string) string { return strings.TrimSuffix(s, "\n") },
+	"expandQueryParams":    expandQueryParams,
 }
 
 // isLast returns true if index is the last index in item.
@@ -22,6 +24,24 @@ func lowercaseFirstLetter(s string) string {
 	}
 	first, rest := s[0], s[1:]
 	return strings.ToLower(string(first)) + rest
+}
+
+func expandQueryParams(query templateQuery) string {
+	switch len(query.Inputs) {
+	case 0:
+		return ""
+	case 1, 2:
+		sb := strings.Builder{}
+		for _, input := range query.Inputs {
+			sb.WriteString(", ")
+			sb.WriteString(lowercaseFirstLetter(input.Name))
+			sb.WriteRune(' ')
+			sb.WriteString(input.GoType)
+		}
+		return sb.String()
+	default:
+		return ", params " + query.Name + "Params"
+	}
 }
 
 // emitAll emits all query files.

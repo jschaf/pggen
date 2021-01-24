@@ -19,6 +19,8 @@ type TypedQuery struct {
 	// Name of the query, from the comment preceding the query. Like 'FindAuthors'
 	// in the source SQL: "-- name: FindAuthors :many"
 	Name string
+	// The result output type, :one, :many, or :exec.
+	ResultKind ast.ResultKind
 	// The comment lines preceding the query, excluding the :name line.
 	Doc []string
 	// The SQL query, with pggen functions replaced with Postgres syntax. Ready
@@ -82,6 +84,7 @@ func (inf *Inferrer) InferTypes(query *ast.SourceQuery) (TypedQuery, error) {
 	doc := extractDoc(query)
 	return TypedQuery{
 		Name:        query.Name,
+		ResultKind:  query.ResultKind,
 		Doc:         doc,
 		PreparedSQL: query.PreparedSQL,
 		Inputs:      inputs,

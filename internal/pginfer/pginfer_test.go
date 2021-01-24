@@ -29,6 +29,7 @@ func TestInferrer_InferTypes(t *testing.T) {
 			},
 			TypedQuery{
 				Name:        "FindByFirstName",
+				ResultKind:  ast.ResultKindMany,
 				Doc:         []string{"Hello"},
 				PreparedSQL: "SELECT first_name FROM author WHERE first_name = $1;",
 				Inputs: []InputParam{
@@ -49,6 +50,7 @@ func TestInferrer_InferTypes(t *testing.T) {
 			},
 			TypedQuery{
 				Name:        "DeleteAuthorByID",
+				ResultKind:  ast.ResultKindExec,
 				Doc:         []string{"One", "- two"},
 				PreparedSQL: "DELETE FROM author WHERE author_id = $1;",
 				Inputs: []InputParam{
@@ -66,6 +68,7 @@ func TestInferrer_InferTypes(t *testing.T) {
 			},
 			TypedQuery{
 				Name:        "DeleteAuthorByIDReturning",
+				ResultKind:  ast.ResultKindMany,
 				PreparedSQL: "DELETE FROM author WHERE author_id = $1 RETURNING author_id, first_name;",
 				Inputs: []InputParam{
 					{Name: "AuthorID", PgType: pg.Int4, GoType: "int32"},

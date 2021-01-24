@@ -11,6 +11,7 @@ import (
 	_ "github.com/jschaf/sqld/statik"
 	gotok "go/token"
 	"path/filepath"
+	"strings"
 )
 
 // GenerateOptions are the unparsed options that controls the generated Go code.
@@ -71,13 +72,12 @@ type templateQuery struct {
 	// Name of the query, from the comment preceding the query. Like 'FindAuthors'
 	// in the source SQL: "-- name: FindAuthors :many"
 	Name string
-	// Each line of documentation from the source query file, formatted for Go.
-	Docs []string
+	// Documentation from the source query file, formatted for Go.
+	Docs string
 	// The SQL query, with pggen functions replaced with Postgres syntax. Ready
 	// to run on Postgres with the PREPARE statement.
 	PreparedSQL    string
 	ResultTypeName string // name of the result type
-	ParamTypeName  string // name of the input parameter struct
 	// The input parameters to the query.
 	Inputs []pginfer.InputParam
 	// The output columns of the query.
@@ -123,18 +123,43 @@ func parseQueries(pkgName string, file string, inferrer *pginfer.Inferrer) (quer
 			return queryFile{}, fmt.Errorf("unhandled query ast type: %T", query)
 		}
 
+		// Infer types.
 		srcQuery := query.(*ast.SourceQuery)
 		typedQuery, err := inferrer.InferTypes(srcQuery)
 		if err != nil {
 			return queryFile{}, fmt.Errorf("infer typed named query %s: %w", srcQuery.Name, err)
 		}
 
+		// Build doc string.
+		docs := strings.Builder{}
+		avgCharsPerLine := 40
+		docs.Grow(len(typedQuery.Doc) * avgCharsPerLine)
+		for _, d := range typedQuery.Doc {
+			docs.WriteString("// ")
+			docs.WriteString(d)
+			docs.WriteRune('\n')
+		}
+
+		// Result type.
+		resultType := ""
+		switch typedQuery.ResultKind {
+		case ast.ResultKindExec:
+			resultType = "pgconn.CommandTag"
+		case ast.ResultKindMany:
+			resultType = "[]" + typedQuery.Name + "Row"
+		case ast.ResultKindOne:
+			resultType = typedQuery.Name + "Row"
+		default:
+			return queryFile{}, fmt.Errorf("unhandled result type: %s", typedQuery.ResultKind)
+
+		}
+
+		// Param types
 		tmplQuery := templateQuery{
 			Name:           typedQuery.Name,
-			Docs:           nil, // TODO: pipe ast.CommentGroup through here
+			Docs:           docs.String(),
 			PreparedSQL:    typedQuery.PreparedSQL,
-			ResultTypeName: "FOO_TODO",
-			ParamTypeName:  "BAR_TODO",
+			ResultTypeName: resultType,
 			Inputs:         typedQuery.Inputs,
 			Outputs:        typedQuery.Outputs,
 		}
