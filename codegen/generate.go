@@ -72,12 +72,13 @@ type templateQuery struct {
 	// Name of the query, from the comment preceding the query. Like 'FindAuthors'
 	// in the source SQL: "-- name: FindAuthors :many"
 	Name string
+	// The kind of result. :one, :many, or :exec.
+	ResultKind ast.ResultKind
 	// Documentation from the source query file, formatted for Go.
 	Docs string
 	// The SQL query, with pggen functions replaced with Postgres syntax. Ready
 	// to run on Postgres with the PREPARE statement.
-	PreparedSQL    string
-	ResultTypeName string // name of the result type
+	PreparedSQL string
 	// The input parameters to the query.
 	Inputs []pginfer.InputParam
 	// The output columns of the query.
@@ -140,28 +141,14 @@ func parseQueries(pkgName string, file string, inferrer *pginfer.Inferrer) (quer
 			docs.WriteRune('\n')
 		}
 
-		// Result type.
-		resultType := ""
-		switch typedQuery.ResultKind {
-		case ast.ResultKindExec:
-			resultType = "pgconn.CommandTag"
-		case ast.ResultKindMany:
-			resultType = "[]" + typedQuery.Name + "Row"
-		case ast.ResultKindOne:
-			resultType = typedQuery.Name + "Row"
-		default:
-			return queryFile{}, fmt.Errorf("unhandled result type: %s", typedQuery.ResultKind)
-
-		}
-
 		// Param types
 		tmplQuery := templateQuery{
-			Name:           typedQuery.Name,
-			Docs:           docs.String(),
-			PreparedSQL:    typedQuery.PreparedSQL,
-			ResultTypeName: resultType,
-			Inputs:         typedQuery.Inputs,
-			Outputs:        typedQuery.Outputs,
+			Name:        typedQuery.Name,
+			ResultKind:  typedQuery.ResultKind,
+			Docs:        docs.String(),
+			PreparedSQL: typedQuery.PreparedSQL,
+			Inputs:      typedQuery.Inputs,
+			Outputs:     typedQuery.Outputs,
 		}
 
 		queries = append(queries, tmplQuery)

@@ -20,12 +20,12 @@ import (
 type Querier interface {
 {{- range $i, $q := .Queries }}
 	{{ .Docs  | trimTrailingNewline }}
-	{{.Name}}(ctx context.Context {{- . | expandQueryParams }}) ({{.ResultTypeName}}, error)
+	{{.Name}}(ctx context.Context {{- $q.ExpandQueryParams }}) ({{ $q.ExpandQueryResult }}, error)
 	// {{.Name}}Batch enqueues a {{.Name}} query into batch to be executed
 	// later by the batch.
-	{{.Name}}Batch(ctx context.Context, batch *pgx.Batch {{- . | expandQueryParams }})
+	{{.Name}}Batch(ctx context.Context, batch *pgx.Batch {{- $q.ExpandQueryParams }})
 	// {{.Name}}Scan scans the result of an executed {{.Name}}Batch query.
-	{{.Name}}Scan(ctx context.Context, results pgx.BatchResults) ({{.ResultTypeName}}, error)
+	{{.Name}}Scan(ctx context.Context, results pgx.BatchResults) ({{ $q.ExpandQueryResult }}, error)
 	{{- "\n" -}}
 {{end -}}
 }

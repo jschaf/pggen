@@ -2,6 +2,7 @@ package codegen
 
 import (
 	"fmt"
+	"github.com/jschaf/sqld/internal/ast"
 	"github.com/jschaf/sqld/internal/errs"
 	"github.com/rakyll/statik/fs"
 	"io/ioutil"
@@ -14,7 +15,6 @@ import (
 var templateFuncs = template.FuncMap{
 	"lowercaseFirstLetter": lowercaseFirstLetter,
 	"trimTrailingNewline":  func(s string) string { return strings.TrimSuffix(s, "\n") },
-	"expandQueryParams":    expandQueryParams,
 }
 
 // isLast returns true if index is the last index in item.
@@ -26,13 +26,15 @@ func lowercaseFirstLetter(s string) string {
 	return strings.ToLower(string(first)) + rest
 }
 
-func expandQueryParams(query templateQuery) string {
-	switch len(query.Inputs) {
+// ExpandQueryParams expands the templateQuery.Inputs based on the number of
+// params.
+func (tq templateQuery) ExpandQueryParams() string {
+	switch len(tq.Inputs) {
 	case 0:
 		return ""
 	case 1, 2:
 		sb := strings.Builder{}
-		for _, input := range query.Inputs {
+		for _, input := range tq.Inputs {
 			sb.WriteString(", ")
 			sb.WriteString(lowercaseFirstLetter(input.Name))
 			sb.WriteRune(' ')
@@ -40,7 +42,35 @@ func expandQueryParams(query templateQuery) string {
 		}
 		return sb.String()
 	default:
-		return ", params " + query.Name + "Params"
+		return ", params " + tq.Name + "Params"
+	}
+}
+
+// ExpandQueryResult returns the string representing the query result type.
+func (tq templateQuery) ExpandQueryResult() (string, error) {
+	switch tq.ResultKind {
+	case ast.ResultKindExec:
+		return "pgconn.CommandTag", nil
+	case ast.ResultKindMany:
+		switch len(tq.Outputs) {
+		case 0:
+			return "pgconn.CommandTag", nil
+		case 1:
+			return "[]" + tq.Outputs[0].GoType, nil
+		default:
+			return "[]" + tq.Name + "Row", nil
+		}
+	case ast.ResultKindOne:
+		switch len(tq.Outputs) {
+		case 0:
+			return "pgconn.CommandTag", nil
+		case 1:
+			return tq.Outputs[0].GoType, nil
+		default:
+			return tq.Name + "Row", nil
+		}
+	default:
+		return "", fmt.Errorf("unhandled result type: %s", tq.ResultKind)
 	}
 }
 
