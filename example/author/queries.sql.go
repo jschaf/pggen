@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"github.com/jackc/pgconn"
 	"github.com/jackc/pgx/v4"
-	"github.com/jschaf/sqld"
 )
 
 // Querier is a typesafe Go interface backed by SQL queries.
@@ -34,14 +33,33 @@ type Querier interface {
 }
 
 type DBQuerier struct {
-	conn sqld.Conn
+	conn genericConn
 }
 
 var _ Querier = &DBQuerier{}
 
+// genericConn is a connection to a Postgres database. This is usually backed by
+// *pgx.Conn, pgx.Tx, or *pgxpool.Pool.
+type genericConn interface {
+	// Query executes sql with args. If there is an error the returned Rows will
+	// be returned in an error state. So it is allowed to ignore the error
+	// returned from Query and handle it in Rows.
+	Query(ctx context.Context, sql string, args ...interface{}) (pgx.Rows, error)
+
+	// QueryRow is a convenience wrapper over Query. Any error that occurs while
+	// querying is deferred until calling Scan on the returned Row. That Row will
+	// error with pgx.ErrNoRows if no rows are returned.
+	QueryRow(ctx context.Context, sql string, args ...interface{}) pgx.Row
+
+	// Exec executes sql. sql can be either a prepared statement name or an SQL
+	// string. arguments should be referenced positionally from the sql string
+	// as $1, $2, etc.
+	Exec(ctx context.Context, sql string, arguments ...interface{}) (pgconn.CommandTag, error)
+}
+
 // NewQuerier creates a DBQuerier that implements Querier. conn is typically
 // *pgx.Conn, pgx.Tx, or *pgxpool.Pool.
-func NewQuerier(conn sqld.Conn) *DBQuerier {
+func NewQuerier(conn genericConn) *DBQuerier {
 	return &DBQuerier{
 		conn: conn,
 	}
