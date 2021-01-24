@@ -6,6 +6,7 @@ import (
 	"github.com/jackc/pgproto3/v2"
 	"github.com/jackc/pgx/v4"
 	"github.com/jschaf/sqld/internal/ast"
+	"github.com/jschaf/sqld/internal/errs"
 	"github.com/jschaf/sqld/internal/pg"
 	"strings"
 	"time"
@@ -92,7 +93,11 @@ func (inf *Inferrer) InferTypes(query *ast.SourceQuery) (TypedQuery, error) {
 	}, nil
 }
 
-func (inf *Inferrer) inferInputTypes(query *ast.SourceQuery) ([]InputParam, error) {
+func (inf *Inferrer) inferInputTypes(query *ast.SourceQuery) (ps []InputParam, mErr error) {
+	if len(query.ParamNames) == 0 {
+		return nil, nil
+	}
+
 	// Prepare the query so we can get the parameter types from Postgres.
 	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
 	defer cancel()
@@ -102,6 +107,7 @@ func (inf *Inferrer) inferInputTypes(query *ast.SourceQuery) ([]InputParam, erro
 	if err != nil {
 		return nil, fmt.Errorf("exec prepare statement to infer input query types: %w", err)
 	}
+	defer errs.Capture(&mErr, func() error { return inf.deallocateQuery(prepareName) }, "")
 
 	// Get the parameter types from the pg_prepared_statements table.
 	ctx, cancel = context.WithTimeout(context.Background(), defaultTimeout)
@@ -133,6 +139,18 @@ func (inf *Inferrer) inferInputTypes(query *ast.SourceQuery) ([]InputParam, erro
 		}
 	}
 	return params, nil
+}
+
+// Deallocates a prepared query. Implemented mostly for tests so we can reuse
+// the same query name. Postgres doesn't allow PREPARE with duplicates.
+func (inf *Inferrer) deallocateQuery(name string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
+	defer cancel()
+	_, err := inf.conn.Exec(ctx, "DEALLOCATE "+name)
+	if err != nil {
+		return fmt.Errorf("deallocate query %s: %w", name, err)
+	}
+	return nil
 }
 
 func (inf *Inferrer) inferOutputTypes(query *ast.SourceQuery) ([]OutputColumn, error) {

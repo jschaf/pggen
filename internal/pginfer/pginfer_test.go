@@ -21,6 +21,22 @@ func TestInferrer_InferTypes(t *testing.T) {
 	}{
 		{
 			&ast.SourceQuery{
+				Name:        "LiteralQuery",
+				PreparedSQL: "SELECT 1 as one, 'foo' as two",
+				ResultKind:  ast.ResultKindOne,
+			},
+			TypedQuery{
+				Name:        "LiteralQuery",
+				ResultKind:  ast.ResultKindOne,
+				PreparedSQL: "SELECT 1 as one, 'foo' as two",
+				Outputs: []OutputColumn{
+					{PgName: "one", GoName: "one", PgType: pg.Int4, GoType: "int32"},
+					{PgName: "two", GoName: "two", PgType: pg.Text, GoType: "string"},
+				},
+			},
+		},
+		{
+			&ast.SourceQuery{
 				Name:        "FindByFirstName",
 				PreparedSQL: "SELECT first_name FROM author WHERE first_name = $1;",
 				ParamNames:  []string{"FirstName"},
