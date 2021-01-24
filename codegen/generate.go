@@ -66,11 +66,29 @@ func Generate(opts GenerateOptions) error {
 	return nil
 }
 
+// templateQuery is a query ready for rendering to a Go template.
+type templateQuery struct {
+	// Name of the query, from the comment preceding the query. Like 'FindAuthors'
+	// in the source SQL: "-- name: FindAuthors :many"
+	Name string
+	// Each line of documentation from the source query file, formatted for Go.
+	Docs []string
+	// The SQL query, with pggen functions replaced with Postgres syntax. Ready
+	// to run on Postgres with the PREPARE statement.
+	PreparedSQL    string
+	ResultTypeName string // name of the result type
+	ParamTypeName  string // name of the input parameter struct
+	// The input parameters to the query.
+	Inputs []pginfer.InputParam
+	// The output columns of the query.
+	Outputs []pginfer.OutputColumn
+}
+
 // queryFile represents all of the SQL queries from a single file.
 type queryFile struct {
-	GoPkg        string               // the name of the Go package to use for the generated file
-	Src          string               // the source SQL file base name
-	TypedQueries []pginfer.TypedQuery // the queries after inferring type information
+	GoPkg   string          // the name of the Go package to use for the generated file
+	Src     string          // the source SQL file base name
+	Queries []templateQuery // the queries with all template information
 }
 
 func parseQueryFiles(opts GenerateOptions, queryFiles []string, inferrer *pginfer.Inferrer) ([]queryFile, error) {
@@ -94,27 +112,38 @@ func parseQueries(pkgName string, file string, inferrer *pginfer.Inferrer) (quer
 	if err != nil {
 		return queryFile{}, fmt.Errorf("parse query file %q: %w", file, err)
 	}
-	queries := make([]pginfer.TypedQuery, 0, len(astFile.Queries))
+	queries := make([]templateQuery, 0, len(astFile.Queries))
 	for _, query := range astFile.Queries {
-		switch q := query.(type) {
+		switch query := query.(type) {
 		case *ast.BadQuery:
 			return queryFile{}, errors.New("parsed bad query instead of erroring")
 		case *ast.SourceQuery:
 			break // break switch - keep going
 		default:
-			return queryFile{}, fmt.Errorf("unhandled query ast type: %T", q)
+			return queryFile{}, fmt.Errorf("unhandled query ast type: %T", query)
 		}
 
-		q := query.(*ast.SourceQuery)
-		typedQuery, err := inferrer.InferTypes(q)
+		srcQuery := query.(*ast.SourceQuery)
+		typedQuery, err := inferrer.InferTypes(srcQuery)
 		if err != nil {
-			return queryFile{}, fmt.Errorf("infer typed named query %q: %w", q.Name, err)
+			return queryFile{}, fmt.Errorf("infer typed named query %s: %w", srcQuery.Name, err)
 		}
-		queries = append(queries, typedQuery)
+
+		tmplQuery := templateQuery{
+			Name:           typedQuery.Name,
+			Docs:           nil, // TODO: pipe ast.CommentGroup through here
+			PreparedSQL:    typedQuery.PreparedSQL,
+			ResultTypeName: "FOO_TODO",
+			ParamTypeName:  "BAR_TODO",
+			Inputs:         typedQuery.Inputs,
+			Outputs:        typedQuery.Outputs,
+		}
+
+		queries = append(queries, tmplQuery)
 	}
 	return queryFile{
-		Src:          file,
-		GoPkg:        pkgName,
-		TypedQueries: queries,
+		Src:     file,
+		GoPkg:   pkgName,
+		Queries: queries,
 	}, nil
 }
