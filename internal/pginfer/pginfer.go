@@ -71,6 +71,11 @@ func (inf *Inferrer) InferTypes(query *ast.SourceQuery) (TypedQuery, error) {
 	if err != nil {
 		return TypedQuery{}, fmt.Errorf("infer output types for query %s: %w", query.Name, err)
 	}
+	if query.ResultKind != ast.ResultKindExec && len(outputs) == 0 {
+		return TypedQuery{}, fmt.Errorf(
+			"query %s has incompatible result kind %s; the query doesn't return any rows",
+			query.Name, query.ResultKind)
+	}
 	return TypedQuery{
 		Name:        query.Name,
 		PreparedSQL: query.PreparedSQL,
