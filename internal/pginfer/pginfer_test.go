@@ -25,9 +25,11 @@ func TestInferrer_InferTypes(t *testing.T) {
 				PreparedSQL: "SELECT first_name FROM author WHERE first_name = $1;",
 				ParamNames:  []string{"FirstName"},
 				ResultKind:  ast.ResultKindMany,
+				Doc:         newCommentGroup("--   Hello  ", "-- name: Foo"),
 			},
 			TypedQuery{
 				Name:        "FindByFirstName",
+				Doc:         []string{"Hello"},
 				PreparedSQL: "SELECT first_name FROM author WHERE first_name = $1;",
 				Inputs: []InputParam{
 					{Name: "FirstName", PgType: pg.Text, GoType: "string"},
@@ -43,9 +45,11 @@ func TestInferrer_InferTypes(t *testing.T) {
 				PreparedSQL: "DELETE FROM author WHERE author_id = $1;",
 				ParamNames:  []string{"AuthorID"},
 				ResultKind:  ast.ResultKindExec,
+				Doc:         newCommentGroup("-- One", "--- - two", "-- name: Foo"),
 			},
 			TypedQuery{
 				Name:        "DeleteAuthorByID",
+				Doc:         []string{"One", "- two"},
 				PreparedSQL: "DELETE FROM author WHERE author_id = $1;",
 				Inputs: []InputParam{
 					{Name: "AuthorID", PgType: pg.Int4, GoType: "int32"},
@@ -122,4 +126,12 @@ func TestInferrer_InferTypes_Error(t *testing.T) {
 			assert.Equal(t, tt.want, err, "InferType error should match")
 		})
 	}
+}
+
+func newCommentGroup(lines ...string) *ast.CommentGroup {
+	cs := make([]*ast.LineComment, len(lines))
+	for i, line := range lines {
+		cs[i] = &ast.LineComment{Text: line}
+	}
+	return &ast.CommentGroup{List: cs}
 }

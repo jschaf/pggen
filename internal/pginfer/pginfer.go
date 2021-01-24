@@ -7,6 +7,7 @@ import (
 	"github.com/jackc/pgx/v4"
 	"github.com/jschaf/sqld/internal/ast"
 	"github.com/jschaf/sqld/internal/pg"
+	"strings"
 	"time"
 )
 
@@ -78,8 +79,10 @@ func (inf *Inferrer) InferTypes(query *ast.SourceQuery) (TypedQuery, error) {
 				"use :exec if query shouldn't return rows",
 			query.Name, query.ResultKind)
 	}
+	doc := extractDoc(query)
 	return TypedQuery{
 		Name:        query.Name,
+		Doc:         doc,
 		PreparedSQL: query.PreparedSQL,
 		Inputs:      inputs,
 		Outputs:     outputs,
@@ -214,4 +217,19 @@ func createParamArgs(query *ast.SourceQuery) []interface{} {
 		args[i] = nil
 	}
 	return args
+}
+
+func extractDoc(query *ast.SourceQuery) []string {
+	if query.Doc == nil || len(query.Doc.List) <= 1 {
+		return nil
+	}
+	// Drop last line, like: "-- name: Foo :exec"
+	lines := make([]string, len(query.Doc.List)-1)
+	for i := range lines {
+		comment := query.Doc.List[i].Text
+		// TrimLeft to remove runs of dashes. TrimPrefix only removes fixed number.
+		noDashes := strings.TrimLeft(comment, "-")
+		lines[i] = strings.TrimSpace(noDashes)
+	}
+	return lines
 }
