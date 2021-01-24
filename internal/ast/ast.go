@@ -22,7 +22,7 @@ var kindNames = [...]string{
 	KindLineComment:   "LineComment",
 	KindCommentGroup:  "CommentGroup",
 	KindBadQuery:      "BadQuery",
-	KindTemplateQuery: "TemplateQuery",
+	KindTemplateQuery: "SourceQuery",
 	KindFile:          "File",
 }
 
@@ -79,12 +79,12 @@ type (
 		From, To gotok.Pos // position range of bad declaration
 	}
 
-	// An TemplateQuery node represents a query entry.
-	TemplateQuery struct {
+	// An SourceQuery node represents a query entry from the source code.
+	SourceQuery struct {
 		Name        string        // name of the query
 		Doc         *CommentGroup // associated documentation; or nil
 		Start       gotok.Pos     // position of the start token, like 'SELECT' or 'UPDATE'
-		TemplateSQL string        // the complete sql query as it appeared in the source file
+		SourceSQL   string        // the complete sql query as it appeared in the source file
 		PreparedSQL string        // the sql query with args replaced by $1, $2, etc.
 		ParamNames  []string      // the name of each param in the PreparedSQL, the nth entry is the $n+1 param
 		ResultKind  ResultKind    // the result output type
@@ -97,10 +97,10 @@ func (q *BadQuery) End() gotok.Pos { return q.To }
 func (q *BadQuery) Kind() NodeKind { return KindBadQuery }
 func (*BadQuery) queryNode()       {}
 
-func (q *TemplateQuery) Pos() gotok.Pos { return q.Start }
-func (q *TemplateQuery) End() gotok.Pos { return q.Semi }
-func (q *TemplateQuery) Kind() NodeKind { return KindTemplateQuery }
-func (*TemplateQuery) queryNode()       {}
+func (q *SourceQuery) Pos() gotok.Pos { return q.Start }
+func (q *SourceQuery) End() gotok.Pos { return q.Semi }
+func (q *SourceQuery) Kind() NodeKind { return KindTemplateQuery }
+func (*SourceQuery) queryNode()       {}
 
 // ----------------------------------------------------------------------------
 // Files and packages

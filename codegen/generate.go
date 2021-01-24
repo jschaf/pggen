@@ -38,7 +38,7 @@ type GenerateOptions struct {
 	OutputDir string
 }
 
-// Generate generates Go code to safely wrap each SQL TemplateQuery in
+// Generate generates Go code to safely wrap each SQL SourceQuery in
 // opts.QueryFiles into a callable methods.
 //
 // Generate must only be called once per output directory.
@@ -75,10 +75,10 @@ func Generate(opts GenerateOptions) error {
 
 // queryFile represents all of the SQL queries from a single file.
 type queryFile struct {
-	GoPkg           string               // the name of the Go package for the file
-	Src             string               // the source file
-	TemplateQueries []*ast.TemplateQuery // the queries as they appeared in the source file
-	TypedQueries    []pginfer.TypedQuery // the queries after inferring type information
+	GoPkg         string               // the name of the Go package for the file
+	Src           string               // the source file
+	SourceQueries []*ast.SourceQuery   // the queries as they appeared in the source file
+	TypedQueries  []pginfer.TypedQuery // the queries after inferring type information
 }
 
 func parseQueryFiles(opts GenerateOptions, queryFiles []string) ([]queryFile, error) {
@@ -88,7 +88,7 @@ func parseQueryFiles(opts GenerateOptions, queryFiles []string) ([]queryFile, er
 		pkgName = filepath.Base(opts.OutputDir)
 	}
 	for i, file := range queryFiles {
-		queryFile, err := parseTemplateQueries(pkgName, file)
+		queryFile, err := parseSourceQueries(pkgName, file)
 		if err != nil {
 			return nil, fmt.Errorf("parse template query file %q: %w", file, err)
 		}
@@ -97,32 +97,32 @@ func parseQueryFiles(opts GenerateOptions, queryFiles []string) ([]queryFile, er
 	return files, nil
 }
 
-func parseTemplateQueries(pkgName string, file string) (queryFile, error) {
+func parseSourceQueries(pkgName string, file string) (queryFile, error) {
 	astFile, err := parser.ParseFile(gotok.NewFileSet(), file, nil, 0)
 	if err != nil {
 		return queryFile{}, fmt.Errorf("parse query file %q: %w", file, err)
 	}
-	tmplQueries := make([]*ast.TemplateQuery, 0, len(astFile.Queries))
+	srcQueries := make([]*ast.SourceQuery, 0, len(astFile.Queries))
 	for _, query := range astFile.Queries {
 		switch q := query.(type) {
 		case *ast.BadQuery:
 			return queryFile{}, errors.New("parsed bad query instead of erroring")
-		case *ast.TemplateQuery:
-			tmplQueries = append(tmplQueries, q)
+		case *ast.SourceQuery:
+			srcQueries = append(srcQueries, q)
 		default:
 			return queryFile{}, fmt.Errorf("unhandled query ast type: %T", q)
 		}
 	}
 	return queryFile{
-		Src:             file,
-		GoPkg:           pkgName,
-		TemplateQueries: tmplQueries,
-		TypedQueries:    nil,
+		Src:           file,
+		GoPkg:         pkgName,
+		SourceQueries: srcQueries,
+		TypedQueries:  nil,
 	}, nil
 }
 
 func inferTypedQueries(inf *pginfer.Inferrer, file queryFile) (queryFile, error) {
-	for _, query := range file.TemplateQueries {
+	for _, query := range file.SourceQueries {
 		typedQuery, err := inf.InferTypes(query)
 		if err != nil {
 			return queryFile{}, fmt.Errorf("infer typed named query %q: %w", query.Name, err)

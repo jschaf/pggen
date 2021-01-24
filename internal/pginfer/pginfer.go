@@ -12,8 +12,8 @@ import (
 
 const defaultTimeout = 3 * time.Second
 
-// TypedQuery is an enriched form of TemplateQuery after running it on Postgres to get
-// information about the TemplateQuery.
+// TypedQuery is an enriched form of SourceQuery after running it on Postgres
+// to get information about the SourceQuery.
 type TypedQuery struct {
 	// Name of the query, from the comment preceding the query. Like 'FindAuthors'
 	// in:
@@ -62,7 +62,7 @@ func NewInferrer(conn *pgx.Conn) *Inferrer {
 	return &Inferrer{conn: conn}
 }
 
-func (inf *Inferrer) InferTypes(query *ast.TemplateQuery) (TypedQuery, error) {
+func (inf *Inferrer) InferTypes(query *ast.SourceQuery) (TypedQuery, error) {
 	inputs, err := inf.inferInputTypes(query)
 	if err != nil {
 		return TypedQuery{}, fmt.Errorf("infer input types for query %s: %w", query.Name, err)
@@ -79,7 +79,7 @@ func (inf *Inferrer) InferTypes(query *ast.TemplateQuery) (TypedQuery, error) {
 	}, nil
 }
 
-func (inf *Inferrer) inferInputTypes(query *ast.TemplateQuery) ([]InputParam, error) {
+func (inf *Inferrer) inferInputTypes(query *ast.SourceQuery) ([]InputParam, error) {
 	// Prepare the query so we can get the parameter types from Postgres.
 	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
 	defer cancel()
@@ -122,7 +122,7 @@ func (inf *Inferrer) inferInputTypes(query *ast.TemplateQuery) ([]InputParam, er
 	return params, nil
 }
 
-func (inf *Inferrer) inferOutputTypes(query *ast.TemplateQuery) ([]OutputColumn, error) {
+func (inf *Inferrer) inferOutputTypes(query *ast.SourceQuery) ([]OutputColumn, error) {
 	// If the query has no output, we don't have to infer the output types.
 	if hasOutput, err := inf.hasOutput(query); err != nil {
 		return nil, fmt.Errorf("check query has output: %w", err)
@@ -170,7 +170,7 @@ func (inf *Inferrer) inferOutputTypes(query *ast.TemplateQuery) ([]OutputColumn,
 }
 
 // hasOutput explains the query to determine if it has any output columns.
-func (inf *Inferrer) hasOutput(query *ast.TemplateQuery) (bool, error) {
+func (inf *Inferrer) hasOutput(query *ast.SourceQuery) (bool, error) {
 	explainQuery := `EXPLAIN (VERBOSE, FORMAT JSON) ` + query.PreparedSQL
 	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
 	defer cancel()
@@ -201,7 +201,7 @@ func chooseGoName(s string) string {
 	return s
 }
 
-func createParamArgs(query *ast.TemplateQuery) []interface{} {
+func createParamArgs(query *ast.SourceQuery) []interface{} {
 	args := make([]interface{}, len(query.ParamNames))
 	for i := range query.ParamNames {
 		args[i] = nil

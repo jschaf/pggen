@@ -13,7 +13,7 @@ func ignoreCommentPos() cmp.Option {
 }
 
 func ignoreQueryPos() cmp.Option {
-	return cmpopts.IgnoreFields(ast.TemplateQuery{}, "Start", "Semi")
+	return cmpopts.IgnoreFields(ast.SourceQuery{}, "Start", "Semi")
 }
 
 func TestParseFile_Queries(t *testing.T) {
@@ -23,30 +23,30 @@ func TestParseFile_Queries(t *testing.T) {
 	}{
 		{
 			"-- name: Qux :many\nSELECT 1;",
-			&ast.TemplateQuery{
+			&ast.SourceQuery{
 				Name:        "Qux",
 				Doc:         &ast.CommentGroup{List: []*ast.LineComment{{Text: "-- name: Qux :many"}}},
-				TemplateSQL: "SELECT 1;",
+				SourceSQL:   "SELECT 1;",
 				PreparedSQL: "SELECT 1;",
 				ResultKind:  ast.ResultKindMany,
 			},
 		},
 		{
 			"-- name: Foo :one\nSELECT 1;",
-			&ast.TemplateQuery{
+			&ast.SourceQuery{
 				Name:        "Foo",
 				Doc:         &ast.CommentGroup{List: []*ast.LineComment{{Text: "-- name: Foo :one"}}},
-				TemplateSQL: "SELECT 1;",
+				SourceSQL:   "SELECT 1;",
 				PreparedSQL: "SELECT 1;",
 				ResultKind:  ast.ResultKindOne,
 			},
 		},
 		{
 			"-- name: Qux   :exec\nSELECT pggen.arg('Bar');",
-			&ast.TemplateQuery{
+			&ast.SourceQuery{
 				Name:        "Qux",
 				Doc:         &ast.CommentGroup{List: []*ast.LineComment{{Text: "-- name: Qux   :exec"}}},
-				TemplateSQL: "SELECT pggen.arg('Bar');",
+				SourceSQL:   "SELECT pggen.arg('Bar');",
 				PreparedSQL: "SELECT $1;",
 				ParamNames:  []string{"Bar"},
 				ResultKind:  ast.ResultKindExec,
@@ -54,10 +54,10 @@ func TestParseFile_Queries(t *testing.T) {
 		},
 		{
 			"-- name: Qux :one\nSELECT pggen.arg('A$_$$B123');",
-			&ast.TemplateQuery{
+			&ast.SourceQuery{
 				Name:        "Qux",
 				Doc:         &ast.CommentGroup{List: []*ast.LineComment{{Text: "-- name: Qux :one"}}},
-				TemplateSQL: "SELECT pggen.arg('A$_$$B123');",
+				SourceSQL:   "SELECT pggen.arg('A$_$$B123');",
 				PreparedSQL: "SELECT $1;",
 				ParamNames:  []string{"A$_$$B123"},
 				ResultKind:  ast.ResultKindOne,
@@ -65,10 +65,10 @@ func TestParseFile_Queries(t *testing.T) {
 		},
 		{
 			"-- name: Qux :many\nSELECT pggen.arg('Bar'), pggen.arg('Qux'), pggen.arg('Bar');",
-			&ast.TemplateQuery{
+			&ast.SourceQuery{
 				Name:        "Qux",
 				Doc:         &ast.CommentGroup{List: []*ast.LineComment{{Text: "-- name: Qux :many"}}},
-				TemplateSQL: "SELECT pggen.arg('Bar'), pggen.arg('Qux'), pggen.arg('Bar');",
+				SourceSQL:   "SELECT pggen.arg('Bar'), pggen.arg('Qux'), pggen.arg('Bar');",
 				PreparedSQL: "SELECT $1, $2, $1;",
 				ParamNames:  []string{"Bar", "Qux"},
 				ResultKind:  ast.ResultKindMany,
@@ -83,7 +83,7 @@ func TestParseFile_Queries(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			got := f.Queries[0].(*ast.TemplateQuery)
+			got := f.Queries[0].(*ast.SourceQuery)
 
 			if diff := cmp.Diff(tt.want, got, ignoreCommentPos(), ignoreQueryPos()); diff != "" {
 				t.Errorf("ParseFile() query mismatch (-want +got):\n%s", diff)

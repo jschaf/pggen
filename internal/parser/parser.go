@@ -240,11 +240,11 @@ func (p *parser) parseQuery() ast.Query {
 	templateSQL := sql.String()
 	preparedSQL, params := prepareSQL(templateSQL)
 
-	return &ast.TemplateQuery{
+	return &ast.SourceQuery{
 		Name:        annotations[1],
 		Doc:         doc,
 		Start:       pos,
-		TemplateSQL: templateSQL,
+		SourceSQL:   templateSQL,
 		PreparedSQL: preparedSQL,
 		ParamNames:  params,
 		ResultKind:  ast.ResultKind(annotations[2]),

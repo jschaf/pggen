@@ -15,11 +15,11 @@ func TestInferrer_InferTypes(t *testing.T) {
 	defer cleanupFunc()
 
 	tests := []struct {
-		query *ast.TemplateQuery
+		query *ast.SourceQuery
 		want  TypedQuery
 	}{
 		{
-			&ast.TemplateQuery{
+			&ast.SourceQuery{
 				Name:        "FindByFirstName",
 				PreparedSQL: "SELECT first_name FROM author WHERE first_name = $1;",
 				ParamNames:  []string{"FirstName"},
@@ -36,7 +36,7 @@ func TestInferrer_InferTypes(t *testing.T) {
 			},
 		},
 		{
-			&ast.TemplateQuery{
+			&ast.SourceQuery{
 				Name:        "DeleteAuthorByID",
 				PreparedSQL: "DELETE FROM author WHERE author_id = $1;",
 				ParamNames:  []string{"AuthorID"},
@@ -51,7 +51,7 @@ func TestInferrer_InferTypes(t *testing.T) {
 			},
 		},
 		{
-			&ast.TemplateQuery{
+			&ast.SourceQuery{
 				Name:        "DeleteAuthorByIDReturning",
 				PreparedSQL: "DELETE FROM author WHERE author_id = $1 RETURNING author_id, first_name;",
 				ParamNames:  []string{"AuthorID"},
