@@ -16,11 +16,10 @@ const defaultTimeout = 3 * time.Second
 // to get information about the SourceQuery.
 type TypedQuery struct {
 	// Name of the query, from the comment preceding the query. Like 'FindAuthors'
-	// in:
-	//     -- name: FindAuthors :many
+	// in the source SQL: "-- name: FindAuthors :many"
 	Name string
 	// The SQL query, with pggen functions replaced with Postgres syntax. Ready
-	// to run with PREPARE.
+	// to run on Postgres with the PREPARE statement.
 	PreparedSQL string
 	// The input parameters to the query.
 	Inputs []InputParam
