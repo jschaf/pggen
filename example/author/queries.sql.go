@@ -10,6 +10,48 @@ import (
 	"github.com/jschaf/sqld"
 )
 
+// Querier is a typesafe Go interface backed by SQL queries.
+//
+// Methods ending with Batch enqueue a query to run later in a pgx.Batch. After
+// calling SendBatch on pgx.Conn, pgxpool.Pool, or pgx.Tx, use the Scan methods
+// to parse the results.
+type Querier interface {
+	// FindAuthors finds authors by first name.
+	FindAuthors(ctx context.Context, firstName string) ([]Author, error)
+	// FindAuthorsBatch enqueues a FindAuthors query into batch to be executed
+	// later by the batch.
+	FindAuthorsBatch(ctx context.Context, batch pgx.Batch, firstName string)
+	// FindAuthorsScan scans the result of an executed FindAuthorsBatch query.
+	FindAuthorsScan(ctx context.Context, results pgx.BatchResults) ([]Author, error)
+
+	// DeleteAuthors deletes authors with a first name of "joe".
+	DeleteAuthors(ctx context.Context) (pgconn.CommandTag, error)
+	// DeleteAuthorsBatch enqueues a DeleteAuthors query into batch to be executed
+	// later by the batch.
+	DeleteAuthorsBatch(ctx context.Context, batch *pgx.Batch)
+	// DeleteAuthorsScan scans the result of an executed DeleteAuthorsBatch query.
+	DeleteAuthorsScan(ctx context.Context, results pgx.BatchResults) (pgconn.CommandTag, error)
+}
+
+type DBQuerier struct {
+	conn sqld.Conn
+}
+
+var _ Querier = &DBQuerier{}
+
+// NewQuerier creates a DBQuerier that implements Querier. conn is typically
+// *pgx.Conn, pgx.Tx, or *pgxpool.Pool.
+func NewQuerier(conn sqld.Conn) *DBQuerier {
+	return &DBQuerier{
+		conn: conn,
+	}
+}
+
+// WithTx creates a new DBQuerier that uses the transaction to run all queries.
+func (q *DBQuerier) WithTx(tx pgx.Tx) (*DBQuerier, error) {
+	return &DBQuerier{conn: tx}, nil
+}
+
 const findAuthorsSQL = `SELECT * FROM author WHERE first_name = $1;`
 
 type Author struct {
@@ -19,16 +61,10 @@ type Author struct {
 
 // FindAuthors implements Querier.FindAuthors.
 func (q *DBQuerier) FindAuthors(ctx context.Context, firstName string) (result []Author, mErr error) {
-	trace := sqld.ContextClientTrace(ctx)
-	traceSendQuery(trace, extractConfig(q.conn), findAuthorsSQL)
 	rows, err := q.conn.Query(ctx, findAuthorsSQL, firstName)
-	cmdTag := pgconn.CommandTag{}
 	if rows != nil {
-		cmdTag = rows.CommandTag()
 		defer rows.Close()
 	}
-	traceGotResponse(trace, rows, cmdTag, err)
-	defer traceScanResponse(trace, mErr)
 	if err != nil {
 		return nil, fmt.Errorf("query FindAuthors: %w", err)
 	}
@@ -48,13 +84,11 @@ func (q *DBQuerier) FindAuthors(ctx context.Context, firstName string) (result [
 
 // FindAuthorsBatch implements Querier.FindAuthorsBatch.
 func (q *DBQuerier) FindAuthorsBatch(ctx context.Context, batch pgx.Batch, firstName string) {
-	traceEnqueueQuery(sqld.ContextClientTrace(ctx), findAuthorsSQL)
 	batch.Queue(findAuthorsSQL, firstName)
 }
 
 // FindAuthorsScan implements Querier.FindAuthorsScan.
 func (q *DBQuerier) FindAuthorsScan(ctx context.Context, results pgx.BatchResults) (result []Author, mErr error) {
-	defer traceScanResponse(sqld.ContextClientTrace(ctx), mErr)
 	rows, err := results.Query()
 	if rows != nil {
 		defer rows.Close()
@@ -80,23 +114,17 @@ const deleteAuthorsSQL = `DELETE FROM author where first_name = 'joe'`
 
 // DeleteAuthors implements Querier.DeleteAuthors.
 func (q *DBQuerier) DeleteAuthors(ctx context.Context) (pgconn.CommandTag, error) {
-	trace := sqld.ContextClientTrace(ctx)
-	traceSendQuery(trace, extractConfig(q.conn), findAuthorsSQL)
 	cmdTag, err := q.conn.Exec(ctx, deleteAuthorsSQL)
-	traceGotResponse(trace, nil, cmdTag, err)
-	traceScanResponse(trace, err)
 	return cmdTag, err
 }
 
 // DeleteAuthorsBatch implements Querier.DeleteAuthorsBatch.
 func (q *DBQuerier) DeleteAuthorsBatch(ctx context.Context, batch *pgx.Batch) {
-	traceEnqueueQuery(sqld.ContextClientTrace(ctx), deleteAuthorsSQL)
 	batch.Queue(deleteAuthorsSQL)
 }
 
 // DeleteAuthorsScan implements Querier.DeleteAuthorsScan.
 func (q *DBQuerier) DeleteAuthorsScan(ctx context.Context, results pgx.BatchResults) (tag pgconn.CommandTag, mErr error) {
-	defer traceScanResponse(sqld.ContextClientTrace(ctx), mErr)
 	cmdTag, err := results.Exec()
 	return cmdTag, err
 }

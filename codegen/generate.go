@@ -33,8 +33,8 @@ type GenerateOptions struct {
 	// The name of the Go package for the file. If empty, defaults to the
 	// directory name.
 	GoPackage string
-	// Directory to write generated files. Writes one file for each query file as
-	// well as querier.go.
+	// Directory to write generated files. Writes one file for each query file.
+	// If more than one query file, also writes querier.go.
 	OutputDir string
 }
 
