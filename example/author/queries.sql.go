@@ -19,7 +19,7 @@ type Querier interface {
 	FindAuthors(ctx context.Context, firstName string) ([]FindAuthorsRow, error)
 	// FindAuthorsBatch enqueues a FindAuthors query into batch to be executed
 	// later by the batch.
-	FindAuthorsBatch(ctx context.Context, batch pgx.Batch, firstName string)
+	FindAuthorsBatch(ctx context.Context, batch *pgx.Batch, firstName string)
 	// FindAuthorsScan scans the result of an executed FindAuthorsBatch query.
 	FindAuthorsScan(ctx context.Context, results pgx.BatchResults) ([]FindAuthorsRow, error)
 
@@ -101,7 +101,7 @@ func (q *DBQuerier) FindAuthors(ctx context.Context, firstName string) (result [
 }
 
 // FindAuthorsBatch implements Querier.FindAuthorsBatch.
-func (q *DBQuerier) FindAuthorsBatch(ctx context.Context, batch pgx.Batch, firstName string) {
+func (q *DBQuerier) FindAuthorsBatch(ctx context.Context, batch *pgx.Batch, firstName string) {
 	batch.Queue(findAuthorsSQL, firstName)
 }
 
