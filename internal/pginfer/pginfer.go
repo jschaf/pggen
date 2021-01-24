@@ -18,6 +18,8 @@ type TypedQuery struct {
 	// Name of the query, from the comment preceding the query. Like 'FindAuthors'
 	// in the source SQL: "-- name: FindAuthors :many"
 	Name string
+	// The comment lines preceding the query, excluding the :name line.
+	Doc []string
 	// The SQL query, with pggen functions replaced with Postgres syntax. Ready
 	// to run on Postgres with the PREPARE statement.
 	PreparedSQL string
@@ -72,7 +74,8 @@ func (inf *Inferrer) InferTypes(query *ast.SourceQuery) (TypedQuery, error) {
 	}
 	if query.ResultKind != ast.ResultKindExec && len(outputs) == 0 {
 		return TypedQuery{}, fmt.Errorf(
-			"query %s has incompatible result kind %s; the query doesn't return any rows",
+			"query %s has incompatible result kind %s; the query doesn't return any rows; "+
+				"use :exec if query shouldn't return rows",
 			query.Name, query.ResultKind)
 	}
 	return TypedQuery{
