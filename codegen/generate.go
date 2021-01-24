@@ -170,7 +170,6 @@ func parseQueries(pkgName string, file string, inferrer *pginfer.Inferrer) (quer
 			}
 		}
 
-		// Param types
 		tmplQuery := templateQuery{
 			Name:        typedQuery.Name,
 			ResultKind:  typedQuery.ResultKind,
