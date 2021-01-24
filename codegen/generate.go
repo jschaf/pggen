@@ -4,9 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/iancoleman/strcase"
 	"github.com/jackc/pgx/v4"
 	"github.com/jschaf/pggen/internal/ast"
+	"github.com/jschaf/pggen/internal/casing"
 	"github.com/jschaf/pggen/internal/parser"
 	"github.com/jschaf/pggen/internal/pginfer"
 	_ "github.com/jschaf/pggen/statik"
@@ -152,11 +152,14 @@ func parseQueries(pkgName string, file string, inferrer *pginfer.Inferrer) (quer
 			docs.WriteRune('\n')
 		}
 
+		caser := casing.NewCaser()
+		caser.AddAcronym("id", "ID")
+
 		// Build inputs.
 		inputs := make([]goInputParam, len(typedQuery.Inputs))
 		for i, input := range typedQuery.Inputs {
 			inputs[i] = goInputParam{
-				Name:   strcase.ToCamel(input.PgName),
+				Name:   caser.ToUpperCamel(input.PgName),
 				GoType: pgToGoType(input.PgType),
 			}
 		}
@@ -165,7 +168,7 @@ func parseQueries(pkgName string, file string, inferrer *pginfer.Inferrer) (quer
 		outputs := make([]goOutputColumn, len(typedQuery.Outputs))
 		for i, out := range typedQuery.Outputs {
 			outputs[i] = goOutputColumn{
-				GoName: strcase.ToCamel(out.PgName),
+				GoName: caser.ToUpperCamel(out.PgName),
 				GoType: pgToGoType(out.PgType),
 			}
 		}

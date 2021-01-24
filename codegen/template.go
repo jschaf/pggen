@@ -74,6 +74,16 @@ func (tq templateQuery) ExpandQueryResult() (string, error) {
 	}
 }
 
+func getLongestField(outs []goOutputColumn) int {
+	max := 0
+	for _, out := range outs {
+		if len(out.GoName) > max {
+			max = len(out.GoName)
+		}
+	}
+	return max
+}
+
 func (tq templateQuery) ExpandQueryParamsStruct() string {
 	switch tq.ResultKind {
 	case ast.ResultKindExec:
@@ -86,10 +96,11 @@ func (tq templateQuery) ExpandQueryParamsStruct() string {
 		sb.WriteString("\n\ntype ")
 		sb.WriteString(tq.Name)
 		sb.WriteString("Row struct {\n")
+		typeCol := getLongestField(tq.Outputs) + 1 // 1 space
 		for _, out := range tq.Outputs {
 			sb.WriteString("\t")
 			sb.WriteString(out.GoName)
-			sb.WriteString("   ")
+			sb.WriteString(strings.Repeat(" ", typeCol-len(out.GoName)))
 			sb.WriteString(out.GoType)
 			sb.WriteRune('\n')
 		}
