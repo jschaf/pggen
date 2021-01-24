@@ -74,6 +74,32 @@ func (tq templateQuery) ExpandQueryResult() (string, error) {
 	}
 }
 
+func (tq templateQuery) ExpandQueryParamsStruct() string {
+	switch tq.ResultKind {
+	case ast.ResultKindExec:
+		return ""
+	case ast.ResultKindOne, ast.ResultKindMany:
+		if len(tq.Outputs) <= 1 {
+			return ""
+		}
+		sb := &strings.Builder{}
+		sb.WriteString("\n\ntype ")
+		sb.WriteString(tq.Name)
+		sb.WriteString("Row struct {\n")
+		for _, out := range tq.Outputs {
+			sb.WriteString("\t")
+			sb.WriteString(out.GoName)
+			sb.WriteString("   ")
+			sb.WriteString(out.GoType)
+			sb.WriteRune('\n')
+		}
+		sb.WriteString("}\n")
+		return sb.String()
+	default:
+		panic("unhandled result type: " + tq.ResultKind)
+	}
+}
+
 // emitAll emits all query files.
 func emitAll(outDir string, queries []queryFile) error {
 	tmpl, err := parseQueryTemplate()

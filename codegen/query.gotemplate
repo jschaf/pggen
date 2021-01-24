@@ -69,7 +69,8 @@ func (q *DBQuerier) WithTx(tx pgx.Tx) (*DBQuerier, error) {
 }
 
 {{range .Queries -}}
-	const {{lowercaseFirstLetter .Name}}SQL = `{{.PreparedSQL}}`
+const {{lowercaseFirstLetter .Name}}SQL = `{{.PreparedSQL}}`
+{{- .ExpandQueryParamsStruct }}
 {{end}}
 
 {{end}}
