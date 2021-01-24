@@ -60,15 +60,15 @@ func parseQueryTemplate() (*template.Template, error) {
 }
 
 // emitQueryFile emits a single query file.
-func emitQueryFile(outDir string, query queryFile, tmpl *template.Template) (mErr error) {
-	base := filepath.Base(query.Src)
+func emitQueryFile(outDir string, queryFile queryFile, tmpl *template.Template) (mErr error) {
+	base := filepath.Base(queryFile.Src)
 	out := filepath.Join(outDir, base+".go")
 	file, err := os.OpenFile(out, os.O_CREATE|os.O_WRONLY, 0644)
 	defer errs.Capture(&mErr, file.Close, "close emit query file")
 	if err != nil {
 		return fmt.Errorf("open generated query file for writing: %w", err)
 	}
-	if err := tmpl.ExecuteTemplate(file, "gen_query", query); err != nil {
+	if err := tmpl.ExecuteTemplate(file, "gen_query", queryFile); err != nil {
 		return fmt.Errorf("execute generated query file template %s: %w", out, err)
 	}
 	return nil

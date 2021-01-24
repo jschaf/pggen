@@ -20,10 +20,10 @@ func TestNewQuerier_FindAuthors(t *testing.T) {
 
 	tests := []struct {
 		firstName string
-		want      []Author
+		want      []FindAuthorsRow
 	}{
-		{"john", []Author{{FirstName: "john", LastName: "adams"}}},
-		{"george", []Author{{FirstName: "george", LastName: "washington"}, {FirstName: "george", LastName: "carver"}}},
+		{"john", []FindAuthorsRow{{FirstName: "john", LastName: "adams"}}},
+		{"george", []FindAuthorsRow{{FirstName: "george", LastName: "washington"}, {FirstName: "george", LastName: "carver"}}},
 		{"joe", nil},
 	}
 

@@ -16,12 +16,12 @@ import (
 // to parse the results.
 type Querier interface {
 	// FindAuthors finds authors by first name.
-	FindAuthors(ctx context.Context, firstName string) ([]Author, error)
+	FindAuthors(ctx context.Context, firstName string) ([]FindAuthorsRow, error)
 	// FindAuthorsBatch enqueues a FindAuthors query into batch to be executed
 	// later by the batch.
 	FindAuthorsBatch(ctx context.Context, batch pgx.Batch, firstName string)
 	// FindAuthorsScan scans the result of an executed FindAuthorsBatch query.
-	FindAuthorsScan(ctx context.Context, results pgx.BatchResults) ([]Author, error)
+	FindAuthorsScan(ctx context.Context, results pgx.BatchResults) ([]FindAuthorsRow, error)
 
 	// DeleteAuthors deletes authors with a first name of "joe".
 	DeleteAuthors(ctx context.Context) (pgconn.CommandTag, error)
@@ -72,13 +72,13 @@ func (q *DBQuerier) WithTx(tx pgx.Tx) (*DBQuerier, error) {
 
 const findAuthorsSQL = `SELECT * FROM author WHERE first_name = $1;`
 
-type Author struct {
+type FindAuthorsRow struct {
 	FirstName string
 	LastName  string
 }
 
 // FindAuthors implements Querier.FindAuthors.
-func (q *DBQuerier) FindAuthors(ctx context.Context, firstName string) (result []Author, mErr error) {
+func (q *DBQuerier) FindAuthors(ctx context.Context, firstName string) (result []FindAuthorsRow, mErr error) {
 	rows, err := q.conn.Query(ctx, findAuthorsSQL, firstName)
 	if rows != nil {
 		defer rows.Close()
@@ -86,9 +86,9 @@ func (q *DBQuerier) FindAuthors(ctx context.Context, firstName string) (result [
 	if err != nil {
 		return nil, fmt.Errorf("query FindAuthors: %w", err)
 	}
-	var items []Author
+	var items []FindAuthorsRow
 	for rows.Next() {
-		var item Author
+		var item FindAuthorsRow
 		if err := rows.Scan(&item.FirstName, &item.LastName); err != nil {
 			return nil, fmt.Errorf("scan FindAuthors row: %w", err)
 		}
@@ -106,7 +106,7 @@ func (q *DBQuerier) FindAuthorsBatch(ctx context.Context, batch pgx.Batch, first
 }
 
 // FindAuthorsScan implements Querier.FindAuthorsScan.
-func (q *DBQuerier) FindAuthorsScan(ctx context.Context, results pgx.BatchResults) (result []Author, mErr error) {
+func (q *DBQuerier) FindAuthorsScan(ctx context.Context, results pgx.BatchResults) (result []FindAuthorsRow, mErr error) {
 	rows, err := results.Query()
 	if rows != nil {
 		defer rows.Close()
@@ -114,9 +114,9 @@ func (q *DBQuerier) FindAuthorsScan(ctx context.Context, results pgx.BatchResult
 	if err != nil {
 		return nil, err
 	}
-	var items []Author
+	var items []FindAuthorsRow
 	for rows.Next() {
-		var item Author
+		var item FindAuthorsRow
 		if err := rows.Scan(&item.FirstName, &item.LastName); err != nil {
 			return nil, fmt.Errorf("scan FindAuthors batch row: %w", err)
 		}

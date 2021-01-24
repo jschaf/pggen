@@ -38,7 +38,7 @@ type GenerateOptions struct {
 	OutputDir string
 }
 
-// Generate generates Go code to safely wrap each SQL SourceQuery in
+// Generate generates Go code to safely wrap each SQL ast.SourceQuery in
 // opts.QueryFiles into a callable methods.
 //
 // Generate must only be called once per output directory.
@@ -68,8 +68,8 @@ func Generate(opts GenerateOptions) error {
 
 // queryFile represents all of the SQL queries from a single file.
 type queryFile struct {
-	GoPkg        string               // the name of the Go package for the file
-	Src          string               // the source file
+	GoPkg        string               // the name of the Go package to use for the generated file
+	Src          string               // the source SQL file base name
 	TypedQueries []pginfer.TypedQuery // the queries after inferring type information
 }
 
