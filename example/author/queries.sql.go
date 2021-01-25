@@ -90,7 +90,7 @@ func (q *DBQuerier) FindAuthors(ctx context.Context, firstName string) ([]FindAu
 	var items []FindAuthorsRow
 	for rows.Next() {
 		var item FindAuthorsRow
-		if err := rows.Scan(&item.FirstName, &item.LastName); err != nil {
+		if err := rows.Scan(&item.AuthorID, &item.FirstName, &item.LastName); err != nil {
 			return nil, fmt.Errorf("scan FindAuthors row: %w", err)
 		}
 		items = append(items, item)
@@ -118,7 +118,7 @@ func (q *DBQuerier) FindAuthorsScan(ctx context.Context, results pgx.BatchResult
 	var items []FindAuthorsRow
 	for rows.Next() {
 		var item FindAuthorsRow
-		if err := rows.Scan(&item.FirstName, &item.LastName); err != nil {
+		if err := rows.Scan(&item.AuthorID, &item.FirstName, &item.LastName); err != nil {
 			return nil, fmt.Errorf("scan FindAuthors batch row: %w", err)
 		}
 		items = append(items, item)

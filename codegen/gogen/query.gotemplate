@@ -68,12 +68,15 @@ func (q *DBQuerier) WithTx(tx pgx.Tx) (*DBQuerier, error) {
 	return &DBQuerier{conn: tx}, nil
 }
 
-{{range $i, $q := .Queries -}}
+{{- range $i, $q := .Queries -}}
+{{- "\n\n" -}}
 const {{ $q.SQLVarName }} = `{{ $q.PreparedSQL }}`
-{{- $q.EmitParamsStruct }}
-{{- "\n" -}}
+{{- $q.EmitParamsStruct -}}
+{{- "\n\n" -}}
 // {{ $q.Name }} implements Querier.{{ $q.Name }}.
 func (q *DBQuerier) {{ $q.Name }}(ctx context.Context {{- $q.EmitParams }}) ({{ $q.EmitResult }}, error) {
+{{- if eq $q.ResultKind ":one" }}
+{{- else if eq $q.ResultKind ":many" }}
 	rows, err := q.conn.Query(ctx, {{ $q.SQLVarName }} {{- $q.EmitParamNames }})
 	if rows != nil {
 		defer rows.Close()
@@ -84,7 +87,7 @@ func (q *DBQuerier) {{ $q.Name }}(ctx context.Context {{- $q.EmitParams }}) ({{ 
 	var items {{ $q.EmitResult }}
 	for rows.Next() {
 		var item {{ $q.EmitResultElem }}
-		if err := rows.Scan(&item.FirstName, &item.LastName); err != nil {
+		if err := rows.Scan({{- $q.EmitRowScanArgs -}}); err != nil {
 			return nil, fmt.Errorf("scan {{ $q.Name }} row: %w", err)
 		}
 		items = append(items, item)
@@ -93,6 +96,10 @@ func (q *DBQuerier) {{ $q.Name }}(ctx context.Context {{- $q.EmitParams }}) ({{ 
 		return nil, err
 	}
 	return items, err
+{{- else if eq $q.ResultKind ":exec" }}
+	cmdTag, err := q.conn.Exec(ctx, {{ $q.SQLVarName }})
+	return cmdTag, err
+{{- end }}
 }
 
 // {{$q.Name}}Batch implements Querier.{{$q.Name}}Batch.
@@ -102,6 +109,8 @@ func (q *DBQuerier) {{.Name}}Batch(ctx context.Context, batch *pgx.Batch {{- $q.
 
 // {{.Name}}Scan implements Querier.{{$q.Name}}Scan.
 func (q *DBQuerier) {{.Name}}Scan(ctx context.Context, results pgx.BatchResults) ({{ $q.EmitResult }}, error) {
+{{- if eq $q.ResultKind ":one" }}
+{{- else if eq $q.ResultKind ":many" }}
 	rows, err := results.Query()
 	if rows != nil {
 		defer rows.Close()
@@ -112,7 +121,7 @@ func (q *DBQuerier) {{.Name}}Scan(ctx context.Context, results pgx.BatchResults)
 	var items {{ $q.EmitResult }}
 	for rows.Next() {
 		var item {{ $q.EmitResultElem }}
-		if err := rows.Scan(&item.FirstName, &item.LastName); err != nil {
+		if err := rows.Scan({{- $q.EmitRowScanArgs -}}); err != nil {
 			return nil, fmt.Errorf("scan {{ $q.Name }} batch row: %w", err)
 		}
 		items = append(items, item)
@@ -121,8 +130,11 @@ func (q *DBQuerier) {{.Name}}Scan(ctx context.Context, results pgx.BatchResults)
 		return nil, err
 	}
 	return items, err
+{{- else if eq $q.ResultKind ":exec" }}
+	cmdTag, err := results.Exec()
+	return cmdTag, err
+{{- end }}
 }
-
-{{end}}
-
-{{end}}
+{{- end -}}
+{{- "\n" -}}
+{{- end -}}

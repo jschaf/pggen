@@ -65,6 +65,37 @@ func (tq goTemplateQuery) EmitParamNames() string {
 	}
 }
 
+// EmitRowScanArgs emits the args to scan a single row from a pgx.Row or
+// pgx.Rows.
+func (tq goTemplateQuery) EmitRowScanArgs() (string, error) {
+	switch tq.ResultKind {
+	case ast.ResultKindExec:
+		return "", fmt.Errorf("cannot EmitRowScanArgs for :exec query %s", tq.Name)
+	case ast.ResultKindMany, ast.ResultKindOne:
+		switch len(tq.Outputs) {
+		case 0:
+			return "", nil
+		case 1:
+			// If there's only 1 output column, we return it directly, without
+			// wrapping in a struct.
+			return "&item", nil
+		default:
+			sb := strings.Builder{}
+			sb.Grow(15 * len(tq.Outputs))
+			for i, out := range tq.Outputs {
+				sb.WriteString("&item.")
+				sb.WriteString(out.Name)
+				if i < len(tq.Outputs)-1 {
+					sb.WriteString(", ")
+				}
+			}
+			return sb.String(), nil
+		}
+	default:
+		return "", fmt.Errorf("unhandled EmitRowScanArgs type: %s", tq.ResultKind)
+	}
+}
+
 // EmitResult returns the string representing the overall query result type,
 // meaning the return result.
 func (tq goTemplateQuery) EmitResult() (string, error) {
@@ -138,7 +169,7 @@ func (tq goTemplateQuery) EmitParamsStruct() string {
 			sb.WriteString(out.Type)
 			sb.WriteRune('\n')
 		}
-		sb.WriteString("}\n")
+		sb.WriteString("}")
 		return sb.String()
 	default:
 		panic("unhandled result type: " + tq.ResultKind)
