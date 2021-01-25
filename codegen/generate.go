@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"github.com/jackc/pgx/v4"
 	"github.com/jschaf/pggen/codegen/gen"
-	"github.com/jschaf/pggen/codegen/gogen"
+	"github.com/jschaf/pggen/codegen/golang"
 	"github.com/jschaf/pggen/internal/ast"
 	"github.com/jschaf/pggen/internal/parser"
 	"github.com/jschaf/pggen/internal/pginfer"
@@ -37,7 +37,7 @@ func Generate(opts gen.GenerateOptions) error {
 
 	switch opts.Language {
 	case gen.LangGo:
-		if err := gogen.Generate(opts, queryFiles); err != nil {
+		if err := golang.Generate(opts, queryFiles); err != nil {
 			return fmt.Errorf("generate go code: %w", err)
 		}
 	default:

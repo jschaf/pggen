@@ -1,4 +1,4 @@
-package gogen
+package golang
 
 import (
 	"github.com/jackc/pgtype"
