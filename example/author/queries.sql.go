@@ -123,13 +123,13 @@ func (q *DBQuerier) FindAuthorsScan(ctx context.Context, results pgx.BatchResult
 		}
 		items = append(items, item)
 	}
-	if rows.Err() != nil {
+	if err := rows.Err(); err != nil {
 		return nil, err
 	}
 	return items, err
 }
 
-const deleteAuthorsSQL = `DELETE FROM author where first_name = 'joe'`
+const deleteAuthorsSQL = `DELETE FROM author where first_name = 'joe';`
 
 // DeleteAuthors implements Querier.DeleteAuthors.
 func (q *DBQuerier) DeleteAuthors(ctx context.Context) (pgconn.CommandTag, error) {

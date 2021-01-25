@@ -21,6 +21,7 @@ type goQueryFile struct {
 // codegen template.
 type goTemplateQuery struct {
 	Name        string           // name of the query, from the comment preceding the query
+	SQLVarName  string           // name of the string variable containing the SQL
 	ResultKind  ast.ResultKind   // kind of result. :one, :many, or :exec
 	Doc         string           // doc from the source query file, formatted for Go
 	PreparedSQL string           // SQL query, ready to run with PREPARE statement
@@ -93,6 +94,7 @@ func buildGoQueryFile(pkgName string, file gen.QueryFile) goQueryFile {
 
 		queries = append(queries, goTemplateQuery{
 			Name:        query.Name,
+			SQLVarName:  lowercaseFirstLetter(query.Name) + "SQL",
 			ResultKind:  query.ResultKind,
 			Doc:         docs.String(),
 			PreparedSQL: query.PreparedSQL,

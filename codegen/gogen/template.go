@@ -26,8 +26,9 @@ func lowercaseFirstLetter(s string) string {
 	return strings.ToLower(string(first)) + rest
 }
 
-// ExpandQueryParams expands the TemplateQuery.Inputs based on the number of
-// params.
+// ExpandQueryParams expands the goTemplateQuery.Inputs into method parameters
+// with both a name and type based on the number of params. For use in a method
+// definition.
 func (tq goTemplateQuery) ExpandQueryParams() string {
 	switch len(tq.Inputs) {
 	case 0:
@@ -46,7 +47,26 @@ func (tq goTemplateQuery) ExpandQueryParams() string {
 	}
 }
 
-// ExpandQueryResult returns the string representing the query result type.
+// ExpandQueryParamNames expands the goTemplateQuery.Inputs into comma separated
+// names for use in a method invocation.
+func (tq goTemplateQuery) ExpandQueryParamNames() string {
+	switch len(tq.Inputs) {
+	case 0:
+		return ""
+	case 1, 2:
+		sb := strings.Builder{}
+		for _, input := range tq.Inputs {
+			sb.WriteString(", ")
+			sb.WriteString(lowercaseFirstLetter(input.Name))
+		}
+		return sb.String()
+	default:
+		return ", " + tq.Name + "Params"
+	}
+}
+
+// ExpandQueryResult returns the string representing the overall query result
+// type, meaning the return result.
 func (tq goTemplateQuery) ExpandQueryResult() (string, error) {
 	switch tq.ResultKind {
 	case ast.ResultKindExec:
@@ -70,8 +90,20 @@ func (tq goTemplateQuery) ExpandQueryResult() (string, error) {
 			return tq.Name + "Row", nil
 		}
 	default:
-		return "", fmt.Errorf("unhandled result type: %s", tq.ResultKind)
+		return "", fmt.Errorf("unhandled ExpandQueryResult type: %s", tq.ResultKind)
 	}
+}
+
+// ExpandQueryResultOne returns the string representing a single item in the
+// overall query result type. For :one and :exec queries, this is the same as
+// ExpandQueryResult. For :many queries, this is the element type of the slice
+// result type.
+func (tq goTemplateQuery) ExpandQueryResultOne() (string, error) {
+	result, err := tq.ExpandQueryResult()
+	if err != nil {
+		return "", fmt.Errorf("unhandled ExpandQueryResultOne type: %w", err)
+	}
+	return strings.TrimPrefix(result, "[]"), nil
 }
 
 func getLongestField(outs []goOutputColumn) int {
