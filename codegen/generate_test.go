@@ -1,6 +1,7 @@
 package codegen
 
 import (
+	"github.com/jschaf/pggen/codegen/gen"
 	"github.com/jschaf/pggen/internal/pgtest"
 	"github.com/stretchr/testify/assert"
 	"io/ioutil"
@@ -8,7 +9,7 @@ import (
 	"testing"
 )
 
-func TestGenerate_Example_Author(t *testing.T) {
+func TestGenerate_Go_Example_Author(t *testing.T) {
 	conn, cleanupFunc := pgtest.NewPostgresSchema(t, []string{
 		"../example/author/schema.sql",
 	})
@@ -16,14 +17,15 @@ func TestGenerate_Example_Author(t *testing.T) {
 
 	tmpDir := t.TempDir()
 	err := Generate(
-		GenerateOptions{
+		gen.GenerateOptions{
 			ConnString: conn.Config().ConnString(),
 			QueryFiles: []string{
 				"../example/author/queries.sql",
 			},
-			Config:    Config{},
+			Config:    gen.Config{},
 			OutputDir: tmpDir,
 			GoPackage: "author",
+			Language:  gen.LangGo,
 		})
 	if err != nil {
 		t.Fatalf("Generate() example/author: %s", err)

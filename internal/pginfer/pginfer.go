@@ -22,7 +22,8 @@ type TypedQuery struct {
 	Name string
 	// The result output kind, :one, :many, or :exec.
 	ResultKind ast.ResultKind
-	// The comment lines preceding the query, excluding the :name line.
+	// The comment lines preceding the query, without the SQL comment syntax and
+	// excluding the :name line.
 	Doc []string
 	// The SQL query, with pggen functions replaced with Postgres syntax. Ready
 	// to run on Postgres with the PREPARE statement.

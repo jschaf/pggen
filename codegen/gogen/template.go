@@ -1,4 +1,4 @@
-package codegen
+package gogen
 
 import (
 	"fmt"
@@ -26,9 +26,9 @@ func lowercaseFirstLetter(s string) string {
 	return strings.ToLower(string(first)) + rest
 }
 
-// ExpandQueryParams expands the templateQuery.Inputs based on the number of
+// ExpandQueryParams expands the TemplateQuery.Inputs based on the number of
 // params.
-func (tq templateQuery) ExpandQueryParams() string {
+func (tq goTemplateQuery) ExpandQueryParams() string {
 	switch len(tq.Inputs) {
 	case 0:
 		return ""
@@ -38,7 +38,7 @@ func (tq templateQuery) ExpandQueryParams() string {
 			sb.WriteString(", ")
 			sb.WriteString(lowercaseFirstLetter(input.Name))
 			sb.WriteRune(' ')
-			sb.WriteString(input.GoType)
+			sb.WriteString(input.Type)
 		}
 		return sb.String()
 	default:
@@ -47,7 +47,7 @@ func (tq templateQuery) ExpandQueryParams() string {
 }
 
 // ExpandQueryResult returns the string representing the query result type.
-func (tq templateQuery) ExpandQueryResult() (string, error) {
+func (tq goTemplateQuery) ExpandQueryResult() (string, error) {
 	switch tq.ResultKind {
 	case ast.ResultKindExec:
 		return "pgconn.CommandTag", nil
@@ -56,7 +56,7 @@ func (tq templateQuery) ExpandQueryResult() (string, error) {
 		case 0:
 			return "pgconn.CommandTag", nil
 		case 1:
-			return "[]" + tq.Outputs[0].GoType, nil
+			return "[]" + tq.Outputs[0].Type, nil
 		default:
 			return "[]" + tq.Name + "Row", nil
 		}
@@ -65,7 +65,7 @@ func (tq templateQuery) ExpandQueryResult() (string, error) {
 		case 0:
 			return "pgconn.CommandTag", nil
 		case 1:
-			return tq.Outputs[0].GoType, nil
+			return tq.Outputs[0].Type, nil
 		default:
 			return tq.Name + "Row", nil
 		}
@@ -77,14 +77,14 @@ func (tq templateQuery) ExpandQueryResult() (string, error) {
 func getLongestField(outs []goOutputColumn) int {
 	max := 0
 	for _, out := range outs {
-		if len(out.GoName) > max {
-			max = len(out.GoName)
+		if len(out.Name) > max {
+			max = len(out.Name)
 		}
 	}
 	return max
 }
 
-func (tq templateQuery) ExpandQueryParamsStruct() string {
+func (tq goTemplateQuery) ExpandQueryParamsStruct() string {
 	switch tq.ResultKind {
 	case ast.ResultKindExec:
 		return ""
@@ -99,9 +99,9 @@ func (tq templateQuery) ExpandQueryParamsStruct() string {
 		typeCol := getLongestField(tq.Outputs) + 1 // 1 space
 		for _, out := range tq.Outputs {
 			sb.WriteString("\t")
-			sb.WriteString(out.GoName)
-			sb.WriteString(strings.Repeat(" ", typeCol-len(out.GoName)))
-			sb.WriteString(out.GoType)
+			sb.WriteString(out.Name)
+			sb.WriteString(strings.Repeat(" ", typeCol-len(out.Name)))
+			sb.WriteString(out.Type)
 			sb.WriteRune('\n')
 		}
 		sb.WriteString("}\n")
@@ -111,26 +111,12 @@ func (tq templateQuery) ExpandQueryParamsStruct() string {
 	}
 }
 
-// emitAll emits all query files.
-func emitAll(outDir string, queries []queryFile) error {
-	tmpl, err := parseQueryTemplate()
-	if err != nil {
-		return err
-	}
-	for _, query := range queries {
-		if err := emitQueryFile(outDir, query, tmpl); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 func parseQueryTemplate() (*template.Template, error) {
 	statikFS, err := fs.New()
 	if err != nil {
 		return nil, fmt.Errorf("create statik filesystem: %w", err)
 	}
-	tmplFile, err := statikFS.Open("/query.gotemplate")
+	tmplFile, err := statikFS.Open("/gogen/query.gotemplate")
 	if err != nil {
 		return nil, fmt.Errorf("open embedded template file: %w", err)
 	}
@@ -147,7 +133,7 @@ func parseQueryTemplate() (*template.Template, error) {
 }
 
 // emitQueryFile emits a single query file.
-func emitQueryFile(outDir string, queryFile queryFile, tmpl *template.Template) (mErr error) {
+func emitQueryFile(outDir string, queryFile goQueryFile, tmpl *template.Template) (mErr error) {
 	base := filepath.Base(queryFile.Src)
 	out := filepath.Join(outDir, base+".go")
 	file, err := os.OpenFile(out, os.O_CREATE|os.O_WRONLY, 0644)

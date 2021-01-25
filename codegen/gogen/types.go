@@ -1,4 +1,4 @@
-package codegen
+package gogen
 
 import "github.com/jschaf/pggen/internal/pg"
 
