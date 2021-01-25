@@ -26,10 +26,10 @@ func lowercaseFirstLetter(s string) string {
 	return strings.ToLower(string(first)) + rest
 }
 
-// ExpandQueryParams expands the goTemplateQuery.Inputs into method parameters
-// with both a name and type based on the number of params. For use in a method
+// EmitParams emits the goTemplateQuery.Inputs into method parameters with both
+// a name and type based on the number of params. For use in a method
 // definition.
-func (tq goTemplateQuery) ExpandQueryParams() string {
+func (tq goTemplateQuery) EmitParams() string {
 	switch len(tq.Inputs) {
 	case 0:
 		return ""
@@ -47,9 +47,9 @@ func (tq goTemplateQuery) ExpandQueryParams() string {
 	}
 }
 
-// ExpandQueryParamNames expands the goTemplateQuery.Inputs into comma separated
-// names for use in a method invocation.
-func (tq goTemplateQuery) ExpandQueryParamNames() string {
+// EmitParamNames emits the goTemplateQuery.Inputs into comma separated names
+// for use in a method invocation.
+func (tq goTemplateQuery) EmitParamNames() string {
 	switch len(tq.Inputs) {
 	case 0:
 		return ""
@@ -65,9 +65,9 @@ func (tq goTemplateQuery) ExpandQueryParamNames() string {
 	}
 }
 
-// ExpandQueryResult returns the string representing the overall query result
-// type, meaning the return result.
-func (tq goTemplateQuery) ExpandQueryResult() (string, error) {
+// EmitResult returns the string representing the overall query result type,
+// meaning the return result.
+func (tq goTemplateQuery) EmitResult() (string, error) {
 	switch tq.ResultKind {
 	case ast.ResultKindExec:
 		return "pgconn.CommandTag", nil
@@ -90,18 +90,18 @@ func (tq goTemplateQuery) ExpandQueryResult() (string, error) {
 			return tq.Name + "Row", nil
 		}
 	default:
-		return "", fmt.Errorf("unhandled ExpandQueryResult type: %s", tq.ResultKind)
+		return "", fmt.Errorf("unhandled EmitResult type: %s", tq.ResultKind)
 	}
 }
 
-// ExpandQueryResultOne returns the string representing a single item in the
-// overall query result type. For :one and :exec queries, this is the same as
-// ExpandQueryResult. For :many queries, this is the element type of the slice
-// result type.
-func (tq goTemplateQuery) ExpandQueryResultOne() (string, error) {
-	result, err := tq.ExpandQueryResult()
+// EmitResultElem returns the string representing a single item in the overall
+// query result type. For :one and :exec queries, this is the same as
+// EmitResult. For :many queries, this is the element type of the slice result
+// type.
+func (tq goTemplateQuery) EmitResultElem() (string, error) {
+	result, err := tq.EmitResult()
 	if err != nil {
-		return "", fmt.Errorf("unhandled ExpandQueryResultOne type: %w", err)
+		return "", fmt.Errorf("unhandled EmitResultElem type: %w", err)
 	}
 	return strings.TrimPrefix(result, "[]"), nil
 }
@@ -116,7 +116,9 @@ func getLongestField(outs []goOutputColumn) int {
 	return max
 }
 
-func (tq goTemplateQuery) ExpandQueryParamsStruct() string {
+// EmitParamsStruct writes the struct definition for query params if one is
+// needed.
+func (tq goTemplateQuery) EmitParamsStruct() string {
 	switch tq.ResultKind {
 	case ast.ResultKindExec:
 		return ""

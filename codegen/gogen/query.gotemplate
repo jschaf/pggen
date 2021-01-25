@@ -20,12 +20,12 @@ import (
 type Querier interface {
 {{- range $i, $q := .Queries }}
 	{{ .Doc  | trimTrailingNewline }}
-	{{.Name}}(ctx context.Context {{- $q.ExpandQueryParams }}) ({{ $q.ExpandQueryResult }}, error)
+	{{.Name}}(ctx context.Context {{- $q.EmitParams }}) ({{ $q.EmitResult }}, error)
 	// {{.Name}}Batch enqueues a {{.Name}} query into batch to be executed
 	// later by the batch.
-	{{.Name}}Batch(ctx context.Context, batch *pgx.Batch {{- $q.ExpandQueryParams }})
+	{{.Name}}Batch(ctx context.Context, batch *pgx.Batch {{- $q.EmitParams }})
 	// {{.Name}}Scan scans the result of an executed {{.Name}}Batch query.
-	{{.Name}}Scan(ctx context.Context, results pgx.BatchResults) ({{ $q.ExpandQueryResult }}, error)
+	{{.Name}}Scan(ctx context.Context, results pgx.BatchResults) ({{ $q.EmitResult }}, error)
 	{{- "\n" -}}
 {{end -}}
 }
@@ -70,20 +70,20 @@ func (q *DBQuerier) WithTx(tx pgx.Tx) (*DBQuerier, error) {
 
 {{range $i, $q := .Queries -}}
 const {{ $q.SQLVarName }} = `{{ $q.PreparedSQL }}`
-{{- $q.ExpandQueryParamsStruct }}
+{{- $q.EmitParamsStruct }}
 {{- "\n" -}}
 // {{ $q.Name }} implements Querier.{{ $q.Name }}.
-func (q *DBQuerier) {{ $q.Name }}(ctx context.Context {{- $q.ExpandQueryParams }}) ({{ $q.ExpandQueryResult }}, error) {
-	rows, err := q.conn.Query(ctx, {{ $q.SQLVarName }} {{- $q.ExpandQueryParamNames }})
+func (q *DBQuerier) {{ $q.Name }}(ctx context.Context {{- $q.EmitParams }}) ({{ $q.EmitResult }}, error) {
+	rows, err := q.conn.Query(ctx, {{ $q.SQLVarName }} {{- $q.EmitParamNames }})
 	if rows != nil {
 		defer rows.Close()
 	}
 	if err != nil {
 		return nil, fmt.Errorf("query {{ $q.Name }}: %w", err)
 	}
-	var items {{ $q.ExpandQueryResult }}
+	var items {{ $q.EmitResult }}
 	for rows.Next() {
-		var item {{ $q.ExpandQueryResultOne }}
+		var item {{ $q.EmitResultElem }}
 		if err := rows.Scan(&item.FirstName, &item.LastName); err != nil {
 			return nil, fmt.Errorf("scan {{ $q.Name }} row: %w", err)
 		}
@@ -96,12 +96,12 @@ func (q *DBQuerier) {{ $q.Name }}(ctx context.Context {{- $q.ExpandQueryParams }
 }
 
 // {{$q.Name}}Batch implements Querier.{{$q.Name}}Batch.
-func (q *DBQuerier) {{.Name}}Batch(ctx context.Context, batch *pgx.Batch {{- $q.ExpandQueryParams }}) {
-	batch.Queue({{ $q.SQLVarName }} {{- $q.ExpandQueryParamNames }})
+func (q *DBQuerier) {{.Name}}Batch(ctx context.Context, batch *pgx.Batch {{- $q.EmitParams }}) {
+	batch.Queue({{ $q.SQLVarName }} {{- $q.EmitParamNames }})
 }
 
 // {{.Name}}Scan implements Querier.{{$q.Name}}Scan.
-func (q *DBQuerier) {{.Name}}Scan(ctx context.Context, results pgx.BatchResults) ({{ $q.ExpandQueryResult }}, error) {
+func (q *DBQuerier) {{.Name}}Scan(ctx context.Context, results pgx.BatchResults) ({{ $q.EmitResult }}, error) {
 	rows, err := results.Query()
 	if rows != nil {
 		defer rows.Close()
@@ -109,9 +109,9 @@ func (q *DBQuerier) {{.Name}}Scan(ctx context.Context, results pgx.BatchResults)
 	if err != nil {
 		return nil, err
 	}
-	var items {{ $q.ExpandQueryResult }}
+	var items {{ $q.EmitResult }}
 	for rows.Next() {
-		var item {{ $q.ExpandQueryResultOne }}
+		var item {{ $q.EmitResultElem }}
 		if err := rows.Scan(&item.FirstName, &item.LastName); err != nil {
 			return nil, fmt.Errorf("scan {{ $q.Name }} batch row: %w", err)
 		}
