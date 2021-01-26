@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"math/rand"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 )
@@ -21,8 +22,8 @@ func init() {
 type CleanupFunc func()
 
 // NewPostgresSchema opens a connection with search_path set to a randomly
-// named, new schema.
-func NewPostgresSchema(t *testing.T, sqlFiles []string) (*pgx.Conn, CleanupFunc) {
+// named, new schema and loads the sql string.
+func NewPostgresSchemaString(t *testing.T, sql string) (*pgx.Conn, CleanupFunc) {
 	t.Helper()
 	// Create a new schema.
 	connStr := "user=postgres password=hunter2 host=localhost port=5555 dbname=pggen"
@@ -43,14 +44,9 @@ func NewPostgresSchema(t *testing.T, sqlFiles []string) (*pgx.Conn, CleanupFunc)
 	if err != nil {
 		t.Fatalf("connect to docker postgres with search path: %s", err)
 	}
-	for _, file := range sqlFiles {
-		bs, err := ioutil.ReadFile(file)
-		if err != nil {
-			t.Fatalf("read test db sql file: %s", err)
-		}
-		if _, err := schemaConn.Exec(ctx, string(bs)); err != nil {
-			t.Fatalf("run sql file %s: %s", file, err)
-		}
+
+	if _, err := schemaConn.Exec(ctx, sql); err != nil {
+		t.Fatalf("run sql: %s", err)
 	}
 
 	cleanup := func() {
@@ -67,4 +63,23 @@ func NewPostgresSchema(t *testing.T, sqlFiles []string) (*pgx.Conn, CleanupFunc)
 		}
 	}
 	return schemaConn, cleanup
+}
+
+// NewPostgresSchema opens a connection with search_path set to a randomly
+// named, new schema and loads all sqlFiles.
+func NewPostgresSchema(t *testing.T, sqlFiles []string) (*pgx.Conn, CleanupFunc) {
+	t.Helper()
+	sb := &strings.Builder{}
+	for _, file := range sqlFiles {
+		bs, err := ioutil.ReadFile(file)
+		if err != nil {
+			t.Fatalf("read test db sql file: %s", err)
+		}
+		sb.Write(bs)
+		sb.WriteString(";\n\n -- FILE: ")
+		sb.WriteString(file)
+		sb.WriteString("\n")
+
+	}
+	return NewPostgresSchemaString(t, sb.String())
 }
