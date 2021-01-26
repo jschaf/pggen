@@ -19,6 +19,15 @@ import (
 //
 // Generate must only be called once per output directory.
 func Generate(opts gen.GenerateOptions) error {
+	if opts.Language == "" {
+		return fmt.Errorf("generate language must be set")
+	}
+	if len(opts.QueryFiles) == 0 {
+		return fmt.Errorf("got 0 query files, at least 1 must be set")
+	}
+	if opts.OutputDir == "" {
+		return fmt.Errorf("output dir must be set")
+	}
 	pgConnConfig, err := pgx.ParseConfig(opts.ConnString)
 	if err != nil {
 		return fmt.Errorf("parse postgres conn string: %w", err)
