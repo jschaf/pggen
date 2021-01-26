@@ -6,6 +6,7 @@ import (
 	"github.com/jackc/pgx/v4"
 	"github.com/jschaf/pggen/internal/pgtest"
 	"github.com/jschaf/pggen/internal/texts"
+	"github.com/stretchr/testify/assert"
 	"testing"
 	"time"
 )
@@ -61,6 +62,13 @@ func TestFetchColumns(t *testing.T) {
 			if diff := cmp.Diff(tt.want, cols); diff != "" {
 				t.Errorf("FetchColumns() query mismatch (-want +got):\n%s", diff)
 			}
+
+			// Test cache.
+			cols2, err := FetchColumns(conn, keys)
+			if err != nil {
+				t.Fatal(err)
+			}
+			assert.Equal(t, cols, cols2, "same fetch columns in succession")
 		})
 	}
 }

@@ -7,6 +7,7 @@ import (
 	"github.com/jschaf/pggen/internal/texts"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -28,7 +29,10 @@ type ColumnKey struct {
 	Num      int
 }
 
-var columnsCache = make(map[ColumnKey]Column, 32)
+var (
+	columnsMu    = &sync.Mutex{}
+	columnsCache = make(map[ColumnKey]Column, 32)
+)
 
 // FetchColumns fetches meta information about a Postgres column from the
 // pg_class and pg_attribute catalog tables.
@@ -37,16 +41,29 @@ func FetchColumns(conn *pgx.Conn, keys []ColumnKey) ([]Column, error) {
 		return nil, nil
 	}
 
+	// Try cache first.
+	uncachedKeys := make([]ColumnKey, 0, len(keys))
+	columnsMu.Lock()
+	for _, key := range keys {
+		if _, ok := columnsCache[key]; !ok {
+			uncachedKeys = append(uncachedKeys, key)
+		}
+	}
+	columnsMu.Unlock()
+	if len(uncachedKeys) == 0 {
+		return fetchCachedColumns(keys)
+	}
+
 	// Build query predicate.
 	predicate := &strings.Builder{}
-	predicate.Grow(len(keys) * 15)
-	for i, key := range keys {
+	predicate.Grow(len(uncachedKeys) * 40)
+	for i, key := range uncachedKeys {
 		predicate.WriteString("(cls.oid = ")
 		predicate.WriteString(strconv.Itoa(int(key.TableOID)))
 		predicate.WriteString(" AND attr.attnum = ")
 		predicate.WriteString(strconv.Itoa(key.Num))
 		predicate.WriteString(")")
-		if i < len(keys)-1 {
+		if i < len(uncachedKeys)-1 {
 			predicate.WriteString("\n    OR ")
 		}
 	}
@@ -60,7 +77,7 @@ func FetchColumns(conn *pgx.Conn, keys []ColumnKey) ([]Column, error) {
 					 attr.attnotnull AS col_null
 		FROM pg_class cls
 					 JOIN pg_attribute attr ON (attr.attrelid = cls.oid)
-	`) + "\n    WHERE " + predicate.String()
+	`) + "\nWHERE " + predicate.String()
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 	rows, err := conn.Query(ctx, q)
@@ -81,12 +98,17 @@ func FetchColumns(conn *pgx.Conn, keys []ColumnKey) ([]Column, error) {
 		return nil, fmt.Errorf("close fetch column rows: %w", err)
 	}
 
-	// Return the columns in requested order.
+	return fetchCachedColumns(keys)
+}
+
+func fetchCachedColumns(keys []ColumnKey) ([]Column, error) {
 	cols := make([]Column, 0, len(keys))
+	columnsMu.Lock()
+	defer columnsMu.Unlock()
 	for _, key := range keys {
 		col, ok := columnsCache[key]
 		if !ok {
-			return nil, fmt.Errorf("missing column after fetch table_oid=%d Num=%d", key.TableOID, key.Num)
+			return nil, fmt.Errorf("missing column in fetch cache table_oid=%d Num=%d", key.TableOID, key.Num)
 		}
 		cols = append(cols, col)
 	}
