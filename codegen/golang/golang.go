@@ -79,7 +79,7 @@ func buildGoQueryFile(pkgName string, file gen.QueryFile) goQueryFile {
 		for i, input := range query.Inputs {
 			inputs[i] = goInputParam{
 				Name: caser.ToUpperCamel(input.PgName),
-				Type: pgToGoType(input.PgType),
+				Type: pgToGoType(input.PgType, false),
 			}
 		}
 
@@ -88,7 +88,7 @@ func buildGoQueryFile(pkgName string, file gen.QueryFile) goQueryFile {
 		for i, out := range query.Outputs {
 			outputs[i] = goOutputColumn{
 				Name: caser.ToUpperCamel(out.PgName),
-				Type: pgToGoType(out.PgType),
+				Type: pgToGoType(out.PgType, out.Nullable),
 			}
 		}
 

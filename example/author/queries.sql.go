@@ -129,7 +129,7 @@ func (q *DBQuerier) FindAuthorsScan(ctx context.Context, results pgx.BatchResult
 	return items, err
 }
 
-const deleteAuthorsSQL = `DELETE FROM author where first_name = 'joe';`
+const deleteAuthorsSQL = `DELETE FROM author WHERE first_name = 'joe';`
 
 // DeleteAuthors implements Querier.DeleteAuthors.
 func (q *DBQuerier) DeleteAuthors(ctx context.Context) (pgconn.CommandTag, error) {
