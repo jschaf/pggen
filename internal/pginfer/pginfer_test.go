@@ -52,6 +52,27 @@ func TestInferrer_InferTypes(t *testing.T) {
 					{PgName: "FirstName", PgType: pg.Text},
 				},
 				Outputs: []OutputColumn{
+					{PgName: "first_name", PgType: pg.Text, Nullable: false},
+				},
+			},
+		},
+		{
+			&ast.SourceQuery{
+				Name:        "FindByFirstNameJoin",
+				PreparedSQL: "SELECT a1.first_name FROM author a1 JOIN author a2 USING (author_id) WHERE a1.first_name = $1;",
+				ParamNames:  []string{"FirstName"},
+				ResultKind:  ast.ResultKindMany,
+				Doc:         newCommentGroup("--   Hello  ", "-- name: Foo"),
+			},
+			TypedQuery{
+				Name:        "FindByFirstNameJoin",
+				ResultKind:  ast.ResultKindMany,
+				Doc:         []string{"Hello"},
+				PreparedSQL: "SELECT a1.first_name FROM author a1 JOIN author a2 USING (author_id) WHERE a1.first_name = $1;",
+				Inputs: []InputParam{
+					{PgName: "FirstName", PgType: pg.Text},
+				},
+				Outputs: []OutputColumn{
 					{PgName: "first_name", PgType: pg.Text, Nullable: true},
 				},
 			},
