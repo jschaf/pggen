@@ -90,8 +90,8 @@ func TestInferrer_InferTypes(t *testing.T) {
 					{PgName: "AuthorID", PgType: pg.Int4},
 				},
 				Outputs: []OutputColumn{
-					{PgName: "author_id", PgType: pg.Int4, Nullable: true},
-					{PgName: "first_name", PgType: pg.Text, Nullable: true},
+					{PgName: "author_id", PgType: pg.Int4, Nullable: false},
+					{PgName: "first_name", PgType: pg.Text, Nullable: false},
 				},
 			},
 		},

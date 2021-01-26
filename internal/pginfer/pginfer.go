@@ -236,7 +236,7 @@ func (inf *Inferrer) inferOutputNullability(query *ast.SourceQuery, descs []pgpr
 	if len(descs) == 0 {
 		return nil, nil
 	}
-	planType, outputs, err := inf.explainQuery(query)
+	plan, err := inf.explainQuery(query)
 	if err != nil {
 		return nil, err
 	}
@@ -258,8 +258,8 @@ func (inf *Inferrer) inferOutputNullability(query *ast.SourceQuery, descs []pgpr
 	// The nth entry determines if the output column described by descs[n] is
 	// nullable.
 	nullables := make([]bool, len(descs))
-	for i, out := range outputs {
-		nullables[i] = isColNullable(query, planType, out, cols[i])
+	for i, out := range plan.Outputs {
+		nullables[i] = isColNullable(query, plan, out, cols[i])
 	}
 	return nullables, nil
 }
