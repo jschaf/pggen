@@ -20,7 +20,7 @@ import (
 // Generate must only be called once per output directory.
 func Generate(opts gen.GenerateOptions) error {
 	if opts.Language == "" {
-		return fmt.Errorf("generate language must be set")
+		return fmt.Errorf("generate language must be set; got empty string")
 	}
 	if len(opts.QueryFiles) == 0 {
 		return fmt.Errorf("got 0 query files, at least 1 must be set")
