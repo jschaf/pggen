@@ -15,7 +15,7 @@ import (
 )
 
 // Generate generates language specific code to safely wrap each SQL
-// ast.SourceQuery in opts.QueryFiles into a callable methods.
+// ast.SourceQuery in opts.QueryFiles.
 //
 // Generate must only be called once per output directory.
 func Generate(opts gen.GenerateOptions) error {

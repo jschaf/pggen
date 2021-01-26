@@ -9,7 +9,7 @@ import (
 type Lang string
 
 const (
-	LangGo = "go"
+	LangGo Lang = "go"
 )
 
 // GenerateOptions are the unparsed options that controls the generated Go code.
