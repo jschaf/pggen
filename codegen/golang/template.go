@@ -181,7 +181,7 @@ func parseQueryTemplate() (*template.Template, error) {
 	if err != nil {
 		return nil, fmt.Errorf("create statik filesystem: %w", err)
 	}
-	tmplFile, err := statikFS.Open("/gogen/query.gotemplate")
+	tmplFile, err := statikFS.Open("/golang/query.gotemplate")
 	if err != nil {
 		return nil, fmt.Errorf("open embedded template file: %w", err)
 	}
