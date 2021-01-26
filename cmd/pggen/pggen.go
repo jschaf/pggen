@@ -4,8 +4,10 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"github.com/jschaf/pggen/internal/flags"
 	"github.com/peterbourgon/ff/v3/ffcli"
 	"os"
+	"strings"
 )
 
 const flagHelp = `
@@ -36,13 +38,15 @@ func run() error {
 
 func newGenCmd() *ffcli.Command {
 	fset := flag.NewFlagSet("go", flag.ExitOnError)
+	fset.String("output-dir", "", "where to write generated code; defaults to query file dir")
+	queryFiles := flags.Strings(fset, "query-file", nil, "generate code for query file")
 	goSubCmd := &ffcli.Command{
 		Name:       "go",
 		ShortUsage: "pggen gen go [options...]",
 		ShortHelp:  "generates go code for Postgres query files",
 		FlagSet:    fset,
 		Exec: func(ctx context.Context, args []string) error {
-			fmt.Println("gen go")
+			fmt.Println("gen go: " + strings.Join(*queryFiles, ","))
 			return nil
 		},
 	}
