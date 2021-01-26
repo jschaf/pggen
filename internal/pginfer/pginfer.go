@@ -10,7 +10,6 @@ import (
 	"github.com/jschaf/pggen/internal/pg"
 	"strings"
 	"time"
-	"unicode"
 )
 
 const defaultTimeout = 3 * time.Second
@@ -237,29 +236,30 @@ func (inf *Inferrer) inferOutputNullability(query *ast.SourceQuery, descs []pgpr
 	if len(descs) == 0 {
 		return nil, nil
 	}
-	_, outputs, err := inf.explainQuery(query)
+	planType, outputs, err := inf.explainQuery(query)
 	if err != nil {
 		return nil, err
+	}
+
+	columnKeys := make([]pg.ColumnKey, len(descs))
+	for i, desc := range descs {
+		if desc.TableOID > 0 {
+			columnKeys[i] = pg.ColumnKey{
+				TableOID: desc.TableOID,
+				Number:   desc.TableAttributeNumber,
+			}
+		}
+	}
+	cols, err := pg.FetchColumns(inf.conn, columnKeys)
+	if err != nil {
+		return nil, fmt.Errorf("fetch column for nullability: %w", err)
 	}
 
 	// The nth entry determines if the output column described by descs[n] is
 	// nullable.
 	nullables := make([]bool, len(descs))
 	for i, out := range outputs {
-		// Try to prove the column is not nullable. Strive for correctness here:
-		// it's better to assume a column is nullable when we can't know for sure.
-		switch {
-		case len(out) == 0:
-			// No output? Not sure what this means but do the check here so we don't
-			// have to do it in each case below.
-			nullables[i] = false
-		case strings.HasPrefix(out, "'"):
-			nullables[i] = false // literal string can't be null
-		case unicode.IsDigit(rune(out[0])):
-			nullables[i] = false // literal number can't be null
-		default:
-			nullables[i] = true // we can't figure it out; assume nullable
-		}
+		nullables[i] = isColNullable(query, planType, out, cols[i])
 	}
 	return nullables, nil
 }

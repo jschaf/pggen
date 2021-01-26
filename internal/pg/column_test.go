@@ -15,29 +15,29 @@ func TestFetchColumns(t *testing.T) {
 	tests := []struct {
 		name    string
 		schema  string
-		colNums []int
+		colNums []uint16
 		want    []Column
 	}{
 		{"empty", "", nil, nil},
 		{
 			"one col null",
 			"CREATE TABLE author ( first_name text );",
-			[]int{1},
-			[]Column{{Name: "first_name", TableName: "author", Order: 1, Null: true}},
+			[]uint16{1},
+			[]Column{{Name: "first_name", TableName: "author", Number: 1, Null: true}},
 		},
 		{
 			"one col not null",
 			"CREATE TABLE author ( first_name text NOT NULL);",
-			[]int{1},
-			[]Column{{Name: "first_name", TableName: "author", Order: 1, Null: false}},
+			[]uint16{1},
+			[]Column{{Name: "first_name", TableName: "author", Number: 1, Null: false}},
 		},
 		{
 			"two col mixed",
 			"CREATE TABLE author ( first_name text NOT NULL, last_name text);",
-			[]int{2, 1},
+			[]uint16{2, 1},
 			[]Column{
-				{Name: "last_name", TableName: "author", Order: 2, Null: true},
-				{Name: "first_name", TableName: "author", Order: 1, Null: false},
+				{Name: "last_name", TableName: "author", Number: 2, Null: true},
+				{Name: "first_name", TableName: "author", Number: 1, Null: false},
 			},
 		},
 	}
