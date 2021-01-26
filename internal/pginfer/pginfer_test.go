@@ -30,8 +30,8 @@ func TestInferrer_InferTypes(t *testing.T) {
 				ResultKind:  ast.ResultKindOne,
 				PreparedSQL: "SELECT 1 as one, 'foo' as two",
 				Outputs: []OutputColumn{
-					{PgName: "one", PgType: pg.Int4},
-					{PgName: "two", PgType: pg.Text},
+					{PgName: "one", PgType: pg.Int4, Nullable: false},
+					{PgName: "two", PgType: pg.Text, Nullable: false},
 				},
 			},
 		},
@@ -52,7 +52,7 @@ func TestInferrer_InferTypes(t *testing.T) {
 					{PgName: "FirstName", PgType: pg.Text},
 				},
 				Outputs: []OutputColumn{
-					{PgName: "first_name", PgType: pg.Text},
+					{PgName: "first_name", PgType: pg.Text, Nullable: true},
 				},
 			},
 		},
@@ -90,8 +90,8 @@ func TestInferrer_InferTypes(t *testing.T) {
 					{PgName: "AuthorID", PgType: pg.Int4},
 				},
 				Outputs: []OutputColumn{
-					{PgName: "author_id", PgType: pg.Int4},
-					{PgName: "first_name", PgType: pg.Text},
+					{PgName: "author_id", PgType: pg.Int4, Nullable: true},
+					{PgName: "first_name", PgType: pg.Text, Nullable: true},
 				},
 			},
 		},

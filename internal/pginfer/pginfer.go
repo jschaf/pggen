@@ -10,6 +10,7 @@ import (
 	"github.com/jschaf/pggen/internal/pg"
 	"strings"
 	"time"
+	"unicode"
 )
 
 const defaultTimeout = 3 * time.Second
@@ -50,6 +51,10 @@ type OutputColumn struct {
 	PgName string
 	// The postgres type of the column as reported by Postgres.
 	PgType pg.Type
+	// If the type can be null; depends on the query. A column defined
+	// with a NOT NULL constraint can still be null in the output with a left
+	// join. Nullability is determined using rudimentary control-flow analysis.
+	Nullable bool
 }
 
 type Inferrer struct {
@@ -176,6 +181,12 @@ func (inf *Inferrer) inferOutputTypes(query *ast.SourceQuery) ([]OutputColumn, e
 		return nil, fmt.Errorf("fetch oid types: %w", err)
 	}
 
+	// Output nullability.
+	nullables, err := inf.inferOutputNullability(query, descriptions)
+	if err != nil {
+		return nil, fmt.Errorf("infer output type nullability: %w", err)
+	}
+
 	// Create output columns
 	outs := make([]OutputColumn, len(descriptions))
 	for i, desc := range descriptions {
@@ -184,10 +195,10 @@ func (inf *Inferrer) inferOutputTypes(query *ast.SourceQuery) ([]OutputColumn, e
 			return nil, fmt.Errorf("no type name found for oid %d", desc.DataTypeOID)
 		}
 		outs[i] = OutputColumn{
-			PgName: string(desc.Name),
-			PgType: pgType,
+			PgName:   string(desc.Name),
+			PgType:   pgType,
+			Nullable: nullables[i],
 		}
-		typeOIDs[i] = desc.DataTypeOID
 	}
 	return outs, nil
 }
@@ -218,6 +229,63 @@ func (inf *Inferrer) hasOutput(query *ast.SourceQuery) (bool, error) {
 		return false, fmt.Errorf("explain output 'Plan.Output' is not []interface")
 	}
 	return len(outs) > 0, nil
+}
+
+// inferOutputNullability infers which of the output columns produced by the
+// query and described by descs can be null.
+func (inf *Inferrer) inferOutputNullability(query *ast.SourceQuery, descs []pgproto3.FieldDescription) ([]bool, error) {
+	if len(descs) == 0 {
+		return nil, nil
+	}
+	// Execute explain plan to get the format of the output columns. Check for
+	// literal output which can't be null.
+	explainQuery := `EXPLAIN (VERBOSE, FORMAT JSON) ` + query.PreparedSQL
+	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
+	defer cancel()
+	row := inf.conn.QueryRow(ctx, explainQuery, createParamArgs(query)...)
+	explain := make([]map[string]map[string]interface{}, 0, 1)
+	if err := row.Scan(&explain); err != nil {
+		return nil, fmt.Errorf("explain prepared query: %w", err)
+	}
+	if len(explain) == 0 {
+		return nil, fmt.Errorf("no explain output")
+	}
+	plan, ok := explain[0]["Plan"]
+	if !ok {
+		return nil, fmt.Errorf("explain output had no 'Plan' node")
+	}
+	rawOuts, ok := plan["Output"]
+	if !ok {
+		return nil, fmt.Errorf("explain output had no 'Plan.Output' node")
+	}
+	outs, ok := rawOuts.([]interface{})
+	if !ok {
+		return nil, fmt.Errorf("explain output 'Plan.Output' is not []interface{}; got type %T for value %v", outs, outs)
+	}
+	// The nth entry determines if the output column described by descs[n] is
+	// nullable.
+	nullables := make([]bool, len(descs))
+	for i, out := range outs {
+		out, ok := out.(string)
+		if !ok {
+			return nil, fmt.Errorf("explain output 'Plan.Output[%d]' was not a string; got type %T for value %v", i, out, out)
+		}
+		// Try to prove the column is not nullable. Strive for correctness here:
+		// it's better to assume a column is nullable when we can't know for sure.
+		switch {
+		case len(out) == 0:
+			// No output? Not sure what this means but do the check here so we don't
+			// have to do it in each case below.
+			nullables[i] = false
+		case strings.HasPrefix(out, "'"):
+			nullables[i] = false // literal string can't be null
+		case unicode.IsDigit(rune(out[0])):
+			nullables[i] = false // literal number can't be null
+		default:
+			nullables[i] = true // we can't figure it out; assume nullable
+		}
+	}
+	return nullables, nil
 }
 
 func createParamArgs(query *ast.SourceQuery) []interface{} {
