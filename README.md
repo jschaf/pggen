@@ -1,4 +1,4 @@
-![Tests](https://github.com/jschaf/pggen/workflows/Tests/badge.svg)
+[![Tests](https://github.com/jschaf/pggen/workflows/Tests/badge.svg)](https://github.com/jschaf/pggen/actions?query=workflow%3ATests)
 
 # pggen - generate type safe Go from Postgres SQL
 
