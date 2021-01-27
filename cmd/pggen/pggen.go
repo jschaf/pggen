@@ -42,6 +42,9 @@ func run() error {
 func newGenCmd() *ffcli.Command {
 	fset := flag.NewFlagSet("go", flag.ExitOnError)
 	outputDir := fset.String("output-dir", "", "where to write generated code; defaults to query file dir")
+	postgresConn := fset.String("postgres-connection", "",
+		`connection string to a postgres database, like: `+
+			`"user=postgres host=localhost dbname=pggen"`)
 	queryFiles := flags.Strings(fset, "query-file", nil, "generate code for query file")
 	goSubCmd := &ffcli.Command{
 		Name:       "go",
@@ -76,7 +79,7 @@ func newGenCmd() *ffcli.Command {
 			// Codegen.
 			err := codegen.Generate(gen.GenerateOptions{
 				Language:   gen.LangGo,
-				ConnString: "user=postgres password=hunter2 host=localhost port=5555 dbname=pggen",
+				ConnString: *postgresConn,
 				QueryFiles: files,
 				Config:     gen.Config{},
 				OutputDir:  outDir,
