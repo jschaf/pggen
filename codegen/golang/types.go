@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/jackc/pgtype"
 	"github.com/jschaf/pggen/internal/pg"
+	"regexp"
 	"strings"
 )
 
@@ -31,9 +32,11 @@ func (gt goType) splitPkg(nullable bool) (pkg string, typ string) {
 	return splitQualifiedType(gt.nonNullable)
 }
 
+var majorVersionRegexp = regexp.MustCompile(`^v[0-9]+$`)
+
 // splitQualifiedType splits a qualified or builtin type like
 // github.com/jackc/pgtype.Int8range into the package "github.com/jackc/pgtype"
-// and type name "Int8range".
+// and package qualified type name "pgtype.Int8range".
 //
 // For builtin types returns empty string as the pkg.
 func splitQualifiedType(qualType string) (pkg string, typ string) {
@@ -42,7 +45,16 @@ func splitQualifiedType(qualType string) (pkg string, typ string) {
 	}
 	bs := []byte(qualType)
 	idx := bytes.LastIndexByte(bs, '.')
-	return string(bs[:idx]), string(bs[idx+1:])
+	pkgFull := bs[:idx]
+	parts := bytes.Split(pkgFull, []byte{'/'})
+	last := parts[len(parts)-1]
+	// Skip major version suffixes got get package name.
+	if bytes.HasPrefix(last, []byte{'v'}) && majorVersionRegexp.Match(last) {
+		last = parts[len(parts)-2]
+	}
+	shortPkgType := append(last, '.')
+	shortPkgType = append(shortPkgType, bs[idx+1:]...)
+	return string(pkgFull), string(shortPkgType)
 }
 
 var goPgTypes = map[pg.OIDInt]goType{
