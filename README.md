@@ -1,3 +1,5 @@
+![Tests](https://github.com/jschaf/pggen/workflows/Tests/badge.svg)
+
 # pggen - generate type safe Go from Postgres SQL
 
 pggen is a binary that generates Go code to provide a typesafe wrapper around
