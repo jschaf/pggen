@@ -201,7 +201,7 @@ var (
 )
 
 // FetchOIDTypes gets the Postgres type for each of the oids.
-func FetchOIDTypes(conn *pgx.Conn, oids ...OIDInt) (map[OIDInt]Type, error) {
+func FetchOIDTypes(_ *pgx.Conn, oids ...OIDInt) (map[OIDInt]Type, error) {
 	types := make(map[OIDInt]Type, len(oids))
 	oidsToFetch := make([]OIDInt, 0, len(oids))
 	typeMapLock.Lock()
@@ -209,7 +209,8 @@ func FetchOIDTypes(conn *pgx.Conn, oids ...OIDInt) (map[OIDInt]Type, error) {
 		if t, ok := typeMap[oid]; ok {
 			types[oid] = t
 		} else {
-			oidsToFetch = append(oidsToFetch, oid)
+			// We'll use oidsToFetch once we fetch from the database.
+			oidsToFetch = append(oidsToFetch, oid) // nolint
 		}
 	}
 	typeMapLock.Unlock()

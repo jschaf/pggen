@@ -36,8 +36,7 @@ func (cs Caser) appendUpperCamel(sb *strings.Builder, chars []byte, lo, hi int) 
 		return
 	}
 	wordChars := chars[lo:hi]
-	word := string(wordChars)
-	if a, ok := cs.acronyms[word]; ok {
+	if a, ok := cs.acronyms[string(wordChars)]; ok {
 		sb.WriteString(a)
 		return
 	}

@@ -85,7 +85,6 @@ func newGenCmd() *ffcli.Command {
 				Language:   gen.LangGo,
 				ConnString: *postgresConn,
 				QueryFiles: files,
-				Config:     gen.Config{},
 				OutputDir:  outDir,
 			})
 			fmt.Printf("gen go: out_dir=%s files=%s\n", outDir, strings.Join(files, ","))

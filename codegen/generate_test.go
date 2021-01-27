@@ -22,7 +22,6 @@ func TestGenerate_Go_Example_Author(t *testing.T) {
 			QueryFiles: []string{
 				"../example/author/queries.sql",
 			},
-			Config:    gen.Config{},
 			OutputDir: tmpDir,
 			GoPackage: "author",
 			Language:  gen.LangGo,

@@ -30,8 +30,6 @@ type GenerateOptions struct {
 	ConnString string
 	// Generate code for each of the SQL query file paths.
 	QueryFiles []string
-	// The overall config after merging config files and flag options.
-	Config Config
 	// The name of the Go package for the file. If empty, defaults to the
 	// directory name.
 	GoPackage string

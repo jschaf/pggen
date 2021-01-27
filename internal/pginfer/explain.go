@@ -52,7 +52,7 @@ func (inf *Inferrer) explainQuery(query *ast.SourceQuery) (Plan, error) {
 	}
 
 	// Relation
-	relation, _ := plan["Relation Name"]
+	relation := plan["Relation Name"]
 	relationStr, _ := relation.(string)
 
 	// Outputs
