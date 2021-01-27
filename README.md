@@ -19,12 +19,13 @@ go get github.com/jschaf/pggen
 
 # Examples
 
+Examples embedded in the repo:
+
 - [./example/author] - A single table schema with simple queries.
 
 [./example/author]: ./example/author
 
-Generate a Go file that contains type-safe mappings for a query file 
-`authors.queries.sql`
+### Tutorial
 
 Let's say we have a database with the following schema:
 
@@ -108,37 +109,36 @@ In a nutshell, pggen runs each query on Postgres to extract type information,
 and generates the appropriate code. In detail:
 
 - pggen determines input parameters by using a `PREPARE` statement and querying
-  the `pg_prepared_statement` table.
+  the `pg_prepared_statement` table to get type information for each parameter.
   
-- pggen determines output columns by executing the query and reading the field  
+- pggen determines output columns by executing the query and reading the field
   descriptions returned with the rows of data. The field descriptions contain
-  the type ID for each output column. The type ID is the Postgres object ID 
-  (OID), the primary to identify a row in `pg_type`.
+  the type ID for each output column. The type ID is a Postgres object ID
+  (OID), the primary key to identify a row in the `pg_type` catalog table.
 
 - pggen determines if an output column can be null using heuristics. If a column
   cannot be null, pggen uses more ergonomic types to represent the output like
-  `string` instead of `pgtype.Text`. The heuristics are quite simple, see 
+  `string` instead of `pgtype.Text`. The heuristics are quite simple, see
   [nullability.go]. A proper approach requires a full Postgres SQL syntax parser
    with control flow analysis to determine nullability.
    
-For more detail, see the original [design doc] and discussion with the 
-[pgx author] and [sqlc author].
+For more detail, see the original, slightly outdated [design doc] and discussion
+with the [pgx author] and [sqlc author].
 
 [nullability.go]: https://github.com/jschaf/pggen/blob/main/internal/pginfer/nullability.go
 [design doc]: https://docs.google.com/document/d/1NvVKD6cyXvJLWUfqFYad76CWMDFoK9mzKuj1JawkL2A/edit#
 [pgx author]: https://github.com/jackc/pgx/issues/915
 [sqlc author]: https://github.com/kyleconroy/sqlc/issues/854
 
-
 # Comparison to sqlc
 
-The primary difference between pggen and sqlc is how the tools infer the type
+The primary difference between pggen and sqlc is how each tool infers the type
 and nullability of the input parameters and output columns for SQL queries.
 
-sqlc parses the queries in Go code, using Cgo to call the Postgres 
-`parser.c` library. After parsing, sqlc infers the types of the query parameters
-and result columns using custom logic in Go. In contrast, pggen gets the same 
-type information by running the queries on Postgres and then fetching the type 
+sqlc parses the queries in Go code, using Cgo to call the Postgres `parser.c` 
+library. After parsing, sqlc infers the types of the query parameters and result
+columns using custom logic in Go. In contrast, pggen gets the same type 
+information by running the queries on Postgres and then fetching the type 
 information for Postgres catalog tables. 
 
 Use sqlc if you don't wish to run Postgres to generate code or if you need
