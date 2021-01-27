@@ -85,7 +85,7 @@ func findTableOID(t *testing.T, conn *pgx.Conn, table string) OIDInt {
 	defer cancel()
 	row := conn.QueryRow(ctx, sql, table)
 	var oid OIDInt = 0
-	if err := row.Scan(&oid); err != nil {
+	if err := row.Scan(&oid); err != nil && err != pgx.ErrNoRows {
 		t.Fatal(err)
 	}
 	return oid
