@@ -14,7 +14,12 @@ import (
 )
 
 const flagHelp = `
-pggen generates type-safe code from a files containing Postgres queries.
+pggen generates type-safe code from files containing Postgres queries by running
+the queries on Postgres to get type information.
+
+EXAMPLES
+  # Generate code for a single query file: author/queries.sql.go 
+  pggen gen go --query-file author/queries.sql --postgres-connection "user=postgres port=5555 dbname=pggen"
 `
 
 func run() error {
@@ -41,11 +46,10 @@ func run() error {
 
 func newGenCmd() *ffcli.Command {
 	fset := flag.NewFlagSet("go", flag.ExitOnError)
-	outputDir := fset.String("output-dir", "", "where to write generated code; defaults to query file dir")
-	postgresConn := fset.String("postgres-connection", "",
-		`connection string to a postgres database, like: `+
-			`"user=postgres host=localhost dbname=pggen"`)
-	queryFiles := flags.Strings(fset, "query-file", nil, "generate code for query file")
+	outputDir := fset.String("output-dir", "", "where to write generated code; defaults to same directory as query files")
+	postgresConn := fset.String("postgres-connection", "", `connection string to a postgres database, like: `+
+		`"user=postgres host=localhost dbname=pggen"`)
+	queryFiles := flags.Strings(fset, "query-file", nil, "generate code for a file containing postgres queries")
 	goSubCmd := &ffcli.Command{
 		Name:       "go",
 		ShortUsage: "pggen gen go [options...]",
