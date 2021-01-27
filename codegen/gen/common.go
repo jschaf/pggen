@@ -6,6 +6,7 @@ import (
 	"github.com/jschaf/pggen/internal/pginfer"
 )
 
+// Lang is a supported codegen language.
 type Lang string
 
 const (

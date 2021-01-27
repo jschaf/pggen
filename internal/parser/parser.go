@@ -149,7 +149,6 @@ func (p *parser) next() {
 		}
 
 		// consume successor comments, if any
-		endLine = -1
 		for p.tok == token.LineComment {
 			comment, endLine = p.consumeCommentGroup(1)
 		}

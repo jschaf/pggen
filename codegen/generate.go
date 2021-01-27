@@ -10,7 +10,7 @@ import (
 	"github.com/jschaf/pggen/internal/ast"
 	"github.com/jschaf/pggen/internal/parser"
 	"github.com/jschaf/pggen/internal/pginfer"
-	_ "github.com/jschaf/pggen/statik"
+	_ "github.com/jschaf/pggen/statik" // bundled template files
 	gotok "go/token"
 )
 

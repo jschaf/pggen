@@ -2,6 +2,7 @@ package casing
 
 import "strings"
 
+// Caser converts strings from camel_case to UpperCamelCase.
 type Caser struct {
 	acronyms map[string]string
 }
@@ -12,12 +13,15 @@ func NewCaser() Caser {
 	}
 }
 
+// AddAcronyms adds each acronym that's specially handled in conversion
+// routines.
 func (cs Caser) AddAcronyms(acros map[string]string) {
 	for a, b := range acros {
 		cs.acronyms[a] = b
 	}
 }
 
+// AddAcronyms adds an acronym that's specially handled in conversion routines.
 func (cs Caser) AddAcronym(str, acronym string) {
 	cs.acronyms[str] = acronym
 }
@@ -47,6 +51,8 @@ func (cs Caser) appendUpperCamel(sb *strings.Builder, chars []byte, lo, hi int) 
 	}
 }
 
+// ToUpperCamel converts a string to UpperCamelCase respecting the registered
+// acronyms.
 func (cs Caser) ToUpperCamel(s string) string {
 	s = strings.TrimSpace(s)
 	sb := &strings.Builder{}

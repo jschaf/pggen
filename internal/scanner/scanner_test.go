@@ -31,9 +31,8 @@ func (st stringTok) newlineCount() int {
 func (st stringTok) size() int {
 	if st.raw == "" {
 		return len(st.lit)
-	} else {
-		return len(st.raw)
 	}
+	return len(st.raw)
 }
 
 type errorCollector struct {

@@ -7,6 +7,7 @@ import (
 	"sync"
 )
 
+// OIDInt is the Postgres oid type.
 type OIDInt = uint32
 
 // TypeKind is b for a base type, c for a composite type (e.g., a table's row
@@ -24,12 +25,14 @@ const (
 	KindRangeType     TypeKind = 'r'
 )
 
+// Type is a Postgres type.
 type Type struct {
 	OID  OIDInt // pg_type.oid: row identifier
 	Name string // pg_type.typname: data type name
 }
 
 type (
+	// BaseType is a fundamental Postgres type like text and bool.
 	// https://www.postgresql.org/docs/13/catalog-pg-type.html
 	BaseType struct {
 		ID         OIDInt         // pg_type.oid: row identifier
@@ -39,6 +42,7 @@ type (
 		Dimensions int            // pg_type.typndims: domains on array type only 0 otherwise, number of array dimensions,
 	}
 
+	// DomainType is a user-create domain type.
 	DomainType struct {
 		ID         OIDInt   // pg_type.oid: row identifier
 		Name       string   // pg_type.typname: data type name
@@ -47,8 +51,8 @@ type (
 		BaseType   BaseType // pg_type.typbasetype: domains only, the base type
 	}
 
-	// Composite types are represented as a class.
-	// https://www.postgresql.org/docs/13/catalog-pg-class.html
+	// CompositeType is a type containing multiple columns and is represented as
+	// a class. https://www.postgresql.org/docs/13/catalog-pg-class.html
 	CompositeType struct {
 		ID       uint32 // pg_class.oid: row identifier
 		TypeName string // pg_class.relname: name of the composite type
@@ -196,6 +200,7 @@ var (
 	}
 )
 
+// FetchOIDTypes gets the Postgres type for each of the oids.
 func FetchOIDTypes(conn *pgx.Conn, oids ...OIDInt) (map[OIDInt]Type, error) {
 	types := make(map[OIDInt]Type, len(oids))
 	oidsToFetch := make([]OIDInt, 0, len(oids))

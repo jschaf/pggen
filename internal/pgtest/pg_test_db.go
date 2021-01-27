@@ -19,6 +19,7 @@ func init() {
 	rand.Seed(rngSeed)
 }
 
+// CleanupFunc deletes the schema and all database objects.
 type CleanupFunc func()
 
 // NewPostgresSchema opens a connection with search_path set to a randomly

@@ -2,12 +2,14 @@ package ast
 
 import gotok "go/token"
 
+// Node is the super-type of all AST nodes.
 type Node interface {
 	Pos() gotok.Pos
 	End() gotok.Pos
 	Kind() NodeKind
 }
 
+// NodeKind is the kind of Node.
 type NodeKind int
 
 const (

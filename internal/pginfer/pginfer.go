@@ -45,6 +45,8 @@ type InputParam struct {
 	PgType pg.Type
 }
 
+// OutputColumn is a single column output from a select query or returning
+// clause in an update, insert, or delete query.
 type OutputColumn struct {
 	// Name of an output column, named by Postgres, like "foo" in "SELECT 1 as foo".
 	PgName string
