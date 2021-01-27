@@ -21,7 +21,7 @@ func (cs Caser) AddAcronyms(acros map[string]string) {
 	}
 }
 
-// AddAcronyms adds an acronym that's specially handled in conversion routines.
+// AddAcronym adds an acronym that's specially handled in conversion routines.
 func (cs Caser) AddAcronym(str, acronym string) {
 	cs.acronyms[str] = acronym
 }
