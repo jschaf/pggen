@@ -6,6 +6,7 @@ import (
 	"github.com/jschaf/pggen/internal/ast"
 	"github.com/jschaf/pggen/internal/casing"
 	"path/filepath"
+	"sort"
 	"strings"
 )
 
@@ -15,6 +16,7 @@ type goQueryFile struct {
 	GoPkg   string            // the name of the Go package to use for the generated file
 	Src     string            // the source SQL file base name
 	Queries []goTemplateQuery // the queries with all template information
+	Imports []string          // Go imports
 }
 
 // goTemplateQuery is a query with all information required to execute the
@@ -50,7 +52,10 @@ func Generate(opts gen.GenerateOptions, queryFiles []gen.QueryFile) error {
 		pkgName = filepath.Base(opts.OutputDir)
 	}
 	for _, queryFile := range queryFiles {
-		qf := buildGoQueryFile(pkgName, queryFile)
+		qf, err := buildGoQueryFile(pkgName, queryFile)
+		if err != nil {
+			return fmt.Errorf("prepare query file %s for go: %w", queryFile.Src, err)
+		}
 		if err := emitQueryFile(opts.OutputDir, qf, tmpl); err != nil {
 			return fmt.Errorf("emit generated Go code: %w", err)
 		}
@@ -58,9 +63,16 @@ func Generate(opts gen.GenerateOptions, queryFiles []gen.QueryFile) error {
 	return nil
 }
 
-func buildGoQueryFile(pkgName string, file gen.QueryFile) goQueryFile {
+func buildGoQueryFile(pkgName string, file gen.QueryFile) (goQueryFile, error) {
 	caser := casing.NewCaser()
 	caser.AddAcronym("id", "ID")
+
+	imports := map[string]struct{}{
+		"context":                 {},
+		"fmt":                     {},
+		"github.com/jackc/pgconn": {},
+		"github.com/jackc/pgx/v4": {},
+	}
 
 	queries := make([]goTemplateQuery, 0, len(file.Queries))
 	for _, query := range file.Queries {
@@ -77,18 +89,28 @@ func buildGoQueryFile(pkgName string, file gen.QueryFile) goQueryFile {
 		// Build inputs.
 		inputs := make([]goInputParam, len(query.Inputs))
 		for i, input := range query.Inputs {
+			pkg, goType, err := pgToGoType(input.PgType, false)
+			if err != nil {
+				return goQueryFile{}, err
+			}
+			imports[pkg] = struct{}{}
 			inputs[i] = goInputParam{
 				Name: caser.ToUpperCamel(input.PgName),
-				Type: pgToGoType(input.PgType, false),
+				Type: goType,
 			}
 		}
 
 		// Build outputs.
 		outputs := make([]goOutputColumn, len(query.Outputs))
 		for i, out := range query.Outputs {
+			pkg, goType, err := pgToGoType(out.PgType, out.Nullable)
+			if err != nil {
+				return goQueryFile{}, err
+			}
+			imports[pkg] = struct{}{}
 			outputs[i] = goOutputColumn{
 				Name: caser.ToUpperCamel(out.PgName),
-				Type: pgToGoType(out.PgType, out.Nullable),
+				Type: goType,
 			}
 		}
 
@@ -102,9 +124,20 @@ func buildGoQueryFile(pkgName string, file gen.QueryFile) goQueryFile {
 			Outputs:     outputs,
 		})
 	}
+
+	// Build imports.
+	sortedImports := make([]string, 0, len(imports))
+	for pkg := range imports {
+		if pkg != "" {
+			sortedImports = append(sortedImports, pkg)
+		}
+	}
+	sort.Strings(sortedImports)
+
 	return goQueryFile{
 		GoPkg:   pkgName,
 		Src:     file.Src,
 		Queries: queries,
-	}
+		Imports: sortedImports,
+	}, nil
 }
