@@ -4,6 +4,7 @@ package author
 
 import (
 	"context"
+	"github.com/jackc/pgtype"
 	"github.com/jackc/pgx/v4"
 	"github.com/jschaf/pggen/internal/pgtest"
 	"github.com/stretchr/testify/assert"
@@ -22,8 +23,17 @@ func TestNewQuerier_FindAuthors(t *testing.T) {
 		firstName string
 		want      []FindAuthorsRow
 	}{
-		{"john", []FindAuthorsRow{{FirstName: "john", LastName: "adams"}}},
-		{"george", []FindAuthorsRow{{FirstName: "george", LastName: "washington"}, {FirstName: "george", LastName: "carver"}}},
+		{"john", []FindAuthorsRow{
+			{
+				FirstName: "john",
+				LastName:  "adams",
+				Suffix:    pgtype.Text{Status: pgtype.Null},
+			},
+		}},
+		{"george", []FindAuthorsRow{
+			{FirstName: "george", LastName: "washington", Suffix: pgtype.Text{Status: pgtype.Null}},
+			{FirstName: "george", LastName: "carver", Suffix: pgtype.Text{Status: pgtype.Null}},
+		}},
 		{"joe", nil},
 	}
 
@@ -32,6 +42,10 @@ func TestNewQuerier_FindAuthors(t *testing.T) {
 			authors, err := q.FindAuthors(context.Background(), tt.firstName)
 			if err != nil {
 				t.Error(err)
+			}
+			// author_id isn't reproducible between runs.
+			for i := range authors {
+				tt.want[i].AuthorID = authors[i].AuthorID
 			}
 			assert.Equal(t, tt.want, authors, "expect authors to match expected")
 		})
