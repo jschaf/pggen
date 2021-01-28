@@ -45,7 +45,7 @@ func Generate(opts gen.GenerateOptions) (mErr error) {
 	if err != nil {
 		return fmt.Errorf("create zap logger: %w", err)
 	}
-	defer logger.Sync()
+	defer logger.Sync() // nolint
 	l := logger.Sugar()
 
 	// Postgres connection.
