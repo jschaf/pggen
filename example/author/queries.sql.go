@@ -16,13 +16,21 @@ import (
 // calling SendBatch on pgx.Conn, pgxpool.Pool, or pgx.Tx, use the Scan methods
 // to parse the results.
 type Querier interface {
+	// FindAuthorById finds one (or zero) authors by ID.
+	FindAuthorByID(ctx context.Context, authorID int32) (FindAuthorByIDRow, error)
+	// FindAuthorByIDBatch enqueues a FindAuthorByID query into batch to be executed
+	// later by the batch.
+	FindAuthorByIDBatch(ctx context.Context, batch *pgx.Batch, authorID int32)
+	// FindAuthorByIDScan scans the result of an executed FindAuthorByIDBatch query.
+	FindAuthorByIDScan(results pgx.BatchResults) (FindAuthorByIDRow, error)
+
 	// FindAuthors finds authors by first name.
 	FindAuthors(ctx context.Context, firstName string) ([]FindAuthorsRow, error)
 	// FindAuthorsBatch enqueues a FindAuthors query into batch to be executed
 	// later by the batch.
 	FindAuthorsBatch(ctx context.Context, batch *pgx.Batch, firstName string)
 	// FindAuthorsScan scans the result of an executed FindAuthorsBatch query.
-	FindAuthorsScan(ctx context.Context, results pgx.BatchResults) ([]FindAuthorsRow, error)
+	FindAuthorsScan(results pgx.BatchResults) ([]FindAuthorsRow, error)
 
 	// DeleteAuthors deletes authors with a first name of "joe".
 	DeleteAuthors(ctx context.Context) (pgconn.CommandTag, error)
@@ -30,7 +38,7 @@ type Querier interface {
 	// later by the batch.
 	DeleteAuthorsBatch(ctx context.Context, batch *pgx.Batch)
 	// DeleteAuthorsScan scans the result of an executed DeleteAuthorsBatch query.
-	DeleteAuthorsScan(ctx context.Context, results pgx.BatchResults) (pgconn.CommandTag, error)
+	DeleteAuthorsScan(results pgx.BatchResults) (pgconn.CommandTag, error)
 }
 
 type DBQuerier struct {
@@ -71,6 +79,40 @@ func (q *DBQuerier) WithTx(tx pgx.Tx) (*DBQuerier, error) {
 	return &DBQuerier{conn: tx}, nil
 }
 
+const findAuthorByIDSQL = `SELECT * FROM author WHERE author_id = $1;`
+
+type FindAuthorByIDRow struct {
+	AuthorID  int32
+	FirstName string
+	LastName  string
+	Suffix    pgtype.Text
+}
+
+// FindAuthorByID implements Querier.FindAuthorByID.
+func (q *DBQuerier) FindAuthorByID(ctx context.Context, authorID int32) (FindAuthorByIDRow, error) {
+	row := q.conn.QueryRow(ctx, findAuthorByIDSQL, authorID)
+	item := FindAuthorByIDRow{}
+	if err := row.Scan(&item.AuthorID, &item.FirstName, &item.LastName, &item.Suffix); err != nil {
+		return FindAuthorByIDRow{}, fmt.Errorf("query FindAuthorByID: %w", err)
+	}
+	return item, nil
+}
+
+// FindAuthorByIDBatch implements Querier.FindAuthorByIDBatch.
+func (q *DBQuerier) FindAuthorByIDBatch(ctx context.Context, batch *pgx.Batch, authorID int32) {
+	batch.Queue(findAuthorByIDSQL, authorID)
+}
+
+// FindAuthorByIDScan implements Querier.FindAuthorByIDScan.
+func (q *DBQuerier) FindAuthorByIDScan(results pgx.BatchResults) (FindAuthorByIDRow, error) {
+	row := results.QueryRow()
+	item := FindAuthorByIDRow{}
+	if err := row.Scan(&item.AuthorID, &item.FirstName, &item.LastName, &item.Suffix); err != nil {
+		return FindAuthorByIDRow{}, fmt.Errorf("scan FindAuthorByIDBatch row: %w", err)
+	}
+	return item, nil
+}
+
 const findAuthorsSQL = `SELECT * FROM author WHERE first_name = $1;`
 
 type FindAuthorsRow struct {
@@ -109,7 +151,7 @@ func (q *DBQuerier) FindAuthorsBatch(ctx context.Context, batch *pgx.Batch, firs
 }
 
 // FindAuthorsScan implements Querier.FindAuthorsScan.
-func (q *DBQuerier) FindAuthorsScan(ctx context.Context, results pgx.BatchResults) ([]FindAuthorsRow, error) {
+func (q *DBQuerier) FindAuthorsScan(results pgx.BatchResults) ([]FindAuthorsRow, error) {
 	rows, err := results.Query()
 	if rows != nil {
 		defer rows.Close()
@@ -121,7 +163,7 @@ func (q *DBQuerier) FindAuthorsScan(ctx context.Context, results pgx.BatchResult
 	for rows.Next() {
 		var item FindAuthorsRow
 		if err := rows.Scan(&item.AuthorID, &item.FirstName, &item.LastName, &item.Suffix); err != nil {
-			return nil, fmt.Errorf("scan FindAuthors batch row: %w", err)
+			return nil, fmt.Errorf("scan FindAuthorsBatch row: %w", err)
 		}
 		items = append(items, item)
 	}
@@ -145,7 +187,7 @@ func (q *DBQuerier) DeleteAuthorsBatch(ctx context.Context, batch *pgx.Batch) {
 }
 
 // DeleteAuthorsScan implements Querier.DeleteAuthorsScan.
-func (q *DBQuerier) DeleteAuthorsScan(ctx context.Context, results pgx.BatchResults) (pgconn.CommandTag, error) {
+func (q *DBQuerier) DeleteAuthorsScan(results pgx.BatchResults) (pgconn.CommandTag, error) {
 	cmdTag, err := results.Exec()
 	return cmdTag, err
 }
