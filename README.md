@@ -21,6 +21,20 @@ compiles SQL to type-safe Go.
 go get github.com/jschaf/pggen
 ```
 
+## Usage
+
+Generate code using Docker to create the Postgres database with a schema file:
+
+```bash
+pggen gen go --docker-init-script author/schema.sql --query-file author/queries.sql
+```
+
+Generate code using an existing Postgres database (useful for custom setups):
+
+```bash
+pggen gen go --query-file author/queries.sql --postgres-connection "user=postgres port=5555 dbname=pggen"
+```
+
 # Examples
 
 Examples embedded in the repo:
