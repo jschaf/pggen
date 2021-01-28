@@ -11,9 +11,63 @@ compiles SQL to type-safe Go.
 1. Write SQL queries.
 2. Run pggen to generate a Go code the provides a type-safe interface to running
    the SQL queries.
-3. Use the generated code in your application.   
+3. Use the generated code in your application. 
 
+## Pitch
+
+Why should you use `pggen` instead of the [myriad] of Go SQL bindings?
+
+- pggen is narrowly tailored to only generate code for queries you write in SQL.
+
+- pggen works with any Postgres database. Under the hood, pggen executes each 
+  query and uses the Postgres catalog tables, `pg_type`, `pg_class`, 
+  `pg_attribute` to get perfect type information for query parameters and query
+  results.
+  
+- pggen works with all Postgres queries. If Postgres can run the query, pggen
+  can generate Go code for it, modulo bugs.
+  
+- pggen uses [pgx], a faster replacement for the deprecated [lib/pq].
+
+- pggen provides a batch interface for each generated query. Batching means
+  pggen sends multiple queries in one network request.
+  
+[pgx]: https://github.com/jackc/pgx
+[lib/pq]: https://github.com/lib/pq
+
+## Anti-pitch
+
+I'd like to try to convince you why you *shouldn't* use pggen. Often, this
+is far more revealing than the pitch.
+
+- You use database other than Postgres. pggen only supports Postgres. [sqlc] has
+  beta support for MySQL. If I were to support a different database, I'd 
+  probably create an entirely new repo since not much of the code is shareable.
+
+- You want auto-generated models for every table in your database. pggen only
+  generates code for each query in a query file. This means, you'll have to
+  manually write SQL for CRUD queries. Use [gorm] or any of alternatives listed
+  at [awesome Go ORMs].
+  
+- You want an active-record pattern where models have methods like `find`, 
+  `create`, `update`, and `delete`. pggen only generates code for queries you 
+  write. Use [gorm].
+  
+- You prefer building queries in a type-safe Go dialect instead of SQL. First,
+  I'd recommend investing in really learning SQL; it will payoff. Otherwise,
+  use [squirrel], [goqu], or [go-sqlbuilder]
+  
+- You don't want to add a Postgres and/or Docker dependency to your build phase.
+  Use [sqlc] (you might still need Docker). sqlc generates code by parsing the 
+  schema file and queries in Go and using custom type inference.
+
+[myriad]: https://github.com/d-tsuji/awesome-go-orms
 [sqlc]: https://github.com/kyleconroy/sqlc
+[gorm]: https://gorm.io/index.html
+[squirrel]: https://github.com/Masterminds/squirrel
+[goqu]: https://github.com/doug-martin/goqu
+[go-sqlbuilder]: https://github.com/huandu/go-sqlbuilder
+[awesome Go ORMs]: https://github.com/d-tsuji/awesome-go-orms
 
 # Install
 
