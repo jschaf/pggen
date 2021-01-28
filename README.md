@@ -40,15 +40,14 @@ Why should you use `pggen` instead of the [myriad] of Go SQL bindings?
 I'd like to try to convince you why you *shouldn't* use pggen. Often, this
 is far more revealing than the pitch.
 
-- You use database other than Postgres. pggen only supports Postgres. [sqlc] has
-  beta support for MySQL. If I were to support a different database, I'd 
-  probably create an entirely new repo since not much of the code is shareable.
-
 - You want auto-generated models for every table in your database. pggen only
-  generates code for each query in a query file. This means, you'll have to
-  manually write SQL for CRUD queries. Use [gorm] or any of alternatives listed
+  generates code for each query in a query file. pggen requires custom SQL for
+  even the simplest CRUD queries. Use [gorm] or any of alternatives listed
   at [awesome Go ORMs].
-  
+
+- You use database other than Postgres. pggen only supports Postgres. [sqlc], a
+  similar tool which inspired pggen, has early support for MySQL.
+
 - You want an active-record pattern where models have methods like `find`, 
   `create`, `update`, and `delete`. pggen only generates code for queries you 
   write. Use [gorm].
@@ -58,8 +57,9 @@ is far more revealing than the pitch.
   use [squirrel], [goqu], or [go-sqlbuilder]
   
 - You don't want to add a Postgres and/or Docker dependency to your build phase.
-  Use [sqlc] (you might still need Docker). sqlc generates code by parsing the 
-  schema file and queries in Go and using custom type inference.
+  Use [sqlc], though you might still need Docker. sqlc generates code by parsing
+  the schema file and queries in Go and using custom type inference and doesn't
+  rely on Postgres.
 
 [myriad]: https://github.com/d-tsuji/awesome-go-orms
 [sqlc]: https://github.com/kyleconroy/sqlc
