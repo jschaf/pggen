@@ -36,6 +36,9 @@ type GenerateOptions struct {
 	// Directory to write generated files. Writes one file for each query file.
 	// If more than one query file, also writes querier.go.
 	OutputDir string
+	// Docker init scripts to run in dockerized Postgres. Must be nil if
+	// ConnString is set.
+	DockerInitScripts []string
 }
 
 // QueryFile represents all of the SQL queries from a single file.

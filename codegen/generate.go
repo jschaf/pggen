@@ -8,17 +8,22 @@ import (
 	"github.com/jschaf/pggen/codegen/gen"
 	"github.com/jschaf/pggen/codegen/golang"
 	"github.com/jschaf/pggen/internal/ast"
+	"github.com/jschaf/pggen/internal/errs"
 	"github.com/jschaf/pggen/internal/parser"
+	"github.com/jschaf/pggen/internal/pgdocker"
 	"github.com/jschaf/pggen/internal/pginfer"
 	_ "github.com/jschaf/pggen/statik" // bundled template files
+	"go.uber.org/zap"
 	gotok "go/token"
+	"time"
 )
 
 // Generate generates language specific code to safely wrap each SQL
 // ast.SourceQuery in opts.QueryFiles.
 //
 // Generate must only be called once per output directory.
-func Generate(opts gen.GenerateOptions) error {
+func Generate(opts gen.GenerateOptions) (mErr error) {
+	// Preconditions.
 	if opts.Language == "" {
 		return fmt.Errorf("generate language must be set; got empty string")
 	}
@@ -28,22 +33,38 @@ func Generate(opts gen.GenerateOptions) error {
 	if opts.OutputDir == "" {
 		return fmt.Errorf("output dir must be set")
 	}
-	pgConnConfig, err := pgx.ParseConfig(opts.ConnString)
-	if err != nil {
-		return fmt.Errorf("parse postgres conn string: %w", err)
+	if opts.ConnString != "" && len(opts.DockerInitScripts) > 0 {
+		return fmt.Errorf("cannot use both DockerInitScripts and ConnString together")
 	}
 
-	pgConn, err := pgx.ConnectConfig(context.TODO(), pgConnConfig)
+	// Logger.
+	logCfg := zap.NewDevelopmentConfig()
+	// TODO: control by log-level flag
+	logCfg.Level = zap.NewAtomicLevelAt(zap.InfoLevel)
+	logger, err := logCfg.Build()
 	if err != nil {
-		return fmt.Errorf("connect to pggen postgres database: %w", err)
+		return fmt.Errorf("create zap logger: %w", err)
 	}
+	defer logger.Sync()
+	l := logger.Sugar()
+
+	// Postgres connection.
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+	pgConn, cleanup, err := connectPostgres(ctx, opts.ConnString, l)
+	if err != nil {
+		return fmt.Errorf("connect postgres: %w", err)
+	}
+	defer errs.Capture(&mErr, cleanup, "close postgres connection")
+
+	// Parse queries.
 	inferrer := pginfer.NewInferrer(pgConn)
-
 	queryFiles, err := parseQueryFiles(opts.QueryFiles, inferrer)
 	if err != nil {
 		return err
 	}
 
+	// Codegen.
 	switch opts.Language {
 	case gen.LangGo:
 		if err := golang.Generate(opts, queryFiles); err != nil {
@@ -53,6 +74,34 @@ func Generate(opts gen.GenerateOptions) error {
 		return fmt.Errorf("unsupported output language %q", opts.Language)
 	}
 	return nil
+}
+
+// connectPostgres connects to postgres using connString if given, or by
+// running a Docker postgres container and connecting to that.
+func connectPostgres(ctx context.Context, connString string, l *zap.SugaredLogger) (conn *pgx.Conn, cleanup func() error, mErr error) {
+	cleanup = func() error { return nil }
+	if connString == "" {
+		// Create connection by starting dockerized Postgres.
+		client, err := pgdocker.Start(ctx, l)
+		if err != nil {
+			return nil, nil, fmt.Errorf("start dockerized postgres: %w", err)
+		}
+		cleanup = func() error { return client.Stop(ctx) }
+		conn, err := client.ConnString()
+		if err != nil {
+			return nil, nil, fmt.Errorf("get dockerized postgres conn string: %w", err)
+		}
+		connString = conn
+	}
+	pgConnConfig, err := pgx.ParseConfig(connString)
+	if err != nil {
+		return nil, nil, fmt.Errorf("parse postgres conn string: %w", err)
+	}
+	pgConn, err := pgx.ConnectConfig(context.TODO(), pgConnConfig)
+	if err != nil {
+		return nil, nil, fmt.Errorf("connect to pggen postgres database: %w", err)
+	}
+	return pgConn, cleanup, nil
 }
 
 func parseQueryFiles(queryFiles []string, inferrer *pginfer.Inferrer) ([]gen.QueryFile, error) {

@@ -18,8 +18,12 @@ pggen generates type-safe code from files containing Postgres queries by running
 the queries on Postgres to get type information.
 
 EXAMPLES
-  # Generate code for a single query file: author/queries.sql.go 
+  # Generate code for a single query file using an existing postgres database.
   pggen gen go --query-file author/queries.sql --postgres-connection "user=postgres port=5555 dbname=pggen"
+
+  # Generate code using docker to create the postgres database with a schema 
+  # file.
+  pggen gen go --docker-init-script author/schema.sql --query-file author/queries.sql
 `
 
 func run() error {
@@ -50,14 +54,22 @@ func newGenCmd() *ffcli.Command {
 	postgresConn := fset.String("postgres-connection", "", `connection string to a postgres database, like: `+
 		`"user=postgres host=localhost dbname=pggen"`)
 	queryFiles := flags.Strings(fset, "query-file", nil, "generate code for a file containing postgres queries")
+	dockerInit := flags.Strings(fset, "docker-init-script", nil,
+		"sql file or shell script to run to initialize database on Docker container start")
 	goSubCmd := &ffcli.Command{
 		Name:       "go",
 		ShortUsage: "pggen gen go [options...]",
 		ShortHelp:  "generates go code for Postgres query files",
 		FlagSet:    fset,
 		Exec: func(ctx context.Context, args []string) error {
+			// Preconditions.
 			if len(*queryFiles) == 0 {
 				return fmt.Errorf("pggen gen go: at least one --query-file path must be specified")
+			}
+			if *dockerInit != nil && *postgresConn != "" {
+				return fmt.Errorf("cannot use both --docker-init-script and --postgres-connection together\n" +
+					"    use --docker-init-script to have pggen to run dockerized postgres automatically\n" +
+					"    use --postgres-connection to have pggen connect to an existing database")
 			}
 			// Get absolute paths.
 			files := make([]string, len(*queryFiles))
@@ -82,10 +94,11 @@ func newGenCmd() *ffcli.Command {
 			}
 			// Codegen.
 			err := codegen.Generate(gen.GenerateOptions{
-				Language:   gen.LangGo,
-				ConnString: *postgresConn,
-				QueryFiles: files,
-				OutputDir:  outDir,
+				Language:          gen.LangGo,
+				ConnString:        *postgresConn,
+				DockerInitScripts: *dockerInit,
+				QueryFiles:        files,
+				OutputDir:         outDir,
 			})
 			fmt.Printf("gen go: out_dir=%s files=%s\n", outDir, strings.Join(files, ","))
 			return err
