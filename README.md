@@ -23,16 +23,49 @@ go get github.com/jschaf/pggen
 
 ## Usage
 
-Generate code using Docker to create the Postgres database with a schema file:
+Generate code using Docker to create the Postgres database from a schema file:
 
 ```bash
 pggen gen go --docker-init-script author/schema.sql --query-file author/queries.sql
+
+# Output: author/queries.go.sql
+
+# Or with multiple schema files. The schema files run on Postgres
+# in the order they appear on the command line.
+
+pggen gen go \
+    --docker-init-script author/schema.sql      \
+    --docker-init-script book/schema.sql        \
+    --docker-init-script publisher/schema.sql   \
+    --query-file author/queries.sql
+
+# Output: author/queries.sql.go
 ```
 
 Generate code using an existing Postgres database (useful for custom setups):
 
 ```bash
-pggen gen go --query-file author/queries.sql --postgres-connection "user=postgres port=5555 dbname=pggen"
+pggen gen go \
+    --query-file author/queries.sql \
+    --postgres-connection "user=postgres port=5555 dbname=pggen"
+
+# Output: author/queries.sql.go
+```
+
+Generate code for multiple query files. All the query files must reside in
+the same directory. If query files reside in different directories, you can use
+`--output-dir` to set a single output location:
+
+```bash
+pggen gen go \
+    --docker-init-script author/schema.sql \
+    --query-file author/fiction.sql        \
+    --query-file author/nonfiction.sql     \
+    --query-file author/bestselling.sql
+
+# Output: author/fiction.sql.go
+#         author/nonfiction.sql.go
+#         author/bestselling.sql.go
 ```
 
 # Examples
@@ -67,7 +100,7 @@ SELECT * FROM author WHERE first_name = pggen.arg('FirstName');
 Second, use pggen to generate the following Go code to `author/queries.sql.go`:
 
 ```bash
-pggen gen go --query-file author/queries.sql --postgres-connection "user=postgres port=5555 dbname=pggen"
+pggen gen go --docker-init-file author/schema.sql--query-file author/queries.sql
 ```
 
 The generated file `author/queries.sql.go` looks like:
