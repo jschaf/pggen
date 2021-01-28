@@ -1,17 +1,16 @@
 package pgdocker
 
 type pgTemplate struct {
-	PGPass    string
-	InitFiles []string
+	PGPass      string
+	InitScripts []string
 }
 
 const dockerfileTemplate = `
 {{- /*gotype: github.com/jschaf/pggen/internal/pgdocker.pgTemplate*/ -}}
 {{- define "dockerfile" -}}
 FROM postgres:13
-
-{{ range .InitFiles }}
+{{ range .InitScripts }}
 COPY {{.}} /docker-entrypoint-initdb.d/
 {{ end }}
-{{ end }}
+{{- end }}
 `

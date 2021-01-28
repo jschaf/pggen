@@ -15,7 +15,10 @@ import (
 	"github.com/jschaf/pggen/internal/errs"
 	"github.com/jschaf/pggen/internal/ports"
 	"go.uber.org/zap"
+	"io"
 	"io/ioutil"
+	"os"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"text/template"
@@ -31,13 +34,13 @@ type Client struct {
 }
 
 // Start builds a Docker image and runs the image in a container.
-func Start(ctx context.Context, l *zap.SugaredLogger) (client *Client, mErr error) {
+func Start(ctx context.Context, initScripts []string, l *zap.SugaredLogger) (client *Client, mErr error) {
 	dockerCl, err := dockerClient.NewClientWithOpts(dockerClient.FromEnv)
 	if err != nil {
 		return nil, fmt.Errorf("create client: %w", err)
 	}
 	c := &Client{docker: dockerCl, l: l}
-	imageID, err := c.buildImage(ctx)
+	imageID, err := c.buildImage(ctx, initScripts)
 	l.Debugf("build image ID: %s", imageID)
 	if err != nil {
 		return nil, fmt.Errorf("build image: %w", err)
@@ -64,14 +67,24 @@ func Start(ctx context.Context, l *zap.SugaredLogger) (client *Client, mErr erro
 	return c, nil
 }
 
-func (c *Client) buildImage(ctx context.Context) (id string, mErr error) {
+// buildImage creates a new Postgres Docker image with the given init scripts
+// copied into the Postgres entry point.
+func (c *Client) buildImage(ctx context.Context, initScripts []string) (id string, mErr error) {
+	// Make each init script run in the order it was given using a numeric prefix.
+	initTarNames := make([]string, len(initScripts))
+	for i, script := range initScripts {
+		initTarNames[i] = fmt.Sprintf("%03d_%s", i, filepath.Base(script))
+	}
+
 	// Create Dockerfile with template.
 	dockerfileBuf := &bytes.Buffer{}
 	tmpl, err := template.New("pgdocker").Parse(dockerfileTemplate)
 	if err != nil {
 		return "", fmt.Errorf("parse template: %w", err)
 	}
-	if err := tmpl.ExecuteTemplate(dockerfileBuf, "dockerfile", pgTemplate{}); err != nil {
+	if err := tmpl.ExecuteTemplate(dockerfileBuf, "dockerfile", pgTemplate{
+		InitScripts: initTarNames,
+	}); err != nil {
 		return "", fmt.Errorf("execute template: %w", err)
 	}
 	c.l.Debug("wrote template into buffer")
@@ -86,6 +99,15 @@ func (c *Client) buildImage(ctx context.Context) (id string, mErr error) {
 	if _, err := tarW.Write(dockerfileBuf.Bytes()); err != nil {
 		return "", fmt.Errorf("write dockerfile to tar: %w", err)
 	}
+
+	// Tar init scripts into build context.
+	for i, script := range initScripts {
+		tarName := initTarNames[i]
+		if err := tarInitScript(tarW, script, tarName); err != nil {
+			return "", fmt.Errorf("tar init file: %w", err)
+		}
+	}
+
 	tarR := bytes.NewReader(tarBuf.Bytes())
 	c.l.Debug("wrote tar dockerfile into buffer")
 
@@ -108,6 +130,35 @@ func (c *Client) buildImage(ctx context.Context) (id string, mErr error) {
 		return "", fmt.Errorf("unable find image ID in docker build output below:\n%s", string(response))
 	}
 	return string(matches[1]), nil
+}
+
+// tarInitScript writes the contents of an init script into the tar writer
+// using tarName.
+func tarInitScript(tarW *tar.Writer, script string, tarName string) (mErr error) {
+	stat, err := os.Stat(script)
+	if err != nil {
+		return fmt.Errorf("stat docker postgres init script %s: %w", script, err)
+	}
+	hdr, err := tar.FileInfoHeader(stat, tarName)
+	if err != nil {
+		return fmt.Errorf("create tar file header: %w", err)
+	}
+	hdr.Name = tarName
+	hdr.AccessTime = time.Time{}
+	hdr.ChangeTime = time.Time{}
+	hdr.ModTime = time.Time{}
+	if err := tarW.WriteHeader(hdr); err != nil {
+		return fmt.Errorf("write init script tar header: %w", err)
+	}
+	f, err := os.Open(script)
+	if err != nil {
+		return fmt.Errorf("read init script: %w", err)
+	}
+	defer errs.Capture(&mErr, f.Close, "close file to tar")
+	if _, err := io.Copy(tarW, f); err != nil {
+		return fmt.Errorf("copy init script to tar: %w", err)
+	}
+	return nil
 }
 
 // runContainer creates and starts a new Postgres container using imageID.

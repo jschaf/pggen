@@ -40,7 +40,7 @@ func Generate(opts gen.GenerateOptions) (mErr error) {
 	// Logger.
 	logCfg := zap.NewDevelopmentConfig()
 	// TODO: control by log-level flag
-	logCfg.Level = zap.NewAtomicLevelAt(zap.InfoLevel)
+	logCfg.Level = zap.NewAtomicLevelAt(zap.DebugLevel)
 	logger, err := logCfg.Build()
 	if err != nil {
 		return fmt.Errorf("create zap logger: %w", err)
@@ -51,7 +51,7 @@ func Generate(opts gen.GenerateOptions) (mErr error) {
 	// Postgres connection.
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
-	pgConn, cleanup, err := connectPostgres(ctx, opts.ConnString, l)
+	pgConn, cleanup, err := connectPostgres(ctx, opts, l)
 	if err != nil {
 		return fmt.Errorf("connect postgres: %w", err)
 	}
@@ -78,11 +78,12 @@ func Generate(opts gen.GenerateOptions) (mErr error) {
 
 // connectPostgres connects to postgres using connString if given, or by
 // running a Docker postgres container and connecting to that.
-func connectPostgres(ctx context.Context, connString string, l *zap.SugaredLogger) (conn *pgx.Conn, cleanup func() error, mErr error) {
+func connectPostgres(ctx context.Context, opts gen.GenerateOptions, l *zap.SugaredLogger) (conn *pgx.Conn, cleanup func() error, mErr error) {
 	cleanup = func() error { return nil }
+	connString := opts.ConnString
 	if connString == "" {
 		// Create connection by starting dockerized Postgres.
-		client, err := pgdocker.Start(ctx, l)
+		client, err := pgdocker.Start(ctx, opts.DockerInitScripts, l)
 		if err != nil {
 			return nil, nil, fmt.Errorf("start dockerized postgres: %w", err)
 		}
