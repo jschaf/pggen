@@ -3,4 +3,4 @@ CREATE TABLE author (
   first_name text NOT NULL,
   last_name  text NOT NULL,
   suffix text NULL
-)
+);
