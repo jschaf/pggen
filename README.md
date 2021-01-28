@@ -78,14 +78,14 @@ Examples embedded in the repo:
 
 ### Tutorial
 
-Let's say we have a database with the following schema:
+Let's say we have a database with the following schema in `author/schema.sql`:
 
 ```sql
 CREATE TABLE author (
   author_id  serial PRIMARY KEY,
   first_name text NOT NULL,
   last_name  text NOT NULL,
-  suffix text NULL
+  suffix     text NULL
 )
 ```
 
@@ -97,10 +97,12 @@ First, write a query in the file `author/queries.sql`:
 SELECT * FROM author WHERE first_name = pggen.arg('FirstName');
 ```
 
-Second, use pggen to generate the following Go code to `author/queries.sql.go`:
+Second, use pggen to generate Go code to `author/queries.sql.go`:
 
 ```bash
-pggen gen go --docker-init-file author/schema.sql--query-file author/queries.sql
+pggen gen go \
+    --docker-init-file author/schema.sql \
+    --query-file author/queries.sql
 ```
 
 The generated file `author/queries.sql.go` looks like:
