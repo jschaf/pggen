@@ -80,7 +80,11 @@ func buildGoQueryFile(pkgName string, file gen.QueryFile) (goQueryFile, error) {
 		docs := strings.Builder{}
 		avgCharsPerLine := 40
 		docs.Grow(len(query.Doc) * avgCharsPerLine)
-		for _, d := range query.Doc {
+		for i, d := range query.Doc {
+			if i > 0 {
+				// First line is already indented in the template.
+				docs.WriteByte('\t')
+			}
 			docs.WriteString("// ")
 			docs.WriteString(d)
 			docs.WriteRune('\n')

@@ -17,7 +17,7 @@ import (
 // to parse the results.
 type Querier interface {
 {{- range $i, $q := .Queries }}
-	{{ .Doc  | trimTrailingNewline }}
+	{{ $q.Doc  | trimTrailingNewline }}
 	{{.Name}}(ctx context.Context {{- $q.EmitParams }}) ({{ $q.EmitResultType }}, error)
 	// {{.Name}}Batch enqueues a {{.Name}} query into batch to be executed
 	// later by the batch.
@@ -69,7 +69,8 @@ func (q *DBQuerier) WithTx(tx pgx.Tx) (*DBQuerier, error) {
 {{- range $i, $q := .Queries -}}
 {{- "\n\n" -}}
 const {{ $q.SQLVarName }} = `{{ $q.PreparedSQL }}`
-{{- $q.EmitParamsStruct -}}
+{{- $q.EmitParamStruct -}}
+{{- $q.EmitRowStruct -}}
 {{- "\n\n" -}}
 // {{ $q.Name }} implements Querier.{{ $q.Name }}.
 func (q *DBQuerier) {{ $q.Name }}(ctx context.Context {{- $q.EmitParams }}) ({{ $q.EmitResultType }}, error) {
