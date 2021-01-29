@@ -127,9 +127,11 @@ pggen gen go \
 Examples embedded in the repo:
 
 - [./example/author] - A single table schema with simple queries.
+- [./example/erp] - A few tables with mildly complex queries.
 - [./example/syntax] - A smoke test of interesting SQL syntax.
 
 [./example/author]: ./example/author
+[./example/erp]: ./example/erp
 [./example/syntax]: ./example/syntax
 
 ### Tutorial
