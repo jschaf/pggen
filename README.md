@@ -29,8 +29,9 @@ Why should you use `pggen` instead of the [myriad] of Go SQL bindings?
   
 - pggen uses [pgx], a faster replacement for the maintenance mode [lib/pq].
 
-- pggen provides a batch interface for each generated query. Batching means
-  pggen sends multiple queries in one network request.
+- pggen provides a batch interface for each generated query with [`pgx.Batch`]. 
+  Using a batch allows you to send multiple queries in a single network 
+  round-trip instead of a network round-trip for each query.
   
 [pgx]: https://github.com/jackc/pgx
 [lib/pq]: https://github.com/lib/pq
@@ -168,8 +169,7 @@ We'll walk through the generated file `author/query.sql.go`:
 -   The `Querier` interface defines the interface with methods for each SQL 
     query. Each SQL query compiles into three methods, one method for to run 
     query by itself, and two methods to support batching a query with 
-    [`pgx.Batch`]. See the test file [example/author/query.sql_test.go] for how
-    to use the batch interface.
+    [`pgx.Batch`]. 
   
     ```go
     // Querier is a typesafe Go interface backed by SQL queries.
@@ -187,8 +187,24 @@ We'll walk through the generated file `author/query.sql.go`:
         FindAuthorsScan(ctx context.Context, results pgx.BatchResults) ([]FindAuthorsRow, error)
     }
     ```
+    
+    To use the batch interface, create a `*pgx.Batch`, call the 
+    `<query_name>Batch` methods, send the batch, and finally get the results 
+    with the `<query_name>Scan` methods. See [example/author/query.sql_test.go] 
+    for complete example.
+    
+    ```sql
+	q := NewQuerier(conn)
+	batch := &pgx.Batch{}
+	q.FindAuthors(context.Background(), batch, "alice")
+	q.FindAuthors(context.Background(), batch, "bob")
+	results := conn.SendBatch(context.Background(), batch)
+	aliceAuthors, err := q.FindAuthorsScan(results)
+	bobAuthors, err := q.FindAuthorsScan(results)
+    ```
 
--   The `DBQuerier` struct implements the `Querier` interface.
+-   The `DBQuerier` struct implements the `Querier` interface with concrete
+    implementations of each query method.
 
     ```sql
     type DBQuerier struct {
@@ -197,9 +213,9 @@ We'll walk through the generated file `author/query.sql.go`:
     ```
 
 -   Create `DBQuerier` with `NewQuerier`. The `genericConn` parameter is an 
-    interface over the pgx connection transports so that `DBQuerier` doesn't 
-    force you to use a specific connection transport. [`*pgx.Conn`], [`pgx.Tx`], 
-    and [`*pgxpool.Pool`] all implement `genericConn`.
+    interface over the different pgx connection transports so that `DBQuerier` 
+    doesn't force you to use a specific connection transport. [`*pgx.Conn`], 
+    [`pgx.Tx`], and [`*pgxpool.Pool`] all implement `genericConn`.
 
     ```sql
     // NewQuerier creates a DBQuerier that implements Querier. conn is typically
@@ -284,7 +300,7 @@ We'll walk through the generated file `author/query.sql.go`:
     }
     ```
 
-[./example/author/query.sql_test.go]: ./example/author/query.sql_test.go
+[example/author/query.sql_test.go]: ./example/author/query.sql_test.go
 [`pgx.Batch`]: https://pkg.go.dev/github.com/jackc/pgx#Batch
 [`*pgx.Conn`]: https://pkg.go.dev/github.com/jackc/pgx#Conn
 [`pgx.Tx`]: https://pkg.go.dev/github.com/jackc/pgx#Tx
