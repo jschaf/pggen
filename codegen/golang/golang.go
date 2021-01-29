@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"unicode"
 )
 
 // goQueryFile is the Go version of a SQL query file with all information needed
@@ -17,6 +18,10 @@ type goQueryFile struct {
 	Src     string            // the source SQL file base name
 	Queries []goTemplateQuery // the queries with all template information
 	Imports []string          // Go imports
+	// True if this file is the leader file that should define common interfaces
+	// used by by all queries in the same dir. Leader is the first file in
+	// lexicographic order of the Src name.
+	IsLeader bool
 }
 
 // goTemplateQuery is a query with all information required to execute the
@@ -51,11 +56,54 @@ func Generate(opts gen.GenerateOptions, queryFiles []gen.QueryFile) error {
 	if opts.GoPackage == "" {
 		pkgName = filepath.Base(opts.OutputDir)
 	}
+
+	// Build go specific query files.
+	goQueryFiles := make([]goQueryFile, 0, len(queryFiles))
 	for _, queryFile := range queryFiles {
-		qf, err := buildGoQueryFile(pkgName, queryFile)
+		goFile, err := buildGoQueryFile(pkgName, queryFile)
 		if err != nil {
 			return fmt.Errorf("prepare query file %s for go: %w", queryFile.Src, err)
 		}
+		goQueryFiles = append(goQueryFiles, goFile)
+	}
+
+	// Pick leader file to define common structs and interfaces.
+	firstIndex := -1
+	firstName := string(unicode.MaxRune)
+	for i, goFile := range goQueryFiles {
+		if goFile.Src < firstName {
+			firstIndex = i
+			firstName = goFile.Src
+		}
+	}
+	goQueryFiles[firstIndex].IsLeader = true
+
+	// Remove unneeded pgconn import if possible.
+	for i, goFile := range goQueryFiles {
+		if goFile.IsLeader {
+			// Leader files define genericConn.Exec which returns pgconn.CommandTag.
+			continue
+		}
+		for _, query := range goFile.Queries {
+			if query.ResultKind == ast.ResultKindExec {
+				continue // :exec queries return pgconn.CommandTag
+			}
+		}
+		// By here, we don't need pgconn.
+		pgconnIdx := -1
+		imports := goFile.Imports
+		for i, pkg := range imports {
+			if pkg == "github.com/jackc/pgconn" {
+				pgconnIdx = i
+				break
+			}
+		}
+		copy(imports[pgconnIdx:], imports[pgconnIdx+1:])
+		goQueryFiles[i].Imports = imports[:len(imports)-1]
+	}
+
+	// Emit the files.
+	for _, qf := range goQueryFiles {
 		if err := emitQueryFile(opts.OutputDir, qf, tmpl); err != nil {
 			return fmt.Errorf("emit generated Go code: %w", err)
 		}
@@ -82,8 +130,7 @@ func buildGoQueryFile(pkgName string, file gen.QueryFile) (goQueryFile, error) {
 		docs.Grow(len(query.Doc) * avgCharsPerLine)
 		for i, d := range query.Doc {
 			if i > 0 {
-				// First line is already indented in the template.
-				docs.WriteByte('\t')
+				docs.WriteByte('\t') // first line is already indented in the template
 			}
 			docs.WriteString("// ")
 			docs.WriteString(d)

@@ -10,14 +10,16 @@ import (
 {{ end -}}
 )
 
+{{- if .IsLeader -}}
+{{- "\n\n" -}}
 // Querier is a typesafe Go interface backed by SQL queries.
 //
 // Methods ending with Batch enqueue a query to run later in a pgx.Batch. After
 // calling SendBatch on pgx.Conn, pgxpool.Pool, or pgx.Tx, use the Scan methods
 // to parse the results.
 type Querier interface {
-{{- range $i, $q := .Queries }}
-	{{ $q.Doc  | trimTrailingNewline }}
+{{- range $i, $q := .Queries }} {{- "\n\t" -}}
+	{{- if $q.Doc }}{{ $q.Doc }}	{{ end -}}
 	{{.Name}}(ctx context.Context {{- $q.EmitParams }}) ({{ $q.EmitResultType }}, error)
 	// {{.Name}}Batch enqueues a {{.Name}} query into batch to be executed
 	// later by the batch.
@@ -65,6 +67,7 @@ func NewQuerier(conn genericConn) *DBQuerier {
 func (q *DBQuerier) WithTx(tx pgx.Tx) (*DBQuerier, error) {
 	return &DBQuerier{conn: tx}, nil
 }
+{{- end -}}
 
 {{- range $i, $q := .Queries -}}
 {{- "\n\n" -}}
