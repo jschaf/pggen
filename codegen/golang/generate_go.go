@@ -14,13 +14,12 @@ import (
 // goQueryFile is the Go version of a SQL query file with all information needed
 // to execute the codegen template.
 type goQueryFile struct {
-	GoPkg   string            // the name of the Go package to use for the generated file
-	Src     string            // the source SQL file base name
-	Queries []goTemplateQuery // the queries with all template information
-	Imports []string          // Go imports
-	// True if this file is the leader file that should define common interfaces
-	// used by by all queries in the same dir. Leader is the first file in
-	// lexicographic order of the Src name.
+	GoPkg    string            // the name of the Go package to use for the generated file
+	BaseName string            // the source SQL file base name
+	Queries  []goTemplateQuery // the queries with all template information
+	Imports  []string          // Go imports
+	// True if this file is the leader file. The leader defines common interfaces
+	// used by by all queries in the same directory.
 	IsLeader bool
 }
 
@@ -71,9 +70,9 @@ func Generate(opts gen.GenerateOptions, queryFiles []gen.QueryFile) error {
 	firstIndex := -1
 	firstName := string(unicode.MaxRune)
 	for i, goFile := range goQueryFiles {
-		if goFile.Src < firstName {
+		if goFile.BaseName < firstName {
 			firstIndex = i
-			firstName = goFile.Src
+			firstName = goFile.BaseName
 		}
 	}
 	goQueryFiles[firstIndex].IsLeader = true
@@ -186,9 +185,9 @@ func buildGoQueryFile(pkgName string, file gen.QueryFile) (goQueryFile, error) {
 	sort.Strings(sortedImports)
 
 	return goQueryFile{
-		GoPkg:   pkgName,
-		Src:     file.Src,
-		Queries: queries,
-		Imports: sortedImports,
+		GoPkg:    pkgName,
+		BaseName: file.Src,
+		Queries:  queries,
+		Imports:  sortedImports,
 	}, nil
 }
