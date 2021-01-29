@@ -253,7 +253,7 @@ We'll walk through the generated file `author/query.sql.go`:
     ```
     
 -   pggen generates a row struct for each query named `<query_name>Row`.
-    pggen uses the output column names for the names struct fields by converting
+    pggen transforms the output column names into struct field names from
     `lower_snake_case` to `UpperCamelCase` in [internal/casing/casing.go]. 
     
     ```sql
@@ -271,20 +271,21 @@ We'll walk through the generated file `author/query.sql.go`:
     `int32`, not a `<query_name>Row` struct.
     
     pggen infers struct field types by running the query. When Postgres returns
-    query results, Postgres sends the column types as a header for the results. 
-    pggen looks up the types in the header using the `pg_type` catalog table and
-    chooses an appropriate Go type in [internal/codegen/golang/types.go].
+    query results, Postgres also sends the column types as a header for the 
+    results. pggen looks up the types in the header using the `pg_type` catalog 
+    table and chooses an appropriate Go type in 
+    [internal/codegen/golang/types.go].
     
-    Choosing an appropriate type is more difficult than a first glance might 
-    appear due to `null`. When Postgres reports that a column has a type `text`,
-    that column might have `null` values. So, the Postgres `text` represented in
-    Go can be either a `string` or `nil`. [`pgtype`] provides nullable types for
-    all built-in Postgres types. pggen tries to infer if a column is nullable or
-    non-nullable. If a column is nullable, pggen uses a `pgtype` Go type like 
-    `pgtype.Text`. If a column is non-nullable, pggen uses a more ergonomic type
-    like `string`. pggen's nullability inference in 
-    [internal/pginfer/nullability.go] is rudimentary; a proper 
-    approach requires a full AST with some control flow analysis.
+    Choosing an appropriate type is more difficult than might seem at first 
+    glance due to `null`. When Postgres reports that a column has a type `text`,
+    that column can have  both `text` and `null` values. So, the Postgres `text`
+    represented in Go can be either a `string` or `nil`. [`pgtype`] provides 
+    nullable types for all built-in Postgres types. pggen tries to infer if a 
+    column is nullable or non-nullable. If a column is nullable, pggen uses a 
+    `pgtype` Go type like `pgtype.Text`. If a column is non-nullable, pggen uses
+     a more ergonomic type like `string`. pggen's nullability inference in 
+    [internal/pginfer/nullability.go] is rudimentary; a proper approach requires
+     a full AST with some control flow analysis.
     
 -   Lastly, pggen generates the implementation for each query.
 
