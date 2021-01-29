@@ -245,7 +245,7 @@ We'll walk through the generated file `author/query.sql.go`:
     appear due to `null`. When Postgres reports that a column has a type `text`,
     that column might have `null` values. So, the Postgres `text` represented in
     Go can be either a `string` or `nil`. [`pgtype`] provides nullable types for
-    all built-in Postgres types. pggen tries to infer is a column is nullable or
+    all built-in Postgres types. pggen tries to infer if a column is nullable or
     non-nullable. If a column is nullable, pggen uses a `pgtype` Go type like 
     `pgtype.Text`. If a column is non-nullable, pggen uses a more ergonomic type
     like `string`. pggen's nullability inference in 
@@ -257,7 +257,7 @@ We'll walk through the generated file `author/query.sql.go`:
     As a convenience, if a there are less than three query parameters, pggen
     inlines the parameters into the method definition, as with `firstName` 
     below. If there are three or more parameters, pggen creates a struct named
-    `<query_name>Params` to hold the parameters.
+    `<query_name>Params` to pass the parameters to the query method.
     
     ```sql
     // FindAuthors implements Querier.FindAuthors.
