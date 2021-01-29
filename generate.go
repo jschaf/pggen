@@ -39,6 +39,8 @@ type GenerateOptions struct {
 	//
 	//   # Example URL
 	//   postgres://jack:secret@pg.example.com:5432/foo_db?sslmode=verify-ca
+	//
+	// Must be empty if DockerInitScripts is not empty.
 	ConnString string
 	// Generate code for each of the SQL query file paths.
 	QueryFiles []string
@@ -115,7 +117,7 @@ func Generate(opts GenerateOptions) (mErr error) {
 	return nil
 }
 
-// connectPostgres connects to postgres using connString if given, or by
+// connectPostgres connects to postgres using connString if given or by
 // running a Docker postgres container and connecting to that.
 func connectPostgres(ctx context.Context, opts GenerateOptions, l *zap.SugaredLogger) (conn *pgx.Conn, cleanup func() error, mErr error) {
 	cleanup = func() error { return nil }
