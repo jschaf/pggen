@@ -10,6 +10,10 @@ SELECT * FROM author WHERE first_name = pggen.arg('FirstName');
 -- name: DeleteAuthors :exec
 DELETE FROM author WHERE first_name = 'joe';
 
+-- DeleteAuthorsByFirstName deletes authors by first name.
+-- name: DeleteAuthorsByFirstName :exec
+DELETE FROM author WHERE first_name = pggen.arg('FirstName');
+
 -- InsertAuthor inserts an author by name and returns the ID.
 -- name: InsertAuthor :one
 INSERT INTO author (first_name, last_name)

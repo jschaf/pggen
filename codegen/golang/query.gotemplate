@@ -102,7 +102,7 @@ func (q *DBQuerier) {{ $q.Name }}(ctx context.Context {{- $q.EmitParams }}) ({{ 
 	}
 	return items, err
 {{- else if eq $q.ResultKind ":exec" }}
-	cmdTag, err := q.conn.Exec(ctx, {{ $q.SQLVarName }})
+	cmdTag, err := q.conn.Exec(ctx, {{ $q.SQLVarName }} {{- $q.EmitParamNames }})
 	return cmdTag, err
 {{- end }}
 }

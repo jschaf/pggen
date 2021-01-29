@@ -40,6 +40,14 @@ type Querier interface {
 	// DeleteAuthorsScan scans the result of an executed DeleteAuthorsBatch query.
 	DeleteAuthorsScan(results pgx.BatchResults) (pgconn.CommandTag, error)
 
+	// DeleteAuthorsByFirstName deletes authors by first name.
+	DeleteAuthorsByFirstName(ctx context.Context, firstName string) (pgconn.CommandTag, error)
+	// DeleteAuthorsByFirstNameBatch enqueues a DeleteAuthorsByFirstName query into batch to be executed
+	// later by the batch.
+	DeleteAuthorsByFirstNameBatch(ctx context.Context, batch *pgx.Batch, firstName string)
+	// DeleteAuthorsByFirstNameScan scans the result of an executed DeleteAuthorsByFirstNameBatch query.
+	DeleteAuthorsByFirstNameScan(results pgx.BatchResults) (pgconn.CommandTag, error)
+
 	// InsertAuthor inserts an author by name and returns the ID.
 	InsertAuthor(ctx context.Context, firstName string, lastName string) (int32, error)
 	// InsertAuthorBatch enqueues a InsertAuthor query into batch to be executed
@@ -205,6 +213,25 @@ func (q *DBQuerier) DeleteAuthorsBatch(ctx context.Context, batch *pgx.Batch) {
 
 // DeleteAuthorsScan implements Querier.DeleteAuthorsScan.
 func (q *DBQuerier) DeleteAuthorsScan(results pgx.BatchResults) (pgconn.CommandTag, error) {
+	cmdTag, err := results.Exec()
+	return cmdTag, err
+}
+
+const deleteAuthorsByFirstNameSQL = `DELETE FROM author WHERE first_name = $1;`
+
+// DeleteAuthorsByFirstName implements Querier.DeleteAuthorsByFirstName.
+func (q *DBQuerier) DeleteAuthorsByFirstName(ctx context.Context, firstName string) (pgconn.CommandTag, error) {
+	cmdTag, err := q.conn.Exec(ctx, deleteAuthorsByFirstNameSQL, firstName)
+	return cmdTag, err
+}
+
+// DeleteAuthorsByFirstNameBatch implements Querier.DeleteAuthorsByFirstNameBatch.
+func (q *DBQuerier) DeleteAuthorsByFirstNameBatch(ctx context.Context, batch *pgx.Batch, firstName string) {
+	batch.Queue(deleteAuthorsByFirstNameSQL, firstName)
+}
+
+// DeleteAuthorsByFirstNameScan implements Querier.DeleteAuthorsByFirstNameScan.
+func (q *DBQuerier) DeleteAuthorsByFirstNameScan(results pgx.BatchResults) (pgconn.CommandTag, error) {
 	cmdTag, err := results.Exec()
 	return cmdTag, err
 }
