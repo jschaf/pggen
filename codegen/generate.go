@@ -122,24 +122,32 @@ func parseQueries(file string, inferrer *pginfer.Inferrer) (gen.QueryFile, error
 	if err != nil {
 		return gen.QueryFile{}, fmt.Errorf("parse query file %q: %w", file, err)
 	}
-	queries := make([]pginfer.TypedQuery, 0, len(astFile.Queries))
+
+	// Check for duplicate query names and bad queries.
+	srcQueries := make([]*ast.SourceQuery, 0, len(astFile.Queries))
+	seenNames := make(map[string]struct{}, len(astFile.Queries))
 	for _, query := range astFile.Queries {
 		switch query := query.(type) {
 		case *ast.BadQuery:
 			return gen.QueryFile{}, errors.New("parsed bad query instead of erroring")
 		case *ast.SourceQuery:
-			break // break switch - keep going
+			if _, ok := seenNames[query.Name]; ok {
+				return gen.QueryFile{}, fmt.Errorf("duplicate query name %s", query.Name)
+			}
+			seenNames[query.Name] = struct{}{}
+			srcQueries = append(srcQueries, query)
 		default:
 			return gen.QueryFile{}, fmt.Errorf("unhandled query ast type: %T", query)
 		}
+	}
 
-		// Infer types.
-		srcQuery := query.(*ast.SourceQuery)
+	// Infer types.
+	queries := make([]pginfer.TypedQuery, 0, len(astFile.Queries))
+	for _, srcQuery := range srcQueries {
 		typedQuery, err := inferrer.InferTypes(srcQuery)
 		if err != nil {
 			return gen.QueryFile{}, fmt.Errorf("infer typed named query %s: %w", srcQuery.Name, err)
 		}
-
 		queries = append(queries, typedQuery)
 	}
 	return gen.QueryFile{
