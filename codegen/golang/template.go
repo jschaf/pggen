@@ -47,6 +47,37 @@ func (tq goTemplateQuery) EmitParams() string {
 	}
 }
 
+func getLongestInput(inputs []goInputParam) int {
+	max := 0
+	for _, in := range inputs {
+		if len(in.Name) > max {
+			max = len(in.Name)
+		}
+	}
+	return max
+}
+
+// EmitParamStruct emits the struct definition for query params if needed.
+func (tq goTemplateQuery) EmitParamStruct() string {
+	if len(tq.Inputs) < 3 {
+		return ""
+	}
+	sb := &strings.Builder{}
+	sb.WriteString("\n\ntype ")
+	sb.WriteString(tq.Name)
+	sb.WriteString("Params struct {\n")
+	typeCol := getLongestInput(tq.Inputs) + 1 // 1 space
+	for _, out := range tq.Inputs {
+		sb.WriteString("\t")
+		sb.WriteString(out.Name)
+		sb.WriteString(strings.Repeat(" ", typeCol-len(out.Name)))
+		sb.WriteString(out.Type)
+		sb.WriteRune('\n')
+	}
+	sb.WriteString("}")
+	return sb.String()
+}
+
 // EmitParamNames emits the goTemplateQuery.Inputs into comma separated names
 // for use in a method invocation.
 func (tq goTemplateQuery) EmitParamNames() string {
@@ -61,7 +92,12 @@ func (tq goTemplateQuery) EmitParamNames() string {
 		}
 		return sb.String()
 	default:
-		return ", " + tq.Name + "Params"
+		sb := strings.Builder{}
+		for _, input := range tq.Inputs {
+			sb.WriteString(", params.")
+			sb.WriteString(input.Name)
+		}
+		return sb.String()
 	}
 }
 
@@ -137,7 +173,7 @@ func (tq goTemplateQuery) EmitResultElem() (string, error) {
 	return strings.TrimPrefix(result, "[]"), nil
 }
 
-func getLongestField(outs []goOutputColumn) int {
+func getLongestOutput(outs []goOutputColumn) int {
 	max := 0
 	for _, out := range outs {
 		if len(out.Name) > max {
@@ -147,9 +183,9 @@ func getLongestField(outs []goOutputColumn) int {
 	return max
 }
 
-// EmitParamsStruct writes the struct definition for query params if one is
+// EmitRowStruct writes the struct definition for query output row if one is
 // needed.
-func (tq goTemplateQuery) EmitParamsStruct() string {
+func (tq goTemplateQuery) EmitRowStruct() string {
 	switch tq.ResultKind {
 	case ast.ResultKindExec:
 		return ""
@@ -161,7 +197,7 @@ func (tq goTemplateQuery) EmitParamsStruct() string {
 		sb.WriteString("\n\ntype ")
 		sb.WriteString(tq.Name)
 		sb.WriteString("Row struct {\n")
-		typeCol := getLongestField(tq.Outputs) + 1 // 1 space
+		typeCol := getLongestOutput(tq.Outputs) + 1 // 1 space
 		for _, out := range tq.Outputs {
 			sb.WriteString("\t")
 			sb.WriteString(out.Name)

@@ -15,3 +15,10 @@ DELETE FROM author WHERE first_name = 'joe';
 INSERT INTO author (first_name, last_name)
 VALUES (pggen.arg('FirstName'), pggen.arg('LastName'))
 RETURNING author_id;
+
+-- InsertAuthorSuffix inserts an author by name and suffix and returns the
+-- entire row.
+-- name: InsertAuthorSuffix :one
+INSERT INTO author (first_name, last_name, suffix)
+VALUES (pggen.arg('FirstName'), pggen.arg('LastName'), pggen.arg('Suffix'))
+RETURNING author_id, first_name, last_name, suffix;

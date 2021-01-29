@@ -47,6 +47,15 @@ type Querier interface {
 	InsertAuthorBatch(ctx context.Context, batch *pgx.Batch, firstName string, lastName string)
 	// InsertAuthorScan scans the result of an executed InsertAuthorBatch query.
 	InsertAuthorScan(results pgx.BatchResults) (int32, error)
+
+	// InsertAuthorSuffix inserts an author by name and suffix and returns the
+	// entire row.
+	InsertAuthorSuffix(ctx context.Context, params InsertAuthorSuffixParams) (InsertAuthorSuffixRow, error)
+	// InsertAuthorSuffixBatch enqueues a InsertAuthorSuffix query into batch to be executed
+	// later by the batch.
+	InsertAuthorSuffixBatch(ctx context.Context, batch *pgx.Batch, params InsertAuthorSuffixParams)
+	// InsertAuthorSuffixScan scans the result of an executed InsertAuthorSuffixBatch query.
+	InsertAuthorSuffixScan(results pgx.BatchResults) (InsertAuthorSuffixRow, error)
 }
 
 type DBQuerier struct {
@@ -225,6 +234,48 @@ func (q *DBQuerier) InsertAuthorScan(results pgx.BatchResults) (int32, error) {
 	var item int32
 	if err := row.Scan(&item); err != nil {
 		return item, fmt.Errorf("scan InsertAuthorBatch row: %w", err)
+	}
+	return item, nil
+}
+
+const insertAuthorSuffixSQL = `INSERT INTO author (first_name, last_name, suffix)
+VALUES ($1, $2, $3)
+RETURNING author_id, first_name, last_name, suffix;`
+
+type InsertAuthorSuffixParams struct {
+	FirstName string
+	LastName  string
+	Suffix    string
+}
+
+type InsertAuthorSuffixRow struct {
+	AuthorID  int32
+	FirstName string
+	LastName  string
+	Suffix    pgtype.Text
+}
+
+// InsertAuthorSuffix implements Querier.InsertAuthorSuffix.
+func (q *DBQuerier) InsertAuthorSuffix(ctx context.Context, params InsertAuthorSuffixParams) (InsertAuthorSuffixRow, error) {
+	row := q.conn.QueryRow(ctx, insertAuthorSuffixSQL, params.FirstName, params.LastName, params.Suffix)
+	var item InsertAuthorSuffixRow
+	if err := row.Scan(&item.AuthorID, &item.FirstName, &item.LastName, &item.Suffix); err != nil {
+		return item, fmt.Errorf("query InsertAuthorSuffix: %w", err)
+	}
+	return item, nil
+}
+
+// InsertAuthorSuffixBatch implements Querier.InsertAuthorSuffixBatch.
+func (q *DBQuerier) InsertAuthorSuffixBatch(ctx context.Context, batch *pgx.Batch, params InsertAuthorSuffixParams) {
+	batch.Queue(insertAuthorSuffixSQL, params.FirstName, params.LastName, params.Suffix)
+}
+
+// InsertAuthorSuffixScan implements Querier.InsertAuthorSuffixScan.
+func (q *DBQuerier) InsertAuthorSuffixScan(results pgx.BatchResults) (InsertAuthorSuffixRow, error) {
+	row := results.QueryRow()
+	var item InsertAuthorSuffixRow
+	if err := row.Scan(&item.AuthorID, &item.FirstName, &item.LastName, &item.Suffix); err != nil {
+		return item, fmt.Errorf("scan InsertAuthorSuffixBatch row: %w", err)
 	}
 	return item, nil
 }

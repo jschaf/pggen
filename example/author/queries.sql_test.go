@@ -80,6 +80,27 @@ func TestNewQuerier_FindAuthors(t *testing.T) {
 	}
 }
 
+func TestNewQuerier_InsertAuthorSuffix(t *testing.T) {
+	conn, cleanup := pgtest.NewPostgresSchema(t, []string{"schema.sql"})
+	defer cleanup()
+	q := NewQuerier(conn)
+	author, err := q.InsertAuthorSuffix(context.Background(), InsertAuthorSuffixParams{
+		FirstName: "john",
+		LastName:  "adams",
+		Suffix:    "Jr.",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := InsertAuthorSuffixRow{
+		AuthorID:  author.AuthorID,
+		FirstName: "john",
+		LastName:  "adams",
+		Suffix:    pgtype.Text{Status: pgtype.Present, String: "Jr."},
+	}
+	assert.Equal(t, want, author, "InsertAuthorSuffix should match")
+}
+
 func insertAuthor(t *testing.T, q *DBQuerier, first, last string) int32 {
 	t.Helper()
 	authorID, err := q.InsertAuthor(context.Background(), first, last)
