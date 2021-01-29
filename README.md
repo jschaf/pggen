@@ -2,16 +2,34 @@
 [![Lint](https://github.com/jschaf/pggen/workflows/Lint/badge.svg)](https://github.com/jschaf/pggen/actions?query=workflow%3ALint) 
 [![GoReportCard](https://goreportcard.com/badge/github.com/jschaf/pggen)](https://goreportcard.com/report/github.com/jschaf/pggen)
 
-# pggen - generate type safe Go from Postgres SQL
+# pggen - generate type safe Go methods from Postgres SQL queries
 
-pggen is a binary that generates Go code to provide a typesafe wrapper around
-Postgres queries. pggen has the same goals as [sqlc], a similar tool that 
-compiles SQL to type-safe Go. 
+pggen is a tool that generates Go code to provide a typesafe wrapper around
+Postgres queries. If Postgres can run the query, pggen can generate code for it.
 
-1. Write SQL queries.
-2. Run pggen to generate a Go code the provides a type-safe interface to running
-   the SQL queries.
-3. Use the generated code in your application. 
+1.  Write SQL queries.
+
+    ```sql
+    -- FindAuthors finds authors by first name.
+    -- name: FindAuthors :many
+    SELECT * FROM author WHERE first_name = pggen.arg('FirstName');
+    ```
+
+2.  Run pggen to generate Go code the provides type-safe methods for each query.
+   
+    ```bash
+    pggen gen go \
+        --docker-init-script author/schema.sql \
+        --query-file author/query.sql
+    ```
+    
+3.  Use the generated code. 
+
+    ```go
+    var conn *pgx.Conn
+	q := NewQuerier(conn)
+	aliceAuthors, err := q.FindAuthors(ctx, "alice")
+    ```
 
 ## Pitch
 
@@ -196,8 +214,8 @@ We'll walk through the generated file `author/query.sql.go`:
     ```sql
 	q := NewQuerier(conn)
 	batch := &pgx.Batch{}
-	q.FindAuthors(context.Background(), batch, "alice")
-	q.FindAuthors(context.Background(), batch, "bob")
+	q.FindAuthorsBatch(context.Background(), batch, "alice")
+	q.FindAuthorsBatch(context.Background(), batch, "bob")
 	results := conn.SendBatch(context.Background(), batch)
 	aliceAuthors, err := q.FindAuthorsScan(results)
 	bobAuthors, err := q.FindAuthorsScan(results)
