@@ -71,11 +71,11 @@ func NewInferrer(conn *pgx.Conn) *Inferrer {
 func (inf *Inferrer) InferTypes(query *ast.SourceQuery) (TypedQuery, error) {
 	inputs, err := inf.inferInputTypes(query)
 	if err != nil {
-		return TypedQuery{}, fmt.Errorf("infer input types for query %s: %w", query.Name, err)
+		return TypedQuery{}, fmt.Errorf("infer input types for query: %w", err)
 	}
 	outputs, err := inf.inferOutputTypes(query)
 	if err != nil {
-		return TypedQuery{}, fmt.Errorf("infer output types for query %s: %w", query.Name, err)
+		return TypedQuery{}, fmt.Errorf("infer output types for query: %w", err)
 	}
 	if query.ResultKind != ast.ResultKindExec && len(outputs) == 0 {
 		return TypedQuery{}, fmt.Errorf(
