@@ -22,7 +22,7 @@ EXAMPLES
 
   # Generate code using docker to create the postgres database with a schema 
   # file.
-  pggen gen go --docker-init-script author/schema.sql --query-file author/queries.sql
+  pggen gen go --schema-file author/schema.sql --query-file author/queries.sql
 `
 
 func run() error {
@@ -53,8 +53,8 @@ func newGenCmd() *ffcli.Command {
 	postgresConn := fset.String("postgres-connection", "", `connection string to a postgres database, like: `+
 		`"user=postgres host=localhost dbname=pggen"`)
 	queryFiles := flags.Strings(fset, "query-file", nil, "generate code for a file containing postgres queries")
-	dockerInit := flags.Strings(fset, "docker-init-script", nil,
-		"sql file or shell script to run to initialize database on Docker container start")
+	schemaFiles := flags.Strings(fset, "schema-file", nil,
+		"sql, sql.gz, or shell script file to run during Postgres initialization in Docker")
 	goSubCmd := &ffcli.Command{
 		Name:       "go",
 		ShortUsage: "pggen gen go [options...]",
@@ -65,10 +65,10 @@ func newGenCmd() *ffcli.Command {
 			if len(*queryFiles) == 0 {
 				return fmt.Errorf("pggen gen go: at least one --query-file path must be specified")
 			}
-			if *dockerInit != nil && *postgresConn != "" {
-				return fmt.Errorf("cannot use both --docker-init-script and --postgres-connection together\n" +
-					"    use --docker-init-script to have pggen to run dockerized postgres automatically\n" +
-					"    use --postgres-connection to have pggen connect to an existing database")
+			if *schemaFiles != nil && *postgresConn != "" {
+				return fmt.Errorf("cannot use both --schema-file and --postgres-connection together\n" +
+					"    use --schema-file to run dockerized postgres automatically\n" +
+					"    use --postgres-connection to connect to an existing database for the schema")
 			}
 			// Get absolute paths.
 			files := make([]string, len(*queryFiles))
@@ -95,7 +95,7 @@ func newGenCmd() *ffcli.Command {
 			err := pggen.Generate(pggen.GenerateOptions{
 				Language:          pggen.LangGo,
 				ConnString:        *postgresConn,
-				DockerInitScripts: *dockerInit,
+				DockerInitScripts: *schemaFiles,
 				QueryFiles:        files,
 				OutputDir:         outDir,
 			})
