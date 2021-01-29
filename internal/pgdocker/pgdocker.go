@@ -210,7 +210,7 @@ func (c *Client) waitIsReady(ctx context.Context) error {
 		default:
 			// continue
 		}
-		limit := time.After(200 * time.Millisecond) // debounce
+		debounce := time.After(200 * time.Millisecond)
 		conn, err := pgx.ConnectConfig(ctx, cfg)
 		if err == nil {
 			if err := conn.Close(ctx); err != nil {
@@ -219,7 +219,7 @@ func (c *Client) waitIsReady(ctx context.Context) error {
 			return nil
 		}
 		c.l.Debugf("attempted connection: %s", err)
-		<-limit
+		<-debounce
 	}
 }
 
