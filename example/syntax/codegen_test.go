@@ -1,8 +1,7 @@
 package syntax
 
 import (
-	"github.com/jschaf/pggen/codegen"
-	"github.com/jschaf/pggen/codegen/gen"
+	"github.com/jschaf/pggen"
 	"github.com/jschaf/pggen/internal/pgtest"
 	"github.com/stretchr/testify/assert"
 	"io/ioutil"
@@ -15,15 +14,15 @@ func TestGenerate_Go_Example_Syntax(t *testing.T) {
 	defer cleanupFunc()
 
 	tmpDir := t.TempDir()
-	err := codegen.Generate(
-		gen.GenerateOptions{
+	err := pggen.Generate(
+		pggen.GenerateOptions{
 			ConnString: conn.Config().ConnString(),
 			QueryFiles: []string{
 				"query.sql",
 			},
 			OutputDir: tmpDir,
 			GoPackage: "syntax",
-			Language:  gen.LangGo,
+			Language:  pggen.LangGo,
 		})
 	if err != nil {
 		t.Fatalf("Generate() example/syntax: %s", err)

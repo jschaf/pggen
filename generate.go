@@ -1,13 +1,13 @@
-package codegen
+package pggen
 
 import (
 	"context"
 	"errors"
 	"fmt"
 	"github.com/jackc/pgx/v4"
-	"github.com/jschaf/pggen/codegen/gen"
-	"github.com/jschaf/pggen/codegen/golang"
 	"github.com/jschaf/pggen/internal/ast"
+	"github.com/jschaf/pggen/internal/codegen"
+	"github.com/jschaf/pggen/internal/codegen/golang"
 	"github.com/jschaf/pggen/internal/errs"
 	"github.com/jschaf/pggen/internal/parser"
 	"github.com/jschaf/pggen/internal/pgdocker"
@@ -22,7 +22,7 @@ import (
 // ast.SourceQuery in opts.QueryFiles.
 //
 // Generate must only be called once per output directory.
-func Generate(opts gen.GenerateOptions) (mErr error) {
+func Generate(opts GenerateOptions) (mErr error) {
 	// Preconditions.
 	if opts.Language == "" {
 		return fmt.Errorf("generate language must be set; got empty string")
@@ -66,8 +66,12 @@ func Generate(opts gen.GenerateOptions) (mErr error) {
 
 	// Codegen.
 	switch opts.Language {
-	case gen.LangGo:
-		if err := golang.Generate(opts, queryFiles); err != nil {
+	case LangGo:
+		goOpts := golang.GenerateOptions{
+			GoPkg:     opts.GoPackage,
+			OutputDir: opts.OutputDir,
+		}
+		if err := golang.Generate(goOpts, queryFiles); err != nil {
 			return fmt.Errorf("generate go code: %w", err)
 		}
 	default:
@@ -78,7 +82,7 @@ func Generate(opts gen.GenerateOptions) (mErr error) {
 
 // connectPostgres connects to postgres using connString if given, or by
 // running a Docker postgres container and connecting to that.
-func connectPostgres(ctx context.Context, opts gen.GenerateOptions, l *zap.SugaredLogger) (conn *pgx.Conn, cleanup func() error, mErr error) {
+func connectPostgres(ctx context.Context, opts GenerateOptions, l *zap.SugaredLogger) (conn *pgx.Conn, cleanup func() error, mErr error) {
 	cleanup = func() error { return nil }
 	connString := opts.ConnString
 	if connString == "" {
@@ -105,8 +109,8 @@ func connectPostgres(ctx context.Context, opts gen.GenerateOptions, l *zap.Sugar
 	return pgConn, cleanup, nil
 }
 
-func parseQueryFiles(queryFiles []string, inferrer *pginfer.Inferrer) ([]gen.QueryFile, error) {
-	files := make([]gen.QueryFile, len(queryFiles))
+func parseQueryFiles(queryFiles []string, inferrer *pginfer.Inferrer) ([]codegen.QueryFile, error) {
+	files := make([]codegen.QueryFile, len(queryFiles))
 	for i, file := range queryFiles {
 		queryFile, err := parseQueries(file, inferrer)
 		if err != nil {
@@ -117,10 +121,10 @@ func parseQueryFiles(queryFiles []string, inferrer *pginfer.Inferrer) ([]gen.Que
 	return files, nil
 }
 
-func parseQueries(file string, inferrer *pginfer.Inferrer) (gen.QueryFile, error) {
+func parseQueries(file string, inferrer *pginfer.Inferrer) (codegen.QueryFile, error) {
 	astFile, err := parser.ParseFile(gotok.NewFileSet(), file, nil, 0)
 	if err != nil {
-		return gen.QueryFile{}, fmt.Errorf("parse query file %q: %w", file, err)
+		return codegen.QueryFile{}, fmt.Errorf("parse query file %q: %w", file, err)
 	}
 
 	// Check for duplicate query names and bad queries.
@@ -129,15 +133,15 @@ func parseQueries(file string, inferrer *pginfer.Inferrer) (gen.QueryFile, error
 	for _, query := range astFile.Queries {
 		switch query := query.(type) {
 		case *ast.BadQuery:
-			return gen.QueryFile{}, errors.New("parsed bad query instead of erroring")
+			return codegen.QueryFile{}, errors.New("parsed bad query instead of erroring")
 		case *ast.SourceQuery:
 			if _, ok := seenNames[query.Name]; ok {
-				return gen.QueryFile{}, fmt.Errorf("duplicate query name %s", query.Name)
+				return codegen.QueryFile{}, fmt.Errorf("duplicate query name %s", query.Name)
 			}
 			seenNames[query.Name] = struct{}{}
 			srcQueries = append(srcQueries, query)
 		default:
-			return gen.QueryFile{}, fmt.Errorf("unhandled query ast type: %T", query)
+			return codegen.QueryFile{}, fmt.Errorf("unhandled query ast type: %T", query)
 		}
 	}
 
@@ -146,12 +150,12 @@ func parseQueries(file string, inferrer *pginfer.Inferrer) (gen.QueryFile, error
 	for _, srcQuery := range srcQueries {
 		typedQuery, err := inferrer.InferTypes(srcQuery)
 		if err != nil {
-			return gen.QueryFile{}, fmt.Errorf("infer typed named query %s: %w", srcQuery.Name, err)
+			return codegen.QueryFile{}, fmt.Errorf("infer typed named query %s: %w", srcQuery.Name, err)
 		}
 		queries = append(queries, typedQuery)
 	}
-	return gen.QueryFile{
-		Src:     file,
+	return codegen.QueryFile{
+		Path:    file,
 		Queries: queries,
 	}, nil
 }

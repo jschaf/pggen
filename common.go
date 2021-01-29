@@ -1,10 +1,6 @@
 // Package gen contains common code shared between codegen and language
 // specific code generators. Separate package to avoid dependency cycles.
-package gen
-
-import (
-	"github.com/jschaf/pggen/internal/pginfer"
-)
+package pggen
 
 // Lang is a supported codegen language.
 type Lang string
@@ -39,10 +35,4 @@ type GenerateOptions struct {
 	// Docker init scripts to run in dockerized Postgres. Must be nil if
 	// ConnString is set.
 	DockerInitScripts []string
-}
-
-// QueryFile represents all of the SQL queries from a single file.
-type QueryFile struct {
-	Src     string               // the source SQL file base name
-	Queries []pginfer.TypedQuery // the typed queries
 }

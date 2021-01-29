@@ -1,7 +1,6 @@
-package codegen
+package pggen
 
 import (
-	"github.com/jschaf/pggen/codegen/gen"
 	"github.com/jschaf/pggen/internal/pgtest"
 	"github.com/jschaf/pggen/internal/texts"
 	"github.com/stretchr/testify/assert"
@@ -40,12 +39,12 @@ func TestGenerate_Golang_Error(t *testing.T) {
 			}
 
 			err = Generate(
-				gen.GenerateOptions{
+				GenerateOptions{
 					ConnString: conn.Config().ConnString(),
 					QueryFiles: []string{queryFile},
 					OutputDir:  tmpDir,
 					GoPackage:  "error_test",
-					Language:   gen.LangGo,
+					Language:   LangGo,
 				})
 
 			if err == nil {

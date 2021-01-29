@@ -4,8 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"github.com/jschaf/pggen/codegen"
-	"github.com/jschaf/pggen/codegen/gen"
+	"github.com/jschaf/pggen"
 	"github.com/jschaf/pggen/internal/flags"
 	"github.com/peterbourgon/ff/v3/ffcli"
 	"os"
@@ -93,8 +92,8 @@ func newGenCmd() *ffcli.Command {
 				}
 			}
 			// Codegen.
-			err := codegen.Generate(gen.GenerateOptions{
-				Language:          gen.LangGo,
+			err := pggen.Generate(pggen.GenerateOptions{
+				Language:          pggen.LangGo,
 				ConnString:        *postgresConn,
 				DockerInitScripts: *dockerInit,
 				QueryFiles:        files,

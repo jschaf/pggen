@@ -2,22 +2,28 @@ package golang
 
 import (
 	"fmt"
-	"github.com/jschaf/pggen/codegen/gen"
 	"github.com/jschaf/pggen/internal/ast"
 	"github.com/jschaf/pggen/internal/casing"
+	"github.com/jschaf/pggen/internal/codegen"
 	"path/filepath"
 	"sort"
 	"strings"
 	"unicode"
 )
 
+// GenerateOptions are options to control generated Go output.
+type GenerateOptions struct {
+	GoPkg     string
+	OutputDir string
+}
+
 // goQueryFile is the Go version of a SQL query file with all information needed
 // to execute the codegen template.
 type goQueryFile struct {
-	GoPkg    string            // the name of the Go package to use for the generated file
-	BaseName string            // the source SQL file base name
-	Queries  []goTemplateQuery // the queries with all template information
-	Imports  []string          // Go imports
+	GoPkg   string            // the name of the Go package to use for the generated file
+	Path    string            // the path to source SQL file
+	Queries []goTemplateQuery // the queries with all template information
+	Imports []string          // Go imports
 	// True if this file is the leader file. The leader defines common interfaces
 	// used by by all queries in the same directory.
 	IsLeader bool
@@ -46,13 +52,13 @@ type goOutputColumn struct {
 }
 
 // Generate emits generated Go files for each of the queryFiles.
-func Generate(opts gen.GenerateOptions, queryFiles []gen.QueryFile) error {
+func Generate(opts GenerateOptions, queryFiles []codegen.QueryFile) error {
 	tmpl, err := parseQueryTemplate()
 	if err != nil {
 		return fmt.Errorf("parse generated Go code template: %w", err)
 	}
-	pkgName := opts.GoPackage
-	if opts.GoPackage == "" {
+	pkgName := opts.GoPkg
+	if pkgName == "" {
 		pkgName = filepath.Base(opts.OutputDir)
 	}
 
@@ -61,7 +67,7 @@ func Generate(opts gen.GenerateOptions, queryFiles []gen.QueryFile) error {
 	for _, queryFile := range queryFiles {
 		goFile, err := buildGoQueryFile(pkgName, queryFile)
 		if err != nil {
-			return fmt.Errorf("prepare query file %s for go: %w", queryFile.Src, err)
+			return fmt.Errorf("prepare query file %s for go: %w", queryFile.Path, err)
 		}
 		goQueryFiles = append(goQueryFiles, goFile)
 	}
@@ -70,9 +76,9 @@ func Generate(opts gen.GenerateOptions, queryFiles []gen.QueryFile) error {
 	firstIndex := -1
 	firstName := string(unicode.MaxRune)
 	for i, goFile := range goQueryFiles {
-		if goFile.BaseName < firstName {
+		if goFile.Path < firstName {
 			firstIndex = i
-			firstName = goFile.BaseName
+			firstName = goFile.Path
 		}
 	}
 	goQueryFiles[firstIndex].IsLeader = true
@@ -110,7 +116,7 @@ func Generate(opts gen.GenerateOptions, queryFiles []gen.QueryFile) error {
 	return nil
 }
 
-func buildGoQueryFile(pkgName string, file gen.QueryFile) (goQueryFile, error) {
+func buildGoQueryFile(pkgName string, file codegen.QueryFile) (goQueryFile, error) {
 	caser := casing.NewCaser()
 	caser.AddAcronym("id", "ID")
 
@@ -185,9 +191,9 @@ func buildGoQueryFile(pkgName string, file gen.QueryFile) (goQueryFile, error) {
 	sort.Strings(sortedImports)
 
 	return goQueryFile{
-		GoPkg:    pkgName,
-		BaseName: file.Src,
-		Queries:  queries,
-		Imports:  sortedImports,
+		GoPkg:   pkgName,
+		Path:    file.Path,
+		Queries: queries,
+		Imports: sortedImports,
 	}, nil
 }

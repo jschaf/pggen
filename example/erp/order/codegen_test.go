@@ -1,8 +1,7 @@
 package order
 
 import (
-	"github.com/jschaf/pggen/codegen"
-	"github.com/jschaf/pggen/codegen/gen"
+	"github.com/jschaf/pggen"
 	"github.com/jschaf/pggen/internal/pgtest"
 	"github.com/stretchr/testify/assert"
 	"io/ioutil"
@@ -15,8 +14,8 @@ func TestGenerate_Go_Example_Order(t *testing.T) {
 	defer cleanupFunc()
 
 	tmpDir := t.TempDir()
-	err := codegen.Generate(
-		gen.GenerateOptions{
+	err := pggen.Generate(
+		pggen.GenerateOptions{
 			ConnString: conn.Config().ConnString(),
 			QueryFiles: []string{
 				"customer.sql",
@@ -24,7 +23,7 @@ func TestGenerate_Go_Example_Order(t *testing.T) {
 			},
 			OutputDir: tmpDir,
 			GoPackage: "order",
-			Language:  gen.LangGo,
+			Language:  pggen.LangGo,
 		})
 	if err != nil {
 		t.Fatalf("Generate() example/erp/order: %s", err)
