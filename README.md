@@ -25,9 +25,9 @@ Why should you use `pggen` instead of the [myriad] of Go SQL bindings?
   results.
   
 - pggen works with all Postgres queries. If Postgres can run the query, pggen
-  can generate Go code for it, modulo bugs.
+  can generate Go code for the query.
   
-- pggen uses [pgx], a faster replacement for the deprecated [lib/pq].
+- pggen uses [pgx], a faster replacement for the maintenance mode [lib/pq].
 
 - pggen provides a batch interface for each generated query. Batching means
   pggen sends multiple queries in one network request.
@@ -80,9 +80,9 @@ go get github.com/jschaf/pggen
 Generate code using Docker to create the Postgres database from a schema file:
 
 ```bash
-pggen gen go --docker-init-script author/schema.sql --query-file author/queries.sql
+pggen gen go --docker-init-script author/schema.sql --query-file author/query.sql
 
-# Output: author/queries.go.sql
+# Output: author/query.go.sql
 
 # Or with multiple schema files. The schema files run on Postgres
 # in the order they appear on the command line.
@@ -91,19 +91,19 @@ pggen gen go \
     --docker-init-script author/schema.sql      \
     --docker-init-script book/schema.sql        \
     --docker-init-script publisher/schema.sql   \
-    --query-file author/queries.sql
+    --query-file author/query.sql
 
-# Output: author/queries.sql.go
+# Output: author/query.sql.go
 ```
 
 Generate code using an existing Postgres database (useful for custom setups):
 
 ```bash
 pggen gen go \
-    --query-file author/queries.sql \
+    --query-file author/query.sql \
     --postgres-connection "user=postgres port=5555 dbname=pggen"
 
-# Output: author/queries.sql.go
+# Output: author/query.sql.go
 ```
 
 Generate code for multiple query files. All the query files must reside in
@@ -147,7 +147,7 @@ CREATE TABLE author (
 )
 ```
 
-First, write a query in the file `author/queries.sql`:
+First, write a query in the file `author/query.sql`:
 
 ```sql
 -- FindAuthors finds authors by first name.
@@ -155,64 +155,144 @@ First, write a query in the file `author/queries.sql`:
 SELECT * FROM author WHERE first_name = pggen.arg('FirstName');
 ```
 
-Second, use pggen to generate Go code to `author/queries.sql.go`:
+Second, use pggen to generate Go code to `author/query.sql.go`:
 
 ```bash
 pggen gen go \
     --docker-init-file author/schema.sql \
-    --query-file author/queries.sql
+    --query-file author/query.sql
 ```
 
-The generated file `author/queries.sql.go` looks like:
+We'll walk through the generated file `author/query.sql.go`:
 
-```go
-// Querier is a typesafe Go interface backed by SQL queries.
-//
-// Methods ending with Batch enqueue a query to run later in a pgx.Batch. After
-// calling SendBatch on pgx.Conn, pgxpool.Pool, or pgx.Tx, use the Scan methods
-// to parse the results.
-type Querier interface {
-	// FindAuthors finds authors by first name.
-	FindAuthors(ctx context.Context, firstName string) ([]FindAuthorsRow, error)
-	// FindAuthorsBatch enqueues a FindAuthors query into batch to be executed
-	// later by the batch.
-	FindAuthorsBatch(ctx context.Context, batch *pgx.Batch, firstName string)
-	// FindAuthorsScan scans the result of an executed FindAuthorsBatch query.
-	FindAuthorsScan(ctx context.Context, results pgx.BatchResults) ([]FindAuthorsRow, error)
-}
+-   The `Querier` interface defines the interface with methods for each SQL 
+    query. Each SQL query compiles into three methods, one method for to run 
+    query by itself, and two methods to support batching a query with 
+    [`pgx.Batch`]. See the test file [example/author/query.sql_test.go] for how
+    to use the batch interface.
+  
+    ```go
+    // Querier is a typesafe Go interface backed by SQL queries.
+    //
+    // Methods ending with Batch enqueue a query to run later in a pgx.Batch. After
+    // calling SendBatch on pgx.Conn, pgxpool.Pool, or pgx.Tx, use the Scan methods
+    // to parse the results.
+    type Querier interface {
+        // FindAuthors finds authors by first name.
+        FindAuthors(ctx context.Context, firstName string) ([]FindAuthorsRow, error)
+        // FindAuthorsBatch enqueues a FindAuthors query into batch to be executed
+        // later by the batch.
+        FindAuthorsBatch(ctx context.Context, batch *pgx.Batch, firstName string)
+        // FindAuthorsScan scans the result of an executed FindAuthorsBatch query.
+        FindAuthorsScan(ctx context.Context, results pgx.BatchResults) ([]FindAuthorsRow, error)
+    }
+    ```
 
-const findAuthorsSQL = `SELECT * FROM author WHERE first_name = $1;`
+-   The `DBQuerier` struct implements the `Querier` interface.
 
-type FindAuthorsRow struct {
-	AuthorID  int32
-	FirstName string
-	LastName  string
-	Suffix    pgtype.Text
-}
+    ```sql
+    type DBQuerier struct {
+        conn genericConn
+    }
+    ```
 
-// FindAuthors implements Querier.FindAuthors.
-func (q *DBQuerier) FindAuthors(ctx context.Context, firstName string) ([]FindAuthorsRow, error) {
-	rows, err := q.conn.Query(ctx, findAuthorsSQL, firstName)
-	if rows != nil {
-		defer rows.Close()
-	}
-	if err != nil {
-		return nil, fmt.Errorf("query FindAuthors: %w", err)
-	}
-	var items []FindAuthorsRow
-	for rows.Next() {
-		var item FindAuthorsRow
-		if err := rows.Scan(&item.AuthorID, &item.FirstName, &item.LastName, &item.Suffix); err != nil {
-			return nil, fmt.Errorf("scan FindAuthors row: %w", err)
-		}
-		items = append(items, item)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, err
-}
-```
+-   Create `DBQuerier` with `NewQuerier`. The `genericConn` parameter is an 
+    interface over the pgx connection transports so that `DBQuerier` doesn't 
+    force you to use a specific connection transport. [`*pgx.Conn`], [`pgx.Tx`], 
+    and [`*pgxpool.Pool`] all implement `genericConn`.
+
+    ```sql
+    // NewQuerier creates a DBQuerier that implements Querier. conn is typically
+    // *pgx.Conn, pgx.Tx, or *pgxpool.Pool.
+    func NewQuerier(conn genericConn) *DBQuerier {
+        return &DBQuerier{
+            conn: conn,
+        }
+    }
+    ```
+    
+-   pggen embeds the SQL query formatted for a Postgres `PREPARE` statement with
+    parameters indicated by `$1`, `$2`, etc.
+
+    ```sql
+    const findAuthorsSQL = `SELECT * FROM author WHERE first_name = $1;`
+    ```
+    
+-   pggen generates a row struct for each query named `<query_name>Row`.
+    pggen uses the output column names for the names struct fields by converting
+    `lower_snake_case` to `UpperCamelCase` in [internal/casing/casing.go]. 
+    
+    ```sql
+    type FindAuthorsRow struct {
+        AuthorID  int32
+        FirstName string
+        LastName  string
+        Suffix    pgtype.Text
+    }
+    ```
+
+    As a convenience, if a query only generates a single column, pggen skips
+    creating the `<query_name>Row` struct and returns the type directly.  For
+    example, the generated query for `SELECT author_id from author` returns 
+    `int32`, not a `<query_name>Row` struct.
+    
+    pggen infers struct field types by running the query. When Postgres returns
+    query results, Postgres sends the column types as a header for the results. 
+    pggen looks up the types in the header using the `pg_type` catalog table and
+    chooses an appropriate Go type in [codegen/golang/types.go].
+    
+    Choosing an appropriate type is more difficult than a first glance might 
+    appear due to `null`. When Postgres reports that a column has a type `text`,
+    that column might have `null` values. So, the Postgres `text` represented in
+    Go can be either a `string` or `nil`. [`pgtype`] provides nullable types for
+    all built-in Postgres types. pggen tries to infer is a column is nullable or
+    non-nullable. If a column is nullable, pggen uses a `pgtype` Go type like 
+    `pgtype.Text`. If a column is non-nullable, pggen uses a more ergonomic type
+    like `string`. pggen's nullability inference in 
+    [internal/pginfer/nullability.go] is rudimentary; a proper 
+    approach requires a full AST with some control flow analysis.
+    
+-   Lastly, pggen generates the implementation for each query.
+
+    As a convenience, if a there are less than three query parameters, pggen
+    inlines the parameters into the method definition, as with `firstName` 
+    below. If there are three or more parameters, pggen creates a struct named
+    `<query_name>Params` to hold the parameters.
+    
+    ```sql
+    // FindAuthors implements Querier.FindAuthors.
+    func (q *DBQuerier) FindAuthors(ctx context.Context, firstName string) ([]FindAuthorsRow, error) {
+        rows, err := q.conn.Query(ctx, findAuthorsSQL, firstName)
+        if rows != nil {
+            defer rows.Close()
+        }
+        if err != nil {
+            return nil, fmt.Errorf("query FindAuthors: %w", err)
+        }
+        var items []FindAuthorsRow
+        for rows.Next() {
+            var item FindAuthorsRow
+            if err := rows.Scan(&item.AuthorID, &item.FirstName, &item.LastName, &item.Suffix); err != nil {
+                return nil, fmt.Errorf("scan FindAuthors row: %w", err)
+            }
+            items = append(items, item)
+        }
+        if err := rows.Err(); err != nil {
+            return nil, err
+        }
+        return items, err
+    }
+    ```
+
+[./example/author/query.sql_test.go]: ./example/author/query.sql_test.go
+[`pgx.Batch`]: https://pkg.go.dev/github.com/jackc/pgx#Batch
+[`*pgx.Conn`]: https://pkg.go.dev/github.com/jackc/pgx#Conn
+[`pgx.Tx`]: https://pkg.go.dev/github.com/jackc/pgx#Tx
+[`*pgxpool.Pool`]: https://pkg.go.dev/github.com/jackc/pgx/v4/pgxpool#Pool
+[internal/casing/casing.go]: ./internal/casing/casing.go
+[codegen/golang/types.go]: ./codegen/golang/types.go
+[`pgtype`]: https://pkg.go.dev/github.com/jackc/pgtype
+[internal/pginfer/nullability.go]: ./internal/pginfer/nullability.go
 
 # How it works
 
