@@ -14,6 +14,14 @@ DELETE FROM author WHERE first_name = 'joe';
 -- name: DeleteAuthorsByFirstName :exec
 DELETE FROM author WHERE first_name = pggen.arg('FirstName');
 
+-- DeleteAuthorsByFullName deletes authors by the full name.
+-- name: DeleteAuthorsByFullName :exec
+DELETE
+FROM author
+WHERE first_name = pggen.arg('FirstName')
+  AND last_name = pggen.arg('LastName')
+  AND suffix = pggen.arg('Suffix');
+
 -- InsertAuthor inserts an author by name and returns the ID.
 -- name: InsertAuthor :one
 INSERT INTO author (first_name, last_name)

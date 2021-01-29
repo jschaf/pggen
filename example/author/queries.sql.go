@@ -48,6 +48,14 @@ type Querier interface {
 	// DeleteAuthorsByFirstNameScan scans the result of an executed DeleteAuthorsByFirstNameBatch query.
 	DeleteAuthorsByFirstNameScan(results pgx.BatchResults) (pgconn.CommandTag, error)
 
+	// DeleteAuthorsByFullName deletes authors by the full name.
+	DeleteAuthorsByFullName(ctx context.Context, params DeleteAuthorsByFullNameParams) (pgconn.CommandTag, error)
+	// DeleteAuthorsByFullNameBatch enqueues a DeleteAuthorsByFullName query into batch to be executed
+	// later by the batch.
+	DeleteAuthorsByFullNameBatch(ctx context.Context, batch *pgx.Batch, params DeleteAuthorsByFullNameParams)
+	// DeleteAuthorsByFullNameScan scans the result of an executed DeleteAuthorsByFullNameBatch query.
+	DeleteAuthorsByFullNameScan(results pgx.BatchResults) (pgconn.CommandTag, error)
+
 	// InsertAuthor inserts an author by name and returns the ID.
 	InsertAuthor(ctx context.Context, firstName string, lastName string) (int32, error)
 	// InsertAuthorBatch enqueues a InsertAuthor query into batch to be executed
@@ -232,6 +240,35 @@ func (q *DBQuerier) DeleteAuthorsByFirstNameBatch(ctx context.Context, batch *pg
 
 // DeleteAuthorsByFirstNameScan implements Querier.DeleteAuthorsByFirstNameScan.
 func (q *DBQuerier) DeleteAuthorsByFirstNameScan(results pgx.BatchResults) (pgconn.CommandTag, error) {
+	cmdTag, err := results.Exec()
+	return cmdTag, err
+}
+
+const deleteAuthorsByFullNameSQL = `DELETE
+FROM author
+WHERE first_name = $1
+  AND last_name = $2
+  AND suffix = $3;`
+
+type DeleteAuthorsByFullNameParams struct {
+	FirstName string
+	LastName  string
+	Suffix    string
+}
+
+// DeleteAuthorsByFullName implements Querier.DeleteAuthorsByFullName.
+func (q *DBQuerier) DeleteAuthorsByFullName(ctx context.Context, params DeleteAuthorsByFullNameParams) (pgconn.CommandTag, error) {
+	cmdTag, err := q.conn.Exec(ctx, deleteAuthorsByFullNameSQL, params.FirstName, params.LastName, params.Suffix)
+	return cmdTag, err
+}
+
+// DeleteAuthorsByFullNameBatch implements Querier.DeleteAuthorsByFullNameBatch.
+func (q *DBQuerier) DeleteAuthorsByFullNameBatch(ctx context.Context, batch *pgx.Batch, params DeleteAuthorsByFullNameParams) {
+	batch.Queue(deleteAuthorsByFullNameSQL, params.FirstName, params.LastName, params.Suffix)
+}
+
+// DeleteAuthorsByFullNameScan implements Querier.DeleteAuthorsByFullNameScan.
+func (q *DBQuerier) DeleteAuthorsByFullNameScan(results pgx.BatchResults) (pgconn.CommandTag, error) {
 	cmdTag, err := results.Exec()
 	return cmdTag, err
 }
