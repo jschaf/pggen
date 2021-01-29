@@ -211,6 +211,9 @@ const deleteAuthorsSQL = `DELETE FROM author WHERE first_name = 'joe';`
 // DeleteAuthors implements Querier.DeleteAuthors.
 func (q *DBQuerier) DeleteAuthors(ctx context.Context) (pgconn.CommandTag, error) {
 	cmdTag, err := q.conn.Exec(ctx, deleteAuthorsSQL)
+	if err != nil {
+		return cmdTag, fmt.Errorf("exec query DeleteAuthors: %w", err)
+	}
 	return cmdTag, err
 }
 
@@ -222,6 +225,9 @@ func (q *DBQuerier) DeleteAuthorsBatch(ctx context.Context, batch *pgx.Batch) {
 // DeleteAuthorsScan implements Querier.DeleteAuthorsScan.
 func (q *DBQuerier) DeleteAuthorsScan(results pgx.BatchResults) (pgconn.CommandTag, error) {
 	cmdTag, err := results.Exec()
+	if err != nil {
+		return cmdTag, fmt.Errorf("exec DeleteAuthorsBatch: %w", err)
+	}
 	return cmdTag, err
 }
 
@@ -230,6 +236,9 @@ const deleteAuthorsByFirstNameSQL = `DELETE FROM author WHERE first_name = $1;`
 // DeleteAuthorsByFirstName implements Querier.DeleteAuthorsByFirstName.
 func (q *DBQuerier) DeleteAuthorsByFirstName(ctx context.Context, firstName string) (pgconn.CommandTag, error) {
 	cmdTag, err := q.conn.Exec(ctx, deleteAuthorsByFirstNameSQL, firstName)
+	if err != nil {
+		return cmdTag, fmt.Errorf("exec query DeleteAuthorsByFirstName: %w", err)
+	}
 	return cmdTag, err
 }
 
@@ -241,6 +250,9 @@ func (q *DBQuerier) DeleteAuthorsByFirstNameBatch(ctx context.Context, batch *pg
 // DeleteAuthorsByFirstNameScan implements Querier.DeleteAuthorsByFirstNameScan.
 func (q *DBQuerier) DeleteAuthorsByFirstNameScan(results pgx.BatchResults) (pgconn.CommandTag, error) {
 	cmdTag, err := results.Exec()
+	if err != nil {
+		return cmdTag, fmt.Errorf("exec DeleteAuthorsByFirstNameBatch: %w", err)
+	}
 	return cmdTag, err
 }
 
@@ -259,6 +271,9 @@ type DeleteAuthorsByFullNameParams struct {
 // DeleteAuthorsByFullName implements Querier.DeleteAuthorsByFullName.
 func (q *DBQuerier) DeleteAuthorsByFullName(ctx context.Context, params DeleteAuthorsByFullNameParams) (pgconn.CommandTag, error) {
 	cmdTag, err := q.conn.Exec(ctx, deleteAuthorsByFullNameSQL, params.FirstName, params.LastName, params.Suffix)
+	if err != nil {
+		return cmdTag, fmt.Errorf("exec query DeleteAuthorsByFullName: %w", err)
+	}
 	return cmdTag, err
 }
 
@@ -270,6 +285,9 @@ func (q *DBQuerier) DeleteAuthorsByFullNameBatch(ctx context.Context, batch *pgx
 // DeleteAuthorsByFullNameScan implements Querier.DeleteAuthorsByFullNameScan.
 func (q *DBQuerier) DeleteAuthorsByFullNameScan(results pgx.BatchResults) (pgconn.CommandTag, error) {
 	cmdTag, err := results.Exec()
+	if err != nil {
+		return cmdTag, fmt.Errorf("exec DeleteAuthorsByFullNameBatch: %w", err)
+	}
 	return cmdTag, err
 }
 

@@ -68,7 +68,7 @@ func (q *DBQuerier) WithTx(tx pgx.Tx) (*DBQuerier, error) {
 
 {{- range $i, $q := .Queries -}}
 {{- "\n\n" -}}
-const {{ $q.SQLVarName }} = `{{ $q.PreparedSQL }}`
+const {{ $q.SQLVarName }} = {{ $q.EmitPreparedSQL }}
 {{- $q.EmitParamStruct -}}
 {{- $q.EmitRowStruct -}}
 {{- "\n\n" -}}
@@ -103,6 +103,9 @@ func (q *DBQuerier) {{ $q.Name }}(ctx context.Context {{- $q.EmitParams }}) ({{ 
 	return items, err
 {{- else if eq $q.ResultKind ":exec" }}
 	cmdTag, err := q.conn.Exec(ctx, {{ $q.SQLVarName }} {{- $q.EmitParamNames }})
+	if err != nil {
+		return cmdTag, fmt.Errorf("exec query {{ $q.Name }}: %w", err)
+	}
 	return cmdTag, err
 {{- end }}
 }
@@ -143,6 +146,9 @@ func (q *DBQuerier) {{.Name}}Scan(results pgx.BatchResults) ({{ $q.EmitResultTyp
 	return items, err
 {{- else if eq $q.ResultKind ":exec" }}
 	cmdTag, err := results.Exec()
+	if err != nil {
+		return cmdTag, fmt.Errorf("exec {{ $q.Name }}Batch: %w", err)
+	}
 	return cmdTag, err
 {{- end }}
 }

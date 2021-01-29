@@ -47,6 +47,34 @@ func (tq goTemplateQuery) EmitParams() string {
 	}
 }
 
+// EmitPreparedSQL emits the prepared SQL query with appropriate quoting.
+func (tq goTemplateQuery) EmitPreparedSQL() string {
+	hasBacktick := strings.ContainsRune(tq.PreparedSQL, '`')
+	if !hasBacktick {
+		return "`" + tq.PreparedSQL + "`"
+	}
+	hasDoubleQuote := strings.ContainsRune(tq.PreparedSQL, '"')
+	hasNewline := strings.ContainsAny(tq.PreparedSQL, "\r\n")
+	if !hasDoubleQuote && !hasNewline {
+		hasBackslash := strings.ContainsRune(tq.PreparedSQL, '\\')
+		sql := tq.PreparedSQL
+		if hasBackslash {
+			sql = strings.ReplaceAll(sql, `\`, `\\`)
+		}
+		return `"` + sql + `"`
+	}
+	// The SQL query contains both '`' and '"'.
+	// We can't use unicode escapes like U&'d\0061t\+000061' because the backtick
+	// can appear in either a double-quoted identifier like "abc`" or a string
+	// literal. Similarly, a double quote either delimits an identifier or can
+	// appear in a string literal. We'll break up the string using Go string
+	// concatenation using both types of Go string literals. Meaning, convert:
+	//     sql := `SELECT '`"'`
+	// Into:
+	//     sql := `SELECT '` + "`" + `"'`
+	return "`" + strings.ReplaceAll(tq.PreparedSQL, "`", "` + \"`\" + `") + "`"
+}
+
 func getLongestInput(inputs []goInputParam) int {
 	max := 0
 	for _, in := range inputs {
