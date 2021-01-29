@@ -96,9 +96,9 @@ func (tq goTemplateQuery) EmitRowScanArgs() (string, error) {
 	}
 }
 
-// EmitResult returns the string representing the overall query result type,
+// EmitResultType returns the string representing the overall query result type,
 // meaning the return result.
-func (tq goTemplateQuery) EmitResult() (string, error) {
+func (tq goTemplateQuery) EmitResultType() (string, error) {
 	switch tq.ResultKind {
 	case ast.ResultKindExec:
 		return "pgconn.CommandTag", nil
@@ -121,16 +121,16 @@ func (tq goTemplateQuery) EmitResult() (string, error) {
 			return tq.Name + "Row", nil
 		}
 	default:
-		return "", fmt.Errorf("unhandled EmitResult type: %s", tq.ResultKind)
+		return "", fmt.Errorf("unhandled EmitResultType type: %s", tq.ResultKind)
 	}
 }
 
 // EmitResultElem returns the string representing a single item in the overall
 // query result type. For :one and :exec queries, this is the same as
-// EmitResult. For :many queries, this is the element type of the slice result
-// type.
+// EmitResultType. For :many queries, this is the element type of the slice
+// result type.
 func (tq goTemplateQuery) EmitResultElem() (string, error) {
-	result, err := tq.EmitResult()
+	result, err := tq.EmitResultType()
 	if err != nil {
 		return "", fmt.Errorf("unhandled EmitResultElem type: %w", err)
 	}

@@ -16,15 +16,15 @@ func TestNewQuerier_FindAuthorByID(t *testing.T) {
 	conn, cleanup := pgtest.NewPostgresSchema(t, []string{"schema.sql"})
 	defer cleanup()
 	q := NewQuerier(conn)
-	insertAuthor(t, conn, 77, "john", "adams")
-	insertAuthor(t, conn, 78, "george", "washington")
+	adamsID := insertAuthor(t, q, "john", "adams")
+	insertAuthor(t, q, "george", "washington")
 
-	authorByID, err := q.FindAuthorByID(context.Background(), 77)
+	authorByID, err := q.FindAuthorByID(context.Background(), adamsID)
 	if err != nil {
 		t.Fatal(err)
 	}
 	assert.Equal(t, FindAuthorByIDRow{
-		AuthorID:  77,
+		AuthorID:  adamsID,
 		FirstName: "john",
 		LastName:  "adams",
 		Suffix:    pgtype.Text{Status: pgtype.Null},
@@ -46,9 +46,9 @@ func TestNewQuerier_FindAuthors(t *testing.T) {
 	conn, cleanup := pgtest.NewPostgresSchema(t, []string{"schema.sql"})
 	defer cleanup()
 	q := NewQuerier(conn)
-	insertAuthor(t, conn, 1, "john", "adams")
-	insertAuthor(t, conn, 2, "george", "washington")
-	insertAuthor(t, conn, 3, "george", "carver")
+	adamsID := insertAuthor(t, q, "john", "adams")
+	washingtonID := insertAuthor(t, q, "george", "washington")
+	carverID := insertAuthor(t, q, "george", "carver")
 
 	tests := []struct {
 		firstName string
@@ -56,14 +56,15 @@ func TestNewQuerier_FindAuthors(t *testing.T) {
 	}{
 		{"john", []FindAuthorsRow{
 			{
+				AuthorID:  adamsID,
 				FirstName: "john",
 				LastName:  "adams",
 				Suffix:    pgtype.Text{Status: pgtype.Null},
 			},
 		}},
 		{"george", []FindAuthorsRow{
-			{FirstName: "george", LastName: "washington", Suffix: pgtype.Text{Status: pgtype.Null}},
-			{FirstName: "george", LastName: "carver", Suffix: pgtype.Text{Status: pgtype.Null}},
+			{AuthorID: washingtonID, FirstName: "george", LastName: "washington", Suffix: pgtype.Text{Status: pgtype.Null}},
+			{AuthorID: carverID, FirstName: "george", LastName: "carver", Suffix: pgtype.Text{Status: pgtype.Null}},
 		}},
 		{"joe", nil},
 	}
@@ -74,21 +75,16 @@ func TestNewQuerier_FindAuthors(t *testing.T) {
 			if err != nil {
 				t.Error(err)
 			}
-			// author_id isn't reproducible between runs.
-			for i := range authors {
-				tt.want[i].AuthorID = authors[i].AuthorID
-			}
 			assert.Equal(t, tt.want, authors, "expect authors to match expected")
 		})
 	}
 }
 
-func insertAuthor(t *testing.T, conn *pgx.Conn, id int32, first, last string) {
+func insertAuthor(t *testing.T, q *DBQuerier, first, last string) int32 {
 	t.Helper()
-	_, err := conn.Exec(context.Background(),
-		"INSERT INTO author (author_id,  first_name, last_name) VALUES ($1, $2, $3)",
-		id, first, last)
+	authorID, err := q.InsertAuthor(context.Background(), first, last)
 	if err != nil {
 		t.Fatalf("insert author: %s", err)
 	}
+	return authorID
 }

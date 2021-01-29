@@ -18,12 +18,12 @@ import (
 type Querier interface {
 {{- range $i, $q := .Queries }}
 	{{ .Doc  | trimTrailingNewline }}
-	{{.Name}}(ctx context.Context {{- $q.EmitParams }}) ({{ $q.EmitResult }}, error)
+	{{.Name}}(ctx context.Context {{- $q.EmitParams }}) ({{ $q.EmitResultType }}, error)
 	// {{.Name}}Batch enqueues a {{.Name}} query into batch to be executed
 	// later by the batch.
 	{{.Name}}Batch(ctx context.Context, batch *pgx.Batch {{- $q.EmitParams }})
 	// {{.Name}}Scan scans the result of an executed {{.Name}}Batch query.
-	{{.Name}}Scan(results pgx.BatchResults) ({{ $q.EmitResult }}, error)
+	{{.Name}}Scan(results pgx.BatchResults) ({{ $q.EmitResultType }}, error)
 	{{- "\n" -}}
 {{end -}}
 }
@@ -72,12 +72,12 @@ const {{ $q.SQLVarName }} = `{{ $q.PreparedSQL }}`
 {{- $q.EmitParamsStruct -}}
 {{- "\n\n" -}}
 // {{ $q.Name }} implements Querier.{{ $q.Name }}.
-func (q *DBQuerier) {{ $q.Name }}(ctx context.Context {{- $q.EmitParams }}) ({{ $q.EmitResult }}, error) {
+func (q *DBQuerier) {{ $q.Name }}(ctx context.Context {{- $q.EmitParams }}) ({{ $q.EmitResultType }}, error) {
 {{- if eq $q.ResultKind ":one" }}
 	row := q.conn.QueryRow(ctx, {{ $q.SQLVarName }} {{- $q.EmitParamNames }})
-	item := {{ $q.EmitResult }}{}
+	var item {{ $q.EmitResultType }}
 	if err := row.Scan({{ $q.EmitRowScanArgs }}); err != nil {
-		return {{ $q.EmitResult }}{}, fmt.Errorf("query {{ $q.Name }}: %w", err)
+		return item, fmt.Errorf("query {{ $q.Name }}: %w", err)
 	}
 	return item, nil
 {{- else if eq $q.ResultKind ":many" }}
@@ -88,7 +88,7 @@ func (q *DBQuerier) {{ $q.Name }}(ctx context.Context {{- $q.EmitParams }}) ({{ 
 	if err != nil {
 		return nil, fmt.Errorf("query {{ $q.Name }}: %w", err)
 	}
-	var items {{ $q.EmitResult }}
+	var items {{ $q.EmitResultType }}
 	for rows.Next() {
 		var item {{ $q.EmitResultElem }}
 		if err := rows.Scan({{- $q.EmitRowScanArgs -}}); err != nil {
@@ -112,12 +112,12 @@ func (q *DBQuerier) {{.Name}}Batch(ctx context.Context, batch *pgx.Batch {{- $q.
 }
 
 // {{.Name}}Scan implements Querier.{{$q.Name}}Scan.
-func (q *DBQuerier) {{.Name}}Scan(results pgx.BatchResults) ({{ $q.EmitResult }}, error) {
+func (q *DBQuerier) {{.Name}}Scan(results pgx.BatchResults) ({{ $q.EmitResultType }}, error) {
 {{- if eq $q.ResultKind ":one" }}
 	row := results.QueryRow()
-	item := {{ $q.EmitResult }}{}
+	var item {{ $q.EmitResultType }}
 	if err := row.Scan({{ $q.EmitRowScanArgs }}); err != nil {
-		return {{ $q.EmitResult }}{}, fmt.Errorf("scan {{ $q.Name }}Batch row: %w", err)
+		return item, fmt.Errorf("scan {{ $q.Name }}Batch row: %w", err)
 	}
 	return item, nil
 {{- else if eq $q.ResultKind ":many" }}
@@ -128,7 +128,7 @@ func (q *DBQuerier) {{.Name}}Scan(results pgx.BatchResults) ({{ $q.EmitResult }}
 	if err != nil {
 		return nil, err
 	}
-	var items {{ $q.EmitResult }}
+	var items {{ $q.EmitResultType }}
 	for rows.Next() {
 		var item {{ $q.EmitResultElem }}
 		if err := rows.Scan({{- $q.EmitRowScanArgs -}}); err != nil {
