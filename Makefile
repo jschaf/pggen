@@ -15,8 +15,8 @@ stop:
 
 .PHONY: statik
 statik:
-	statik -m -src=codegen -include='*.gotemplate'
-	gofmt -w statik/statik.go
+	statik -m -dest=internal -src=internal/codegen -include='*.gotemplate'
+	gofmt -w internal/statik/statik.go
 
 .PHONY: psql
 psql:

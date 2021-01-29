@@ -273,7 +273,7 @@ We'll walk through the generated file `author/query.sql.go`:
     pggen infers struct field types by running the query. When Postgres returns
     query results, Postgres sends the column types as a header for the results. 
     pggen looks up the types in the header using the `pg_type` catalog table and
-    chooses an appropriate Go type in [codegen/golang/types.go].
+    chooses an appropriate Go type in [internal/codegen/golang/types.go].
     
     Choosing an appropriate type is more difficult than a first glance might 
     appear due to `null`. When Postgres reports that a column has a type `text`,
@@ -324,7 +324,7 @@ We'll walk through the generated file `author/query.sql.go`:
 [`pgx.Tx`]: https://pkg.go.dev/github.com/jackc/pgx#Tx
 [`*pgxpool.Pool`]: https://pkg.go.dev/github.com/jackc/pgx/v4/pgxpool#Pool
 [internal/casing/casing.go]: ./internal/casing/casing.go
-[codegen/golang/types.go]: ./codegen/golang/types.go
+[codegen/golang/types.go]: ./internal/codegen/golang/types.go
 [`pgtype`]: https://pkg.go.dev/github.com/jackc/pgtype
 [internal/pginfer/nullability.go]: ./internal/pginfer/nullability.go
 
@@ -344,13 +344,12 @@ and generates the appropriate code. In detail:
 - pggen determines if an output column can be null using heuristics. If a column
   cannot be null, pggen uses more ergonomic types to represent the output like
   `string` instead of `pgtype.Text`. The heuristics are quite simple, see
-  [nullability.go]. A proper approach requires a full Postgres SQL syntax parser
-   with control flow analysis to determine nullability.
+  [internal/pginfer/nullability.go]. A proper approach requires a full Postgres 
+  SQL syntax parser with control flow analysis to determine nullability.
    
 For more detail, see the original, slightly outdated [design doc] and discussion
 with the [pgx author] and [sqlc author].
 
-[nullability.go]: https://github.com/jschaf/pggen/blob/main/internal/pginfer/nullability.go
 [design doc]: https://docs.google.com/document/d/1NvVKD6cyXvJLWUfqFYad76CWMDFoK9mzKuj1JawkL2A/edit#
 [pgx author]: https://github.com/jackc/pgx/issues/915
 [sqlc author]: https://github.com/kyleconroy/sqlc/issues/854
