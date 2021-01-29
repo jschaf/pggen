@@ -201,7 +201,7 @@ func parseQueryTemplate() (*template.Template, error) {
 func emitQueryFile(outDir string, queryFile goQueryFile, tmpl *template.Template) (mErr error) {
 	base := filepath.Base(queryFile.Src)
 	out := filepath.Join(outDir, base+".go")
-	file, err := os.OpenFile(out, os.O_CREATE|os.O_WRONLY, 0644)
+	file, err := os.OpenFile(out, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
 	defer errs.Capture(&mErr, file.Close, "close emit query file")
 	if err != nil {
 		return fmt.Errorf("open generated query file for writing: %w", err)
