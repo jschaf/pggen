@@ -22,6 +22,6 @@ statik:
 psql:
 	PGPASSWORD=hunter2 psql --host=127.0.0.1 --port=5555 --username=postgres pggen
 
-.PHONY: test-examples
-test-examples:
-	go test --tags=example ./...
+.PHONY: test
+test:
+	go test ./...
