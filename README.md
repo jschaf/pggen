@@ -184,7 +184,7 @@ Second, use pggen to generate Go code to `author/query.sql.go`:
 
 ```bash
 pggen gen go \
-    --docker-init-file author/schema.sql \
+    --schema-file author/schema.sql \
     --query-file author/query.sql
 ```
 
