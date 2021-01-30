@@ -24,8 +24,8 @@ type goQueryFile struct {
 	Path    string            // the path to source SQL file
 	Queries []goTemplateQuery // the queries with all template information
 	Imports []string          // Go imports
-	// True if this file is the leader file. The leader defines common interfaces
-	// used by by all queries in the same directory.
+	// True if this file is the leader file. The leader defines common code used
+	// by by all queries in the same directory. Only one leader per directory.
 	IsLeader bool
 }
 
@@ -34,7 +34,7 @@ type goQueryFile struct {
 type goTemplateQuery struct {
 	Name        string           // name of the query, from the comment preceding the query
 	SQLVarName  string           // name of the string variable containing the SQL
-	ResultKind  ast.ResultKind   // kind of result. :one, :many, or :exec
+	ResultKind  ast.ResultKind   // kind of result: :one, :many, or :exec
 	Doc         string           // doc from the source query file, formatted for Go
 	PreparedSQL string           // SQL query, ready to run with PREPARE statement
 	Inputs      []goInputParam   // input parameters to the query
