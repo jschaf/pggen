@@ -84,13 +84,9 @@ func newGenCmd() *ffcli.Command {
 				if err != nil {
 					return fmt.Errorf("bad glob pattern: %s", glob) // ignore err, it's not helpful
 				}
-				for _, m := range matches {
-					queries = append(queries, m)
-				}
+				queries = append(queries, matches...)
 			}
-			for _, query := range *queryFiles {
-				queries = append(queries, query)
-			}
+			queries = append(queries, *queryFiles...)
 			for i, query := range queries {
 				abs, err := filepath.Abs(query)
 				if err != nil {
