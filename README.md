@@ -20,7 +20,7 @@ Postgres queries. If Postgres can run the query, pggen can generate code for it.
     ```bash
     pggen gen go \
         --schema-file author/schema.sql \
-        --query-file author/query.sql
+        --query-glob 'author/*.sql'
     ```
     
 3.  Use the generated code. 
@@ -99,13 +99,13 @@ go get github.com/jschaf/pggen
 Generate code using Docker to create the Postgres database from a schema file:
 
 ```bash
+# --schema-file runs the file on Dockerized Postgres during database creation.
 pggen gen go --schema-file author/schema.sql --query-file author/query.sql
 
 # Output: author/query.go.sql
 
 # Or with multiple schema files. The schema files run on Postgres
 # in the order they appear on the command line.
-
 pggen gen go \
     --schema-file author/schema.sql      \
     --schema-file book/schema.sql        \
@@ -132,13 +132,19 @@ the same directory. If query files reside in different directories, you can use
 ```bash
 pggen gen go \
     --schema-file author/schema.sql \
-    --query-file author/fiction.sql        \
-    --query-file author/nonfiction.sql     \
+    --query-file author/fiction.sql \
+    --query-file author/nonfiction.sql \
     --query-file author/bestselling.sql
 
 # Output: author/fiction.sql.go
 #         author/nonfiction.sql.go
 #         author/bestselling.sql.go
+
+# Or, using a glob. Notice quotes around glob pattern to prevent shell 
+# expansion.
+pggen gen go \
+    --schema-file author/schema.sql \
+    --query-glob 'author/*.sql'
 ```
 
 # Examples

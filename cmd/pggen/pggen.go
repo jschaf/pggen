@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"github.com/bmatcuk/doublestar"
 	"github.com/jschaf/pggen"
 	"github.com/jschaf/pggen/internal/flags"
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -20,9 +21,13 @@ EXAMPLES
   # Generate code for a single query file using an existing postgres database.
   pggen gen go --query-file author/queries.sql --postgres-connection "user=postgres port=5555 dbname=pggen"
 
-  # Generate code using docker to create the postgres database with a schema 
-  # file.
+  # Generate code using Docker to create the postgres database with a schema 
+  # file. --schema-file arg implies using Dockerized postgres.
   pggen gen go --schema-file author/schema.sql --query-file author/queries.sql
+
+  # Generate code for all queries underneath a directory. Glob should be quoted
+  # to prevent shell expansion.
+  pggen gen go --schema-file author/schema.sql --query-glob 'author/**/*.sql'
 `
 
 func run() error {
@@ -53,6 +58,7 @@ func newGenCmd() *ffcli.Command {
 	postgresConn := fset.String("postgres-connection", "", `connection string to a postgres database, like: `+
 		`"user=postgres host=localhost dbname=pggen"`)
 	queryFiles := flags.Strings(fset, "query-file", nil, "generate code for a file containing postgres queries")
+	queryGlobs := flags.Strings(fset, "query-glob", nil, "generate code for all files that match glob, like: 'migrations/**/*.sql'")
 	schemaFiles := flags.Strings(fset, "schema-file", nil,
 		"sql, sql.gz, or shell script file to run during Postgres initialization in Docker")
 	goSubCmd := &ffcli.Command{
@@ -62,27 +68,41 @@ func newGenCmd() *ffcli.Command {
 		FlagSet:    fset,
 		Exec: func(ctx context.Context, args []string) error {
 			// Preconditions.
-			if len(*queryFiles) == 0 {
-				return fmt.Errorf("pggen gen go: at least one --query-file path must be specified")
+			if len(*queryFiles) == 0 && len(*queryGlobs) == 0 {
+				return fmt.Errorf("pggen gen go: at least one --query-file or --query-glob must be set")
 			}
 			if *schemaFiles != nil && *postgresConn != "" {
 				return fmt.Errorf("cannot use both --schema-file and --postgres-connection together\n" +
 					"    use --schema-file to run dockerized postgres automatically\n" +
 					"    use --postgres-connection to connect to an existing database for the schema")
 			}
-			// Get absolute paths.
-			files := make([]string, len(*queryFiles))
-			for i, file := range *queryFiles {
-				abs, err := filepath.Abs(file)
+
+			// Get absolute paths for all query globs and query files.
+			queries := make([]string, 0, len(*queryFiles)+len(*queryGlobs)*4)
+			for _, glob := range *queryGlobs {
+				matches, err := doublestar.Glob(glob)
 				if err != nil {
-					return fmt.Errorf("absolute path for %s: %w", file, err)
+					return fmt.Errorf("bad glob pattern: %s", glob) // ignore err, it's not helpful
 				}
-				files[i] = abs
+				for _, m := range matches {
+					queries = append(queries, m)
+				}
 			}
+			for _, query := range *queryFiles {
+				queries = append(queries, query)
+			}
+			for i, query := range queries {
+				abs, err := filepath.Abs(query)
+				if err != nil {
+					return fmt.Errorf("absolute path for %s: %w", query, err)
+				}
+				queries[i] = abs
+			}
+
 			// Deduce output directory.
 			outDir := *outputDir
 			if outDir == "" {
-				for _, file := range files {
+				for _, file := range queries {
 					dir := filepath.Dir(file)
 					if outDir != "" && dir != outDir {
 						return fmt.Errorf("cannot deduce output dir because query files use different dirs; " +
@@ -96,10 +116,10 @@ func newGenCmd() *ffcli.Command {
 				Language:          pggen.LangGo,
 				ConnString:        *postgresConn,
 				DockerInitScripts: *schemaFiles,
-				QueryFiles:        files,
+				QueryFiles:        queries,
 				OutputDir:         outDir,
 			})
-			fmt.Printf("gen go: out_dir=%s files=%s\n", outDir, strings.Join(files, ","))
+			fmt.Printf("gen go: out_dir=%s files=%s\n", outDir, strings.Join(queries, ","))
 			return err
 		},
 	}
