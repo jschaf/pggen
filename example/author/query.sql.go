@@ -164,7 +164,7 @@ func (q *DBQuerier) FindAuthors(ctx context.Context, firstName string) ([]FindAu
 	if err != nil {
 		return nil, fmt.Errorf("query FindAuthors: %w", err)
 	}
-	var items []FindAuthorsRow
+	items := []FindAuthorsRow{}
 	for rows.Next() {
 		var item FindAuthorsRow
 		if err := rows.Scan(&item.AuthorID, &item.FirstName, &item.LastName, &item.Suffix); err != nil {
@@ -192,7 +192,7 @@ func (q *DBQuerier) FindAuthorsScan(results pgx.BatchResults) ([]FindAuthorsRow,
 	if err != nil {
 		return nil, err
 	}
-	var items []FindAuthorsRow
+	items := []FindAuthorsRow{}
 	for rows.Next() {
 		var item FindAuthorsRow
 		if err := rows.Scan(&item.AuthorID, &item.FirstName, &item.LastName, &item.Suffix); err != nil {

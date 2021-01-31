@@ -87,7 +87,7 @@ func (q *DBQuerier) FindOrdersByCustomer(ctx context.Context, customerID int32) 
 	if err != nil {
 		return nil, fmt.Errorf("query FindOrdersByCustomer: %w", err)
 	}
-	var items []FindOrdersByCustomerRow
+	items := []FindOrdersByCustomerRow{}
 	for rows.Next() {
 		var item FindOrdersByCustomerRow
 		if err := rows.Scan(&item.OrderID, &item.OrderDate, &item.OrderTotal, &item.CustomerID); err != nil {
@@ -115,7 +115,7 @@ func (q *DBQuerier) FindOrdersByCustomerScan(results pgx.BatchResults) ([]FindOr
 	if err != nil {
 		return nil, err
 	}
-	var items []FindOrdersByCustomerRow
+	items := []FindOrdersByCustomerRow{}
 	for rows.Next() {
 		var item FindOrdersByCustomerRow
 		if err := rows.Scan(&item.OrderID, &item.OrderDate, &item.OrderTotal, &item.CustomerID); err != nil {
@@ -150,7 +150,7 @@ func (q *DBQuerier) FindProductsInOrder(ctx context.Context, orderID int32) ([]F
 	if err != nil {
 		return nil, fmt.Errorf("query FindProductsInOrder: %w", err)
 	}
-	var items []FindProductsInOrderRow
+	items := []FindProductsInOrderRow{}
 	for rows.Next() {
 		var item FindProductsInOrderRow
 		if err := rows.Scan(&item.OrderID, &item.ProductID, &item.Name); err != nil {
@@ -178,7 +178,7 @@ func (q *DBQuerier) FindProductsInOrderScan(results pgx.BatchResults) ([]FindPro
 	if err != nil {
 		return nil, err
 	}
-	var items []FindProductsInOrderRow
+	items := []FindProductsInOrderRow{}
 	for rows.Next() {
 		var item FindProductsInOrderRow
 		if err := rows.Scan(&item.OrderID, &item.ProductID, &item.Name); err != nil {

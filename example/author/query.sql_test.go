@@ -3,11 +3,12 @@ package author
 import (
 	"context"
 	"errors"
+	"testing"
+
 	"github.com/jackc/pgtype"
 	"github.com/jackc/pgx/v4"
 	"github.com/jschaf/pggen/internal/pgtest"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 func TestNewQuerier_FindAuthorByID(t *testing.T) {
@@ -86,7 +87,7 @@ func TestNewQuerier_FindAuthors(t *testing.T) {
 			{AuthorID: washingtonID, FirstName: "george", LastName: "washington", Suffix: pgtype.Text{Status: pgtype.Null}},
 			{AuthorID: carverID, FirstName: "george", LastName: "carver", Suffix: pgtype.Text{Status: pgtype.Null}},
 		}},
-		{"joe", nil},
+		{"joe", []FindAuthorsRow{}},
 	}
 
 	for _, tt := range tests {
