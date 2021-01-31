@@ -30,28 +30,34 @@ function assert_no_diff() {
 
 echo 'Running integration tests'
 
-test_header 'example/erp: --query-glob with *'
+test_header 'example/author: direct file'
+${pggen} gen go \
+    --schema-glob 'example/author/schema.sql' \
+    --query-glob 'example/author/query.sql'
+assert_no_diff
+
+test_header 'example/erp: *.sql glob for schema and query'
 ${pggen} gen go \
     --schema-glob 'example/erp/*.sql' \
     --query-glob 'example/erp/order/*.sql'
 assert_no_diff
 
-test_header 'example/erp: --schema-glob with ??'
+test_header 'example/erp: ?? for schema'
 ${pggen} gen go \
     --schema-glob 'example/erp/??_schema.sql' \
     --query-glob 'example/erp/order/*.sql'
 assert_no_diff
 
-test_header 'example/syntax: --query-glob'
+test_header 'example/syntax: *.sql for query'
 ${pggen} gen go \
-    --schema-glob 'example/erp/schema.sql' \
+    --schema-glob 'example/syntax/schema.sql' \
     --query-glob 'example/syntax/*.sql'
 assert_no_diff
 
-test_header 'example/syntax: --query-glob'
+test_header 'example/syntax: direct file for query'
 ${pggen} gen go \
-    --schema-glob 'example/erp/schema.sql' \
-    --query-glob 'example/syntax/*.sql'
+    --schema-glob 'example/syntax/schema.sql' \
+    --query-glob 'example/syntax/query.sql'
 assert_no_diff
 
 printf '\n\n'

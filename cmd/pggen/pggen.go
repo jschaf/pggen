@@ -80,43 +80,14 @@ func newGenCmd() *ffcli.Command {
 					"    use --schema-glob to run dockerized postgres automatically\n" +
 					"    use --postgres-connection to connect to an existing database")
 			}
-
-			// Get absolute paths for all files matching each --query-glob.
-			queries := make([]string, 0, len(*queryGlobs)*4)
-			for _, glob := range *queryGlobs {
-				matches, err := doublestar.Glob(glob)
-				if err != nil {
-					return fmt.Errorf("bad --query-glob pattern: %s", glob) // ignore err, it's not helpful
-				}
-				queries = append(queries, matches...)
+			queries, err := expandSortGlobs(*queryGlobs)
+			if err != nil {
+				return err
 			}
-			for i, query := range queries {
-				abs, err := filepath.Abs(query)
-				if err != nil {
-					return fmt.Errorf("absolute path for %s: %w", query, err)
-				}
-				queries[i] = abs
+			schemas, err := expandSortGlobs(*schemaGlobs)
+			if err != nil {
+				return err
 			}
-
-			// Get absolute paths for all files matching --schema-glob. Order files
-			// lexicographically within each glob but not across all globs.
-			schemas := make([]string, 0, len(*schemaGlobs)*4)
-			for _, glob := range *schemaGlobs {
-				matches, err := doublestar.Glob(glob)
-				if err != nil {
-					return fmt.Errorf("bad --schema-glob pattern: %s", glob) // ignore err, it's not helpful
-				}
-				sort.Strings(matches)
-				schemas = append(schemas, matches...)
-			}
-			for i, schema := range schemas {
-				abs, err := filepath.Abs(schema)
-				if err != nil {
-					return fmt.Errorf("absolute path for %s: %w", schema, err)
-				}
-				schemas[i] = abs
-			}
-
 			// Deduce output directory.
 			outDir := *outputDir
 			if outDir == "" {
@@ -130,7 +101,7 @@ func newGenCmd() *ffcli.Command {
 				}
 			}
 			// Codegen.
-			err := pggen.Generate(pggen.GenerateOptions{
+			err = pggen.Generate(pggen.GenerateOptions{
 				Language:          pggen.LangGo,
 				ConnString:        *postgresConn,
 				DockerInitScripts: schemas,
@@ -154,6 +125,41 @@ func newGenCmd() *ffcli.Command {
 		return nil
 	}
 	return cmd
+}
+
+// expandSortGlobs gets the absolute paths for all files matching globs. Order
+// files lexicographically within each glob but not across all globs. The order
+// of a glob relative to other globs is important for schemas where a schema
+// might depend on a previous schema.
+func expandSortGlobs(globs []string) ([]string, error) {
+	files := make([]string, 0, len(globs)*4)
+	for _, glob := range globs {
+		var matches []string
+		if !strings.ContainsAny(glob, "*?[{") {
+			// A regular file, not a glob. Check if it exists.
+			if _, err := os.Stat(glob); os.IsNotExist(err) {
+				return nil, fmt.Errorf("file does not exist: %w", err)
+			}
+			matches = append(matches, glob)
+		} else {
+			ms, err := doublestar.Glob(glob)
+			if err != nil {
+				// Ignore err, it's not helpful.
+				return nil, fmt.Errorf("bad glob pattern: %s", glob)
+			}
+			sort.Strings(ms)
+			matches = ms
+		}
+		files = append(files, matches...)
+	}
+	for i, schema := range files {
+		abs, err := filepath.Abs(schema)
+		if err != nil {
+			return nil, fmt.Errorf("absolute path for %s: %w", schema, err)
+		}
+		files[i] = abs
+	}
+	return files, nil
 }
 
 func main() {
