@@ -36,29 +36,16 @@ ${pggen} gen go \
     --query-glob 'example/erp/order/*.sql'
 assert_no_diff
 
-test_header 'example/erp: one --query-file'
-${pggen} gen go \
-    --schema-file 'example/erp/schema.sql' \
-    --query-file 'example/erp/order/customer.sql'
-assert_no_diff
-
-test_header 'example/erp: two --query-file'
-${pggen} gen go \
-    --schema-file example/erp/schema.sql \
-    --query-file 'example/erp/order/customer.sql' \
-    --query-file 'example/erp/order/price.sql' \
-assert_no_diff
-
 test_header 'example/syntax: --query-glob'
 ${pggen} gen go \
     --schema-file 'example/erp/schema.sql' \
     --query-glob 'example/syntax/*.sql'
 assert_no_diff
 
-test_header 'example/syntax: --query-file'
+test_header 'example/syntax: --query-glob'
 ${pggen} gen go \
     --schema-file 'example/erp/schema.sql' \
-    --query-file 'example/syntax/query.sql'
+    --query-glob 'example/syntax/*.sql'
 assert_no_diff
 
 printf '\n\n'

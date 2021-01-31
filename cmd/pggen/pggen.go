@@ -19,11 +19,11 @@ the queries on Postgres to get type information.
 
 EXAMPLES
   # Generate code for a single query file using an existing postgres database.
-  pggen gen go --query-file author/queries.sql --postgres-connection "user=postgres port=5555 dbname=pggen"
+  pggen gen go --query-glob author/queries.sql --postgres-connection "user=postgres port=5555 dbname=pggen"
 
   # Generate code using Docker to create the postgres database with a schema 
   # file. --schema-file arg implies using Dockerized postgres.
-  pggen gen go --schema-file author/schema.sql --query-file author/queries.sql
+  pggen gen go --schema-file author/schema.sql --query-glob author/queries.sql
 
   # Generate code for all queries underneath a directory. Glob should be quoted
   # to prevent shell expansion.
@@ -57,7 +57,6 @@ func newGenCmd() *ffcli.Command {
 	outputDir := fset.String("output-dir", "", "where to write generated code; defaults to same directory as query files")
 	postgresConn := fset.String("postgres-connection", "", `connection string to a postgres database, like: `+
 		`"user=postgres host=localhost dbname=pggen"`)
-	queryFiles := flags.Strings(fset, "query-file", nil, "generate code for a file containing postgres queries")
 	queryGlobs := flags.Strings(fset, "query-glob", nil, "generate code for all files that match glob, like: 'migrations/**/*.sql'")
 	schemaFiles := flags.Strings(fset, "schema-file", nil,
 		"sql, sql.gz, or shell script file to run during Postgres initialization in Docker")
@@ -68,8 +67,8 @@ func newGenCmd() *ffcli.Command {
 		FlagSet:    fset,
 		Exec: func(ctx context.Context, args []string) error {
 			// Preconditions.
-			if len(*queryFiles) == 0 && len(*queryGlobs) == 0 {
-				return fmt.Errorf("pggen gen go: at least one --query-file or --query-glob must be set")
+			if len(*queryGlobs) == 0 {
+				return fmt.Errorf("pggen gen go: at least one file in --query-glob must match")
 			}
 			if *schemaFiles != nil && *postgresConn != "" {
 				return fmt.Errorf("cannot use both --schema-file and --postgres-connection together\n" +
@@ -78,7 +77,7 @@ func newGenCmd() *ffcli.Command {
 			}
 
 			// Get absolute paths for all query globs and query files.
-			queries := make([]string, 0, len(*queryFiles)+len(*queryGlobs)*4)
+			queries := make([]string, 0, len(*queryGlobs)*4)
 			for _, glob := range *queryGlobs {
 				matches, err := doublestar.Glob(glob)
 				if err != nil {
@@ -86,7 +85,6 @@ func newGenCmd() *ffcli.Command {
 				}
 				queries = append(queries, matches...)
 			}
-			queries = append(queries, *queryFiles...)
 			for i, query := range queries {
 				abs, err := filepath.Abs(query)
 				if err != nil {
