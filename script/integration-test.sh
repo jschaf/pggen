@@ -6,6 +6,8 @@
 
 set -euo pipefail
 
+export DOCKER_API_VERSION=1.39
+
 pggen="$(mktemp -t pggen.XXXX)"
 go build -o "${pggen}" ./cmd/pggen
 
