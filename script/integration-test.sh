@@ -48,12 +48,6 @@ ${pggen} gen go \
     --query-glob 'example/erp/order/*.sql'
 assert_no_diff
 
-test_header 'example/syntax: *.sql for query'
-${pggen} gen go \
-    --schema-glob 'example/syntax/schema.sql' \
-    --query-glob 'example/syntax/*.sql'
-assert_no_diff
-
 test_header 'example/syntax: direct file for query'
 ${pggen} gen go \
     --schema-glob 'example/syntax/schema.sql' \
