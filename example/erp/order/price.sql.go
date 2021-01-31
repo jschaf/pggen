@@ -27,7 +27,7 @@ func (q *DBQuerier) FindOrdersByPrice(ctx context.Context, minTotal pgtype.Numer
 	if err != nil {
 		return nil, fmt.Errorf("query FindOrdersByPrice: %w", err)
 	}
-	var items []FindOrdersByPriceRow
+	items := []FindOrdersByPriceRow{}
 	for rows.Next() {
 		var item FindOrdersByPriceRow
 		if err := rows.Scan(&item.OrderID, &item.OrderDate, &item.OrderTotal, &item.CustomerID); err != nil {
@@ -55,7 +55,7 @@ func (q *DBQuerier) FindOrdersByPriceScan(results pgx.BatchResults) ([]FindOrder
 	if err != nil {
 		return nil, err
 	}
-	var items []FindOrdersByPriceRow
+	items := []FindOrdersByPriceRow{}
 	for rows.Next() {
 		var item FindOrdersByPriceRow
 		if err := rows.Scan(&item.OrderID, &item.OrderDate, &item.OrderTotal, &item.CustomerID); err != nil {

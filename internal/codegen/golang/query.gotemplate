@@ -92,7 +92,7 @@ func (q *DBQuerier) {{ $q.Name }}(ctx context.Context {{- $q.EmitParams }}) ({{ 
 	if err != nil {
 		return nil, fmt.Errorf("query {{ $q.Name }}: %w", err)
 	}
-	var items {{ $q.EmitResultType }}
+	items := {{ $q.EmitResultType }}{}
 	for rows.Next() {
 		var item {{ $q.EmitResultElem }}
 		if err := rows.Scan({{- $q.EmitRowScanArgs -}}); err != nil {
@@ -135,7 +135,7 @@ func (q *DBQuerier) {{.Name}}Scan(results pgx.BatchResults) ({{ $q.EmitResultTyp
 	if err != nil {
 		return nil, err
 	}
-	var items {{ $q.EmitResultType }}
+	items := {{ $q.EmitResultType }}{}
 	for rows.Next() {
 		var item {{ $q.EmitResultElem }}
 		if err := rows.Scan({{- $q.EmitRowScanArgs -}}); err != nil {
