@@ -25,3 +25,7 @@ psql:
 .PHONY: test
 test:
 	go test ./...
+
+.PHONY: integration_test
+integration_test:
+	./script/integration-test.sh
