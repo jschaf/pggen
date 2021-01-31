@@ -10,6 +10,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 )
 
@@ -22,12 +23,12 @@ EXAMPLES
   pggen gen go --query-glob author/queries.sql --postgres-connection "user=postgres port=5555 dbname=pggen"
 
   # Generate code using Docker to create the postgres database with a schema 
-  # file. --schema-file arg implies using Dockerized postgres.
-  pggen gen go --schema-file author/schema.sql --query-glob author/queries.sql
+  # file. --schema-glob arg implies using Dockerized postgres.
+  pggen gen go --schema-glob author/schema.sql --query-glob author/queries.sql
 
   # Generate code for all queries underneath a directory. Glob should be quoted
   # to prevent shell expansion.
-  pggen gen go --schema-file author/schema.sql --query-glob 'author/**/*.sql'
+  pggen gen go --schema-glob author/schema.sql --query-glob 'author/**/*.sql'
 `
 
 func run() error {
@@ -54,12 +55,16 @@ func run() error {
 
 func newGenCmd() *ffcli.Command {
 	fset := flag.NewFlagSet("go", flag.ExitOnError)
-	outputDir := fset.String("output-dir", "", "where to write generated code; defaults to same directory as query files")
-	postgresConn := fset.String("postgres-connection", "", `connection string to a postgres database, like: `+
-		`"user=postgres host=localhost dbname=pggen"`)
-	queryGlobs := flags.Strings(fset, "query-glob", nil, "generate code for all files that match glob, like: 'migrations/**/*.sql'")
-	schemaFiles := flags.Strings(fset, "schema-file", nil,
-		"sql, sql.gz, or shell script file to run during Postgres initialization in Docker")
+	outputDir := fset.String("output-dir", "",
+		"where to write generated code; defaults to same directory as query files")
+	postgresConn := fset.String("postgres-connection", "",
+		`connection string to a postgres database, like: `+
+			`"user=postgres host=localhost dbname=pggen"`)
+	queryGlobs := flags.Strings(fset, "query-glob", nil,
+		"generate code for all SQL files that match glob, like 'queries/**/*.sql'")
+	schemaGlobs := flags.Strings(fset, "schema-glob", nil,
+		"create schema in Dockerized Postgres from all sql, sql.gz, or shell "+
+			"scripts (*.sh) that match a glob, like 'migrations/*.sql'")
 	goSubCmd := &ffcli.Command{
 		Name:       "go",
 		ShortUsage: "pggen gen go [options...]",
@@ -70,18 +75,18 @@ func newGenCmd() *ffcli.Command {
 			if len(*queryGlobs) == 0 {
 				return fmt.Errorf("pggen gen go: at least one file in --query-glob must match")
 			}
-			if *schemaFiles != nil && *postgresConn != "" {
-				return fmt.Errorf("cannot use both --schema-file and --postgres-connection together\n" +
-					"    use --schema-file to run dockerized postgres automatically\n" +
-					"    use --postgres-connection to connect to an existing database for the schema")
+			if *schemaGlobs != nil && *postgresConn != "" {
+				return fmt.Errorf("cannot use both --schema-glob and --postgres-connection together\n" +
+					"    use --schema-glob to run dockerized postgres automatically\n" +
+					"    use --postgres-connection to connect to an existing database")
 			}
 
-			// Get absolute paths for all query globs and query files.
+			// Get absolute paths for all files matching each --query-glob.
 			queries := make([]string, 0, len(*queryGlobs)*4)
 			for _, glob := range *queryGlobs {
 				matches, err := doublestar.Glob(glob)
 				if err != nil {
-					return fmt.Errorf("bad glob pattern: %s", glob) // ignore err, it's not helpful
+					return fmt.Errorf("bad --query-glob pattern: %s", glob) // ignore err, it's not helpful
 				}
 				queries = append(queries, matches...)
 			}
@@ -91,6 +96,25 @@ func newGenCmd() *ffcli.Command {
 					return fmt.Errorf("absolute path for %s: %w", query, err)
 				}
 				queries[i] = abs
+			}
+
+			// Get absolute paths for all files matching --schema-glob. Order files
+			// lexicographically within each glob but not across all globs.
+			schemas := make([]string, 0, len(*schemaGlobs)*4)
+			for _, glob := range *schemaGlobs {
+				matches, err := doublestar.Glob(glob)
+				if err != nil {
+					return fmt.Errorf("bad --schema-glob pattern: %s", glob) // ignore err, it's not helpful
+				}
+				sort.Strings(matches)
+				schemas = append(schemas, matches...)
+			}
+			for i, schema := range schemas {
+				abs, err := filepath.Abs(schema)
+				if err != nil {
+					return fmt.Errorf("absolute path for %s: %w", schema, err)
+				}
+				schemas[i] = abs
 			}
 
 			// Deduce output directory.
@@ -109,7 +133,7 @@ func newGenCmd() *ffcli.Command {
 			err := pggen.Generate(pggen.GenerateOptions{
 				Language:          pggen.LangGo,
 				ConnString:        *postgresConn,
-				DockerInitScripts: *schemaFiles,
+				DockerInitScripts: schemas,
 				QueryFiles:        queries,
 				OutputDir:         outDir,
 			})

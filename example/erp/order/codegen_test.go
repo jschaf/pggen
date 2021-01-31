@@ -10,7 +10,10 @@ import (
 )
 
 func TestGenerate_Go_Example_Order(t *testing.T) {
-	conn, cleanupFunc := pgtest.NewPostgresSchema(t, []string{"../schema.sql"})
+	conn, cleanupFunc := pgtest.NewPostgresSchema(t, []string{
+		"../01_schema.sql",
+		"../02_schema.sql",
+	})
 	defer cleanupFunc()
 
 	tmpDir := t.TempDir()

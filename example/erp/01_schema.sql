@@ -18,9 +18,3 @@ CREATE TABLE product (
   description text    NOT NULL,
   list_price  numeric NOT NULL
 );
-
-CREATE TABLE order_product (
-  order_id     int REFERENCES orders,
-  product_id   int REFERENCES product
-);
-

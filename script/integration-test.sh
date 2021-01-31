@@ -30,21 +30,27 @@ function assert_no_diff() {
 
 echo 'Running integration tests'
 
-test_header 'example/erp: --query-glob'
+test_header 'example/erp: --query-glob with *'
 ${pggen} gen go \
-    --schema-file 'example/erp/schema.sql' \
+    --schema-glob 'example/erp/*.sql' \
+    --query-glob 'example/erp/order/*.sql'
+assert_no_diff
+
+test_header 'example/erp: --schema-glob with ??'
+${pggen} gen go \
+    --schema-glob 'example/erp/??_schema.sql' \
     --query-glob 'example/erp/order/*.sql'
 assert_no_diff
 
 test_header 'example/syntax: --query-glob'
 ${pggen} gen go \
-    --schema-file 'example/erp/schema.sql' \
+    --schema-glob 'example/erp/schema.sql' \
     --query-glob 'example/syntax/*.sql'
 assert_no_diff
 
 test_header 'example/syntax: --query-glob'
 ${pggen} gen go \
-    --schema-file 'example/erp/schema.sql' \
+    --schema-glob 'example/erp/schema.sql' \
     --query-glob 'example/syntax/*.sql'
 assert_no_diff
 
