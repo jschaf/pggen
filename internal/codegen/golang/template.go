@@ -185,7 +185,34 @@ func (tq goTemplateQuery) EmitResultType() (string, error) {
 			return tq.Name + "Row", nil
 		}
 	default:
-		return "", fmt.Errorf("unhandled EmitResultType type: %s", tq.ResultKind)
+		return "", fmt.Errorf("unhandled EmitResultType kind: %s", tq.ResultKind)
+	}
+}
+
+// EmitResultTypeInit returns the initialization code for the result type with
+// name, typically "item" or "items". For array type, we take care to not use a
+// var declaration so that JSON serialization returns an empty array instead of
+// null.
+func (tq goTemplateQuery) EmitResultTypeInit(name string) (string, error) {
+	result, err := tq.EmitResultType()
+	if err != nil {
+		return "", fmt.Errorf("create result type for EmitResultTypeInit: %w", err)
+	}
+	if strings.HasPrefix(result, "[]") {
+		switch tq.ResultKind {
+		case ast.ResultKindMany:
+			return name + " := " + result + "{}", nil
+		case ast.ResultKindOne:
+			return name + " := " + result + "{}", nil
+		default:
+			return "", fmt.Errorf("unhandled EmitResultTypeInit type %s for kind %s", result, tq.ResultKind)
+		}
+	}
+	switch tq.ResultKind {
+	case ast.ResultKindMany, ast.ResultKindOne:
+		return "var " + name + " " + result, nil
+	default:
+		return "", fmt.Errorf("unhandled EmitResultTypeInit type %s for kind %s", result, tq.ResultKind)
 	}
 }
 

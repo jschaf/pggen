@@ -3,10 +3,19 @@
 # integration-test runs pggen end-to-end and verifies that there are no diffs.
 # If there's a diff it means either the generated files are out of date or
 # the codegen is broken.
+#
+# Pass the --update flag to update all integration tests.
 
 set -euo pipefail
 
 export DOCKER_API_VERSION=1.39
+
+has_update='n'
+for arg in "$@"; do
+  if [[ $arg == '--update' ]]; then
+    has_update='y'
+  fi
+done
 
 pggen="$(mktemp -t pggen.XXXX)"
 go build -o "${pggen}" ./cmd/pggen
@@ -16,6 +25,9 @@ function test_header() {
 }
 
 function assert_no_diff() {
+  if [[ "$has_update" == 'y' ]]; then
+    return
+  fi
   if ! git update-index --refresh > /dev/null; then
     echo 'FAIL: integration test has diff'
     git diff
@@ -28,7 +40,11 @@ function assert_no_diff() {
   fi
 }
 
-echo 'Running integration tests'
+if [[ "$has_update" == 'y' ]]; then
+  echo 'Updating integration tests'
+else
+  echo 'Running integration tests'
+fi
 
 test_header 'example/author: direct file'
 ${pggen} gen go \
@@ -55,4 +71,8 @@ ${pggen} gen go \
 assert_no_diff
 
 printf '\n\n'
-echo 'All integration tests passed!'
+if [[ "$has_update" == 'y' ]]; then
+  echo 'All integration tests updated'
+else
+  echo 'All integration tests passed!'
+fi

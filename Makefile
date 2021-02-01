@@ -29,3 +29,7 @@ test:
 .PHONY: integration-test
 integration-test:
 	./script/integration-test.sh
+
+.PHONY: update-integration-test
+update-integration-test:
+	./script/integration-test.sh --update
