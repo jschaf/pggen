@@ -52,6 +52,19 @@ ${pggen} gen go \
     --query-glob 'example/author/query.sql'
 assert_no_diff
 
+# test_header 'example/enums: direct file for query'
+# ${pggen} gen go \
+#     --schema-glob 'example/enums/schema.sql' \
+#     --query-glob 'example/enums/query.sql' \
+# assert_no_diff
+
+test_header 'internal/pg'
+${pggen} gen go \
+   --schema-glob 'example/author/schema.sql' \
+   --query-glob 'internal/pg/query.sql' \
+   --acronym oid
+assert_no_diff
+
 test_header 'example/erp: *.sql glob for schema and query'
 ${pggen} gen go \
     --schema-glob 'example/erp/*.sql' \
@@ -70,7 +83,6 @@ test_header 'example/syntax: direct file for query'
 ${pggen} gen go \
     --schema-glob 'example/syntax/schema.sql' \
     --query-glob 'example/syntax/query.sql' \
-    --acronym mrr
 assert_no_diff
 
 printf '\n\n'

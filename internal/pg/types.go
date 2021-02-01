@@ -234,7 +234,20 @@ func FetchOIDTypes(conn *pgx.Conn, oids ...uint32) (map[pgtype.OID]Type, error) 
 	}
 	typeMapLock.Unlock()
 
-	// TODO: fetch from database
+	querier := NewQuerier(conn)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	enums, err := querier.FindEnumTypes(ctx, oidsToFetch)
+	if err != nil {
+		return nil, fmt.Errorf("find enum oid types: %w", err)
+	}
+	// TODO: aggregate all enum elements into a single row.
+	for _, enum := range enums {
+		types[enum.OID] = Type{
+			OID:  enum.OID,
+			Name: enum.TypeName.String,
+		}
+	}
 
 	// Check that we found all OIDs.
 	for _, oid := range oids {
