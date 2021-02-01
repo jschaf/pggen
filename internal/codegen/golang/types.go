@@ -99,6 +99,7 @@ var goPgTypes = map[pgtype.OID]goType{
 	pgtype.ACLItemOID:          {"github.com/jackc/pgtype.ACLItem", ""},
 	pgtype.ACLItemArrayOID:     {"github.com/jackc/pgtype.ACLItemArray", ""},
 	pgtype.InetArrayOID:        {"github.com/jackc/pgtype.InetArray", ""},
+	pgoid.MacaddrArray:         {"github.com/jackc/pgtype.MacaddrArray", ""},
 	pgtype.BPCharOID:           {"github.com/jackc/pgtype.BPChar", ""},
 	pgtype.VarcharOID:          {"github.com/jackc/pgtype.Varchar", ""},
 	pgtype.DateOID:             {"github.com/jackc/pgtype.Date", ""},

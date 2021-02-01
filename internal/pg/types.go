@@ -151,6 +151,7 @@ var (
 	ACLItem          = BaseType{ID: pgtype.ACLItemOID, Name: "aclitem"}
 	ACLItemArray     = BaseType{ID: pgtype.ACLItemArrayOID, Name: "_aclitem"}
 	InetArray        = BaseType{ID: pgtype.InetArrayOID, Name: "_inet"}
+	MacaddrArray     = BaseType{ID: pgoid.MacaddrArray, Name: "_macaddr"}
 	BPChar           = BaseType{ID: pgtype.BPCharOID, Name: "bpchar"}
 	Varchar          = BaseType{ID: pgtype.VarcharOID, Name: "varchar"}
 	Date             = BaseType{ID: pgtype.DateOID, Name: "date"}
@@ -223,6 +224,7 @@ var (
 		pgtype.ACLItemOID:          ACLItem,
 		pgtype.ACLItemArrayOID:     ACLItemArray,
 		pgtype.InetArrayOID:        InetArray,
+		pgoid.MacaddrArray:         MacaddrArray,
 		pgtype.BPCharOID:           BPChar,
 		pgtype.VarcharOID:          Varchar,
 		pgtype.DateOID:             Date,

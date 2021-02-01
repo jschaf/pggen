@@ -66,6 +66,12 @@ ${pggen} gen go \
    --acronym oids=OIDs
 assert_no_diff
 
+test_header 'example/device'
+${pggen} gen go \
+   --schema-glob 'example/device/schema.sql' \
+   --query-glob 'example/device/query.sql'
+assert_no_diff
+
 test_header 'example/erp: *.sql glob for schema and query'
 ${pggen} gen go \
     --schema-glob 'example/erp/*.sql' \
