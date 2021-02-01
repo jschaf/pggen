@@ -62,39 +62,33 @@ func (q *DBQuerier) WithTx(tx pgx.Tx) (*DBQuerier, error) {
 	return &DBQuerier{conn: tx}, nil
 }
 
-const findEnumTypesSQL = `SELECT typ.oid            AS oid,
-       typ.typname        AS type_name,
-       typ.typtype        AS type_kind,
-       enum.oid           AS enum_oid,
-       enum.enumsortorder AS enum_order,
-       enum.enumlabel     AS enum_label,
-       typ.typelem        AS elem_type,
-       typ.typarray       AS array_type,
-       typ.typrelid       AS composite_type_id,
-       typ.typnotnull     AS domain_not_null_constraint,
-       typ.typbasetype    AS domain_base_type,
-       typ.typndims       AS num_dimensions,
-       typ.typdefault     AS default_expr
+const findEnumTypesSQL = `WITH enums AS (
+  SELECT enumtypid                                       AS enum_type,
+         array_agg(oid ORDER BY enumsortorder)           AS enum_oids,
+         array_agg(enumsortorder ORDER BY enumsortorder) AS enum_orders,
+         array_agg(enumlabel::text ORDER BY enumsortorder) AS enum_labels
+  FROM pg_enum
+  GROUP BY pg_enum.enumtypid)
+SELECT typ.oid           AS oid,
+       typ.typname::text AS type_name,
+       enum.enum_oids,
+       enum.enum_orders,
+       enum.enum_labels,
+       typ.typtype       AS type_kind,
+       typ.typdefault    AS default_expr
 FROM pg_type typ
-  JOIN pg_enum enum ON typ.oid = enum.enumtypid
+  JOIN enums enum ON typ.oid = enum.enum_type
 WHERE typ.typisdefined
-  AND typ.typtype = 'e'AND typ.oid = ANY ($1::oid[])
-ORDER BY typ.oid DESC;`
+  AND typ.typtype = 'e'AND typ.oid = ANY ($1::oid[]);`
 
 type FindEnumTypesRow struct {
-	OID                     pgtype.OID    `json:"oid"`
-	TypeName                pgtype.Name   `json:"type_name"`
-	TypeKind                pgtype.QChar  `json:"type_kind"`
-	EnumOID                 pgtype.OID    `json:"enum_oid"`
-	EnumOrder               pgtype.Float4 `json:"enum_order"`
-	EnumLabel               pgtype.Name   `json:"enum_label"`
-	ElemType                pgtype.OID    `json:"elem_type"`
-	ArrayType               pgtype.OID    `json:"array_type"`
-	CompositeTypeID         pgtype.OID    `json:"composite_type_id"`
-	DomainNotNullConstraint pgtype.Bool   `json:"domain_not_null_constraint"`
-	DomainBaseType          pgtype.OID    `json:"domain_base_type"`
-	NumDimensions           pgtype.Int4   `json:"num_dimensions"`
-	DefaultExpr             pgtype.Text   `json:"default_expr"`
+	OID         pgtype.OID         `json:"oid"`
+	TypeName    pgtype.Text        `json:"type_name"`
+	EnumOids    []uint32           `json:"enum_oids"`
+	EnumOrders  pgtype.Float4Array `json:"enum_orders"`
+	EnumLabels  pgtype.TextArray   `json:"enum_labels"`
+	TypeKind    pgtype.QChar       `json:"type_kind"`
+	DefaultExpr pgtype.Text        `json:"default_expr"`
 }
 
 // FindEnumTypes implements Querier.FindEnumTypes.
@@ -109,7 +103,7 @@ func (q *DBQuerier) FindEnumTypes(ctx context.Context, oIDs []uint32) ([]FindEnu
 	items := []FindEnumTypesRow{}
 	for rows.Next() {
 		var item FindEnumTypesRow
-		if err := rows.Scan(&item.OID, &item.TypeName, &item.TypeKind, &item.EnumOID, &item.EnumOrder, &item.EnumLabel, &item.ElemType, &item.ArrayType, &item.CompositeTypeID, &item.DomainNotNullConstraint, &item.DomainBaseType, &item.NumDimensions, &item.DefaultExpr); err != nil {
+		if err := rows.Scan(&item.OID, &item.TypeName, &item.EnumOids, &item.EnumOrders, &item.EnumLabels, &item.TypeKind, &item.DefaultExpr); err != nil {
 			return nil, fmt.Errorf("scan FindEnumTypes row: %w", err)
 		}
 		items = append(items, item)
@@ -137,7 +131,7 @@ func (q *DBQuerier) FindEnumTypesScan(results pgx.BatchResults) ([]FindEnumTypes
 	items := []FindEnumTypesRow{}
 	for rows.Next() {
 		var item FindEnumTypesRow
-		if err := rows.Scan(&item.OID, &item.TypeName, &item.TypeKind, &item.EnumOID, &item.EnumOrder, &item.EnumLabel, &item.ElemType, &item.ArrayType, &item.CompositeTypeID, &item.DomainNotNullConstraint, &item.DomainBaseType, &item.NumDimensions, &item.DefaultExpr); err != nil {
+		if err := rows.Scan(&item.OID, &item.TypeName, &item.EnumOids, &item.EnumOrders, &item.EnumLabels, &item.TypeKind, &item.DefaultExpr); err != nil {
 			return nil, fmt.Errorf("scan FindEnumTypesBatch row: %w", err)
 		}
 		items = append(items, item)
