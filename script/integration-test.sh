@@ -62,7 +62,8 @@ test_header 'internal/pg'
 ${pggen} gen go \
    --schema-glob 'example/author/schema.sql' \
    --query-glob 'internal/pg/query.sql' \
-   --acronym oid
+   --acronym oid \
+   --acronym oids=OIDs
 assert_no_diff
 
 test_header 'example/erp: *.sql glob for schema and query'

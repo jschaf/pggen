@@ -191,7 +191,12 @@ Examples embedded in the repo:
 
 -   **Acronyms**: Custom acronym support with `--acronym` flag. With a query 
     like `SELECT 10 as order_mrr`, the flag `--acronym mrr` generates the name 
-    `OrderMRR` instead of `OrderMrr`.
+    `OrderMRR` instead of `OrderMrr`. Supports two formats:
+    
+    1. `--acronym <word>`: replaces `<word>` with uppercase `<WORD>`, 
+       like `id=ID.`.
+    2. `--acronym <word>=<relace>`: replaces `<word>` with `<replace>`, 
+       like `ids=IDs`.
 
 # Tutorial
 

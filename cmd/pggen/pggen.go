@@ -69,7 +69,7 @@ func newGenCmd() *ffcli.Command {
 		"create schema in Dockerized Postgres from all sql, sql.gz, or shell "+
 			"scripts (*.sh) that match a glob, like 'migrations/*.sql'")
 	acronyms := flags.Strings(fset, "acronym", nil,
-		"lowercase acronym that should convert to all caps, like foo_api to FooAPI")
+		"lowercase acronym that should convert to all caps, or custom mapping like 'ids=IDs'")
 	goSubCmd := &ffcli.Command{
 		Name:       "go",
 		ShortUsage: "pggen gen go [options...]",
@@ -105,12 +105,20 @@ func newGenCmd() *ffcli.Command {
 					outDir = dir
 				}
 			}
+
+			// Support two formats '--acronym api' and '--acronym oids=OIDs'
 			acros := make(map[string]string)
 			for _, acro := range *acronyms {
-				if acro != strings.ToLower(acro) {
-					return fmt.Errorf("acronym %q should be lower case", acro)
+				ss := strings.SplitN(acro, "=", 2)
+				word := ss[0]
+				if word != strings.ToLower(word) {
+					return fmt.Errorf("acronym %q should be lower case", word)
 				}
-				acros[acro] = strings.ToUpper(acro)
+				replacement := strings.ToUpper(word)
+				if len(ss) > 1 {
+					replacement = ss[1]
+				}
+				acros[word] = replacement
 			}
 
 			// Codegen.

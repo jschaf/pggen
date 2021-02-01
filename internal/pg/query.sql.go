@@ -84,7 +84,7 @@ WHERE typ.typisdefined
 type FindEnumTypesRow struct {
 	OID         pgtype.OID         `json:"oid"`
 	TypeName    pgtype.Text        `json:"type_name"`
-	EnumOids    []uint32           `json:"enum_oids"`
+	EnumOIDs    []uint32           `json:"enum_oids"`
 	EnumOrders  pgtype.Float4Array `json:"enum_orders"`
 	EnumLabels  pgtype.TextArray   `json:"enum_labels"`
 	TypeKind    pgtype.QChar       `json:"type_kind"`
@@ -103,7 +103,7 @@ func (q *DBQuerier) FindEnumTypes(ctx context.Context, oIDs []uint32) ([]FindEnu
 	items := []FindEnumTypesRow{}
 	for rows.Next() {
 		var item FindEnumTypesRow
-		if err := rows.Scan(&item.OID, &item.TypeName, &item.EnumOids, &item.EnumOrders, &item.EnumLabels, &item.TypeKind, &item.DefaultExpr); err != nil {
+		if err := rows.Scan(&item.OID, &item.TypeName, &item.EnumOIDs, &item.EnumOrders, &item.EnumLabels, &item.TypeKind, &item.DefaultExpr); err != nil {
 			return nil, fmt.Errorf("scan FindEnumTypes row: %w", err)
 		}
 		items = append(items, item)
@@ -131,7 +131,7 @@ func (q *DBQuerier) FindEnumTypesScan(results pgx.BatchResults) ([]FindEnumTypes
 	items := []FindEnumTypesRow{}
 	for rows.Next() {
 		var item FindEnumTypesRow
-		if err := rows.Scan(&item.OID, &item.TypeName, &item.EnumOids, &item.EnumOrders, &item.EnumLabels, &item.TypeKind, &item.DefaultExpr); err != nil {
+		if err := rows.Scan(&item.OID, &item.TypeName, &item.EnumOIDs, &item.EnumOrders, &item.EnumLabels, &item.TypeKind, &item.DefaultExpr); err != nil {
 			return nil, fmt.Errorf("scan FindEnumTypesBatch row: %w", err)
 		}
 		items = append(items, item)
