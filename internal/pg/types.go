@@ -10,19 +10,19 @@ import (
 	"time"
 )
 
-// TypeKind is b for a base type, c for a composite type (e.g., a table's row
+// MetaType is b for a base type, c for a composite type (e.g., a table's row
 // type), d for a domain, e for an enum type, p for a pseudo-type, or r for a
 // range type. See also typrelid and typbasetype.
-type TypeKind byte
+type MetaType byte
 
 //goland:noinspection GoUnusedConst
 const (
-	KindBaseType      TypeKind = 'b'
-	KindCompositeType TypeKind = 'c' // table row type
-	KindDomainType    TypeKind = 'd'
-	KindEnumType      TypeKind = 'e'
-	KindPseudoType    TypeKind = 'p'
-	KindRangeType     TypeKind = 'r'
+	MetaBaseType      MetaType = 'b'
+	MetaCompositeType MetaType = 'c' // table row type
+	MetaDomainType    MetaType = 'd'
+	MetaEnumType      MetaType = 'e'
+	MetaPseudoType    MetaType = 'p'
+	MetaRangeType     MetaType = 'r'
 )
 
 // Type is a Postgres type.
@@ -37,7 +37,7 @@ type (
 	BaseType struct {
 		ID         pgtype.OID     // pg_type.oid: row identifier
 		Name       string         // pg_type.typname: data type name
-		Kind       TypeKind       // pg_type.typtype: the kind of type
+		Kind       MetaType       // pg_type.typtype: the kind of type
 		Composite  *CompositeType // pg_type.typrelid: composite type only, the pg_class for the type
 		Dimensions int            // pg_type.typndims: domains on array type only 0 otherwise, number of array dimensions,
 	}
