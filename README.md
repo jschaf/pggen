@@ -170,9 +170,28 @@ Examples embedded in the repo:
 
 # Features
 
-- Custom acronym support with `--acronym` flag. With a query like 
-  `SELECT 10 as order_mrr`, the flag `--acronym mrr` generates the name 
-  `OrderMRR` instead of `OrderMrr`.
+-   **JSON struct tags**: All `<query_name>Row` structs include JSON struct tags
+    using the Postgres column name. To change the struct tag, use a column 
+    alias.
+  
+    ```sql
+    -- name: FindAuthors :many
+    SELECT author_id, first_name, last_name as family_name FROM author;
+    ```
+    
+    Generates:
+    
+    ```go
+    type FindAuthorsRow struct {
+        AuthorID  int32  `json:"author_id"`
+        FirstName string `json:"first_name"`
+        LastName  string `json:"family_name"`
+    }
+    ```
+
+-   **Acronyms**: Custom acronym support with `--acronym` flag. With a query 
+    like `SELECT 10 as order_mrr`, the flag `--acronym mrr` generates the name 
+    `OrderMRR` instead of `OrderMrr`.
 
 # Tutorial
 
