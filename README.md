@@ -273,13 +273,15 @@ We'll walk through the generated file `author/query.sql.go`:
 -   pggen generates a row struct for each query named `<query_name>Row`.
     pggen transforms the output column names into struct field names from
     `lower_snake_case` to `UpperCamelCase` in [internal/casing/casing.go]. 
+    pggen derives JSON struct tags from the Postgres column names. To change the
+    JSON struct name, change the column name in the query.
     
     ```sql
     type FindAuthorsRow struct {
-        AuthorID  int32
-        FirstName string
-        LastName  string
-        Suffix    pgtype.Text
+        AuthorID  int32       `json:"author_id"`
+        FirstName string      `json:"first_name"`
+        LastName  string      `json:"last_name"`
+        Suffix    pgtype.Text `json:"suffix"`
     }
     ```
 
