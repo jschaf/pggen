@@ -7,7 +7,7 @@
 pggen is a tool that generates Go code to provide a typesafe wrapper around
 Postgres queries. If Postgres can run the query, pggen can generate code for it.
 
-1.  Write SQL queries.
+1.  Write SQL queries with a name and `:one`, `:many`, or `:exec` annotation.
 
     ```sql
     -- FindAuthors finds authors by first name.
@@ -15,7 +15,8 @@ Postgres queries. If Postgres can run the query, pggen can generate code for it.
     SELECT * FROM author WHERE first_name = pggen.arg('FirstName');
     ```
 
-2.  Run pggen to generate Go code the provides type-safe methods for each query.
+2.  Run pggen to generate Go code to create type-safe methods for each 
+    query.
    
     ```bash
     pggen gen go \
@@ -23,7 +24,7 @@ Postgres queries. If Postgres can run the query, pggen can generate code for it.
         --query-glob 'author/*.sql'
     ```
     
-3.  Use the generated code. 
+3.  Use the generated code.
 
     ```go
     var conn *pgx.Conn
@@ -37,19 +38,20 @@ Why should you use `pggen` instead of the [myriad] of Go SQL bindings?
 
 - pggen is narrowly tailored to only generate code for queries you write in SQL.
 
-- pggen works with any Postgres database. Under the hood, pggen executes each 
-  query and uses the Postgres catalog tables, `pg_type`, `pg_class`, 
-  `pg_attribute` to get perfect type information for query parameters and query
-  results.
+- pggen works with any Postgres database. Under the hood, pggen runs each query
+  and uses the Postgres catalog tables, `pg_type`, `pg_class`, and 
+  `pg_attribute`, to get perfect type information for both the query parameters 
+  and result columns.
   
 - pggen works with all Postgres queries. If Postgres can run the query, pggen
   can generate Go code for the query.
   
-- pggen uses [pgx], a faster replacement for the maintenance mode [lib/pq].
+- pggen uses [pgx], a faster replacement for [lib/pq], the original Go Postgres
+  library that's now in maintenance mode.
 
 - pggen provides a batch interface for each generated query with [`pgx.Batch`]. 
-  Using a batch allows you to send multiple queries in a single network 
-  round-trip instead of a network round-trip for each query.
+  Using a batch enables sending multiple queries in a single network round-trip
+  instead of one network round-trip per query.
   
 [pgx]: https://github.com/jackc/pgx
 [lib/pq]: https://github.com/lib/pq
@@ -71,14 +73,13 @@ is far more revealing than the pitch.
   `create`, `update`, and `delete`. pggen only generates code for queries you 
   write. Use [gorm].
   
-- You prefer building queries in a type-safe Go dialect instead of SQL. First,
-  I'd recommend investing in really learning SQL; it will payoff. Otherwise,
-  use [squirrel], [goqu], or [go-sqlbuilder]
+- You prefer building queries in a Go dialect instead of SQL. I'd recommend 
+  investing in really learning SQL; it will payoff. Otherwise, use 
+  [squirrel], [goqu], or [go-sqlbuilder]
   
-- You don't want to add a Postgres and/or Docker dependency to your build phase.
+- You don't want to add a Postgres or Docker dependency to your build phase.
   Use [sqlc], though you might still need Docker. sqlc generates code by parsing
-  the schema file and queries in Go and using custom type inference and doesn't
-  rely on Postgres.
+  the schema file and queries in Go without using Postgres.
 
 [myriad]: https://github.com/d-tsuji/awesome-go-orms
 [sqlc]: https://github.com/kyleconroy/sqlc
@@ -92,6 +93,9 @@ is far more revealing than the pitch.
 
 ```bash
 go get github.com/jschaf/pggen
+
+# Make sure pggen works.
+pggen gen go --help
 ```
 
 ## Usage
@@ -99,17 +103,20 @@ go get github.com/jschaf/pggen
 Generate code using Docker to create the Postgres database from a schema file:
 
 ```bash
-# --schema-glob runs the file on Dockerized Postgres during database creation.
-pggen gen go --schema-glob author/schema.sql --query-glob author/query.sql
+# --schema-glob runs all matching files on Dockerized Postgres during database 
+# creation.
+pggen gen go \
+    --schema-glob author/schema.sql \
+    --query-glob author/query.sql
 
 # Output: author/query.go.sql
 
 # Or with multiple schema files. The schema files run on Postgres
 # in the order they appear on the command line.
 pggen gen go \
-    --schema-glob author/schema.sql      \
-    --schema-glob book/schema.sql        \
-    --schema-glob publisher/schema.sql   \
+    --schema-glob author/schema.sql \
+    --schema-glob book/schema.sql \
+    --schema-glob publisher/schema.sql \
     --query-glob author/query.sql
 
 # Output: author/query.sql.go
@@ -127,11 +134,11 @@ pggen gen go \
 
 Generate code for multiple query files. All the query files must reside in
 the same directory. If query files reside in different directories, you can use
-`--output-dir` to set a single output location:
+`--output-dir` to set a single output directory:
 
 ```bash
 pggen gen go \
-    --schema-glob author/schema.sql \
+    --schema-glob schema.sql \
     --query-glob author/fiction.sql \
     --query-glob author/nonfiction.sql \
     --query-glob author/bestselling.sql
@@ -143,7 +150,7 @@ pggen gen go \
 # Or, using a glob. Notice quotes around glob pattern to prevent shell 
 # expansion.
 pggen gen go \
-    --schema-glob author/schema.sql \
+    --schema-glob schema.sql \
     --query-glob 'author/*.sql'
 ```
 
@@ -151,10 +158,12 @@ pggen gen go \
 
 Examples embedded in the repo:
 
+- [./script/integration-test.sh] - End-to-end examples of how to call pggen.
 - [./example/author] - A single table schema with simple queries.
 - [./example/erp] - A few tables with mildly complex queries.
 - [./example/syntax] - A smoke test of interesting SQL syntax.
 
+[./script/integration-test.sh]: ./script/integration-test.sh
 [./example/author]: ./example/author
 [./example/erp]: ./example/erp
 [./example/syntax]: ./example/syntax
@@ -172,7 +181,9 @@ CREATE TABLE author (
 )
 ```
 
-First, write a query in the file `author/query.sql`:
+First, write a query in the file `author/query.sql`. The query name is 
+`FindAuthors` and the query returns `:many` rows. A query can return `:many` 
+rows, `:one` row, or `:exec` for update, insert, and delete queries.
 
 ```sql
 -- FindAuthors finds authors by first name.
@@ -208,7 +219,7 @@ We'll walk through the generated file `author/query.sql.go`:
         // later by the batch.
         FindAuthorsBatch(ctx context.Context, batch *pgx.Batch, firstName string)
         // FindAuthorsScan scans the result of an executed FindAuthorsBatch query.
-        FindAuthorsScan(ctx context.Context, results pgx.BatchResults) ([]FindAuthorsRow, error)
+        FindAuthorsScan(results pgx.BatchResults) ([]FindAuthorsRow, error)
     }
     ```
     
@@ -252,7 +263,8 @@ We'll walk through the generated file `author/query.sql.go`:
     ```
     
 -   pggen embeds the SQL query formatted for a Postgres `PREPARE` statement with
-    parameters indicated by `$1`, `$2`, etc.
+    parameters indicated by `$1`, `$2`, etc. instead of 
+    `pggen.arg('FirstName')`.
 
     ```sql
     const findAuthorsSQL = `SELECT * FROM author WHERE first_name = $1;`
@@ -295,7 +307,7 @@ We'll walk through the generated file `author/query.sql.go`:
     
 -   Lastly, pggen generates the implementation for each query.
 
-    As a convenience, if a there are less than three query parameters, pggen
+    As a convenience, if a there are only one or two query parameters, pggen
     inlines the parameters into the method definition, as with `firstName` 
     below. If there are three or more parameters, pggen creates a struct named
     `<query_name>Params` to pass the parameters to the query method.
@@ -310,7 +322,7 @@ We'll walk through the generated file `author/query.sql.go`:
         if err != nil {
             return nil, fmt.Errorf("query FindAuthors: %w", err)
         }
-        var items []FindAuthorsRow
+        items := []FindAuthorsRow{}
         for rows.Next() {
             var item FindAuthorsRow
             if err := rows.Scan(&item.AuthorID, &item.FirstName, &item.LastName, &item.Suffix); err != nil {
@@ -331,7 +343,7 @@ We'll walk through the generated file `author/query.sql.go`:
 [`pgx.Tx`]: https://pkg.go.dev/github.com/jackc/pgx#Tx
 [`*pgxpool.Pool`]: https://pkg.go.dev/github.com/jackc/pgx/v4/pgxpool#Pool
 [internal/casing/casing.go]: ./internal/casing/casing.go
-[codegen/golang/types.go]: ./internal/codegen/golang/types.go
+[internal/codegen/golang/types.go]: ./internal/codegen/golang/types.go
 [`pgtype`]: https://pkg.go.dev/github.com/jackc/pgtype
 [internal/pginfer/nullability.go]: ./internal/pginfer/nullability.go
 
@@ -341,22 +353,25 @@ In a nutshell, pggen runs each query on Postgres to extract type information,
 and generates the appropriate code. In detail:
 
 - pggen determines input parameters by using a `PREPARE` statement and querying
-  the `pg_prepared_statement` table to get type information for each parameter.
+  the [`pg_prepared_statement`] table to get type information for each 
+  parameter.
   
 - pggen determines output columns by executing the query and reading the field
-  descriptions returned with the rows of data. The field descriptions contain
-  the type ID for each output column. The type ID is a Postgres object ID
-  (OID), the primary key to identify a row in the `pg_type` catalog table.
+  descriptions returned with the query result rows. The field descriptions 
+  contain the type ID for each output column. The type ID is a Postgres object 
+  ID (OID), the primary key to identify a row in the [`pg_type`] catalog table.
 
 - pggen determines if an output column can be null using heuristics. If a column
   cannot be null, pggen uses more ergonomic types to represent the output like
-  `string` instead of `pgtype.Text`. The heuristics are quite simple, see
+  `string` instead of `pgtype.Text`. The heuristics are quite simple; see
   [internal/pginfer/nullability.go]. A proper approach requires a full Postgres 
   SQL syntax parser with control flow analysis to determine nullability.
    
-For more detail, see the original, slightly outdated [design doc] and discussion
-with the [pgx author] and [sqlc author].
+For more detail, see the original, outdated [design doc] and discussion with the 
+[pgx author] and [sqlc author].
 
+[`pg_prepared_statement`]: https://www.postgresql.org/docs/current/view-pg-prepared-statements.html
+[`pg_type`]: https://www.postgresql.org/docs/13/catalog-pg-type.html
 [design doc]: https://docs.google.com/document/d/1NvVKD6cyXvJLWUfqFYad76CWMDFoK9mzKuj1JawkL2A/edit#
 [pgx author]: https://github.com/jackc/pgx/issues/915
 [sqlc author]: https://github.com/kyleconroy/sqlc/issues/854
