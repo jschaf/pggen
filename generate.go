@@ -53,6 +53,9 @@ type GenerateOptions struct {
 	// Docker init scripts to run in dockerized Postgres. Must be nil if
 	// ConnString is set.
 	DockerInitScripts []string
+	// A map of lowercase acronyms to the upper case equivalent, like:
+	// "api" => "API". ID is included by default.
+	Acronyms map[string]string
 }
 
 // Generate generates language specific code to safely wrap each SQL
@@ -107,6 +110,7 @@ func Generate(opts GenerateOptions) (mErr error) {
 		goOpts := golang.GenerateOptions{
 			GoPkg:     opts.GoPackage,
 			OutputDir: opts.OutputDir,
+			Acronyms:  opts.Acronyms,
 		}
 		if err := golang.Generate(goOpts, queryFiles); err != nil {
 			return fmt.Errorf("generate go code: %w", err)

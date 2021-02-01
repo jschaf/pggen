@@ -55,24 +55,27 @@ assert_no_diff
 test_header 'example/erp: *.sql glob for schema and query'
 ${pggen} gen go \
     --schema-glob 'example/erp/*.sql' \
-    --query-glob 'example/erp/order/*.sql'
+    --query-glob 'example/erp/order/*.sql' \
+    --acronym mrr
 assert_no_diff
 
 test_header 'example/erp: ?? for schema'
 ${pggen} gen go \
     --schema-glob 'example/erp/??_schema.sql' \
-    --query-glob 'example/erp/order/*.sql'
+    --query-glob 'example/erp/order/*.sql' \
+    --acronym mrr
 assert_no_diff
 
 test_header 'example/syntax: direct file for query'
 ${pggen} gen go \
     --schema-glob 'example/syntax/schema.sql' \
-    --query-glob 'example/syntax/query.sql'
+    --query-glob 'example/syntax/query.sql' \
+    --acronym mrr
 assert_no_diff
 
 printf '\n\n'
 if [[ "$has_update" == 'y' ]]; then
-  echo 'All integration tests updated'
+  echo 'Updated all integration tests'
 else
   echo 'All integration tests passed!'
 fi

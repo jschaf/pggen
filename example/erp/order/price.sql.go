@@ -68,3 +68,63 @@ func (q *DBQuerier) FindOrdersByPriceScan(results pgx.BatchResults) ([]FindOrder
 	}
 	return items, err
 }
+
+const findOrdersMRRSQL = `SELECT date_trunc('month', order_date) AS month, sum(order_total) AS order_mrr
+FROM orders
+GROUP BY date_trunc('month', order_date);`
+
+type FindOrdersMRRRow struct {
+	Month    pgtype.Timestamptz `json:"month"`
+	OrderMRR pgtype.Numeric     `json:"order_mrr"`
+}
+
+// FindOrdersMRR implements Querier.FindOrdersMRR.
+func (q *DBQuerier) FindOrdersMRR(ctx context.Context) ([]FindOrdersMRRRow, error) {
+	rows, err := q.conn.Query(ctx, findOrdersMRRSQL)
+	if rows != nil {
+		defer rows.Close()
+	}
+	if err != nil {
+		return nil, fmt.Errorf("query FindOrdersMRR: %w", err)
+	}
+	items := []FindOrdersMRRRow{}
+	for rows.Next() {
+		var item FindOrdersMRRRow
+		if err := rows.Scan(&item.Month, &item.OrderMRR); err != nil {
+			return nil, fmt.Errorf("scan FindOrdersMRR row: %w", err)
+		}
+		items = append(items, item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, err
+}
+
+// FindOrdersMRRBatch implements Querier.FindOrdersMRRBatch.
+func (q *DBQuerier) FindOrdersMRRBatch(ctx context.Context, batch *pgx.Batch) {
+	batch.Queue(findOrdersMRRSQL)
+}
+
+// FindOrdersMRRScan implements Querier.FindOrdersMRRScan.
+func (q *DBQuerier) FindOrdersMRRScan(results pgx.BatchResults) ([]FindOrdersMRRRow, error) {
+	rows, err := results.Query()
+	if rows != nil {
+		defer rows.Close()
+	}
+	if err != nil {
+		return nil, err
+	}
+	items := []FindOrdersMRRRow{}
+	for rows.Next() {
+		var item FindOrdersMRRRow
+		if err := rows.Scan(&item.Month, &item.OrderMRR); err != nil {
+			return nil, fmt.Errorf("scan FindOrdersMRRBatch row: %w", err)
+		}
+		items = append(items, item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, err
+}

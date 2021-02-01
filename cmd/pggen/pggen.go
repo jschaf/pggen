@@ -29,6 +29,9 @@ EXAMPLES
   # Generate code for all queries underneath a directory. Glob should be quoted
   # to prevent shell expansion.
   pggen gen go --schema-glob author/schema.sql --query-glob 'author/**/*.sql'
+
+  # Use custom acronym when converting from camel_case_api to camelCaseAPI.
+  pggen gen go --schema-glob schema.sql --query-glob query.sql --acronym api
 `
 
 func run() error {
@@ -65,6 +68,8 @@ func newGenCmd() *ffcli.Command {
 	schemaGlobs := flags.Strings(fset, "schema-glob", nil,
 		"create schema in Dockerized Postgres from all sql, sql.gz, or shell "+
 			"scripts (*.sh) that match a glob, like 'migrations/*.sql'")
+	acronyms := flags.Strings(fset, "acronym", nil,
+		"lowercase acronym that should convert to all caps, like foo_api to FooAPI")
 	goSubCmd := &ffcli.Command{
 		Name:       "go",
 		ShortUsage: "pggen gen go [options...]",
@@ -100,6 +105,14 @@ func newGenCmd() *ffcli.Command {
 					outDir = dir
 				}
 			}
+			acros := make(map[string]string)
+			for _, acro := range *acronyms {
+				if acro != strings.ToLower(acro) {
+					return fmt.Errorf("acronym %q should be lower case", acro)
+				}
+				acros[acro] = strings.ToUpper(acro)
+			}
+
 			// Codegen.
 			err = pggen.Generate(pggen.GenerateOptions{
 				Language:          pggen.LangGo,
@@ -107,6 +120,7 @@ func newGenCmd() *ffcli.Command {
 				DockerInitScripts: schemas,
 				QueryFiles:        queries,
 				OutputDir:         outDir,
+				Acronyms:          acros,
 			})
 			fmt.Printf("gen go: out_dir=%s files=%s\n", outDir, strings.Join(queries, ","))
 			return err

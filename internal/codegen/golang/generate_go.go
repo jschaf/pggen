@@ -15,6 +15,9 @@ import (
 type GenerateOptions struct {
 	GoPkg     string
 	OutputDir string
+	// A map of lowercase acronyms to the upper case equivalent, like:
+	// "api" => "API". ID is included by default.
+	Acronyms map[string]string
 }
 
 // goQueryFile is the Go version of a SQL query file with all information needed
@@ -62,11 +65,14 @@ func Generate(opts GenerateOptions, queryFiles []codegen.QueryFile) error {
 	if pkgName == "" {
 		pkgName = filepath.Base(opts.OutputDir)
 	}
+	caser := casing.NewCaser()
+	caser.AddAcronym("id", "ID")
+	caser.AddAcronyms(opts.Acronyms)
 
 	// Build go specific query files.
 	goQueryFiles := make([]goQueryFile, 0, len(queryFiles))
 	for _, queryFile := range queryFiles {
-		goFile, err := buildGoQueryFile(pkgName, queryFile)
+		goFile, err := buildGoQueryFile(pkgName, caser, queryFile)
 		if err != nil {
 			return fmt.Errorf("prepare query file %s for go: %w", queryFile.Path, err)
 		}
@@ -117,10 +123,7 @@ func Generate(opts GenerateOptions, queryFiles []codegen.QueryFile) error {
 	return nil
 }
 
-func buildGoQueryFile(pkgName string, file codegen.QueryFile) (goQueryFile, error) {
-	caser := casing.NewCaser()
-	caser.AddAcronym("id", "ID")
-
+func buildGoQueryFile(pkgName string, caser casing.Caser, file codegen.QueryFile) (goQueryFile, error) {
 	imports := map[string]struct{}{
 		"context":                 {},
 		"fmt":                     {},

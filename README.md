@@ -168,7 +168,13 @@ Examples embedded in the repo:
 [./example/erp]: ./example/erp
 [./example/syntax]: ./example/syntax
 
-### Tutorial
+# Features
+
+- Custom acronym support with `--acronym` flag. With a query like 
+  `SELECT 10 as order_mrr`, the flag `--acronym mrr` generates the name 
+  `OrderMRR` instead of `OrderMrr`.
+
+# Tutorial
 
 Let's say we have a database with the following schema in `author/schema.sql`:
 

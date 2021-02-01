@@ -27,6 +27,7 @@ func TestGenerate_Go_Example_Order(t *testing.T) {
 			OutputDir: tmpDir,
 			GoPackage: "order",
 			Language:  pggen.LangGo,
+			Acronyms:  map[string]string{"mrr": "MRR"},
 		})
 	if err != nil {
 		t.Fatalf("Generate() example/erp/order: %s", err)
