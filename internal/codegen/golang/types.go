@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/jackc/pgtype"
 	"github.com/jschaf/pggen/internal/pg"
+	"github.com/jschaf/pggen/internal/pg/pgoid"
 	"regexp"
 	"strings"
 )
@@ -57,7 +58,7 @@ func splitQualifiedType(qualType string) (pkg string, typ string) {
 	return string(pkgFull), string(shortPkgType)
 }
 
-var goPgTypes = map[pg.OIDInt]goType{
+var goPgTypes = map[pgtype.OID]goType{
 	pgtype.BoolOID:             {"github.com/jackc/pgtype.Bool", "bool"},
 	pgtype.QCharOID:            {"github.com/jackc/pgtype.QChar", ""},
 	pgtype.NameOID:             {"github.com/jackc/pgtype.Name", ""},
@@ -80,6 +81,7 @@ var goPgTypes = map[pg.OIDInt]goType{
 	pgtype.CIDRArrayOID:        {"github.com/jackc/pgtype.CIDRArray", ""},
 	pgtype.Float4OID:           {"github.com/jackc/pgtype.Float4", ""},
 	pgtype.Float8OID:           {"github.com/jackc/pgtype.Float8", ""},
+	pgoid.OIDArray:             {"[]uint32", ""},
 	pgtype.UnknownOID:          {"github.com/jackc/pgtype.Unknown", ""},
 	pgtype.CircleOID:           {"github.com/jackc/pgtype.Circle", ""},
 	pgtype.MacaddrOID:          {"github.com/jackc/pgtype.Macaddr", ""},

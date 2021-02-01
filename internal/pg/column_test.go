@@ -3,6 +3,7 @@ package pg
 import (
 	"context"
 	"github.com/google/go-cmp/cmp"
+	"github.com/jackc/pgtype"
 	"github.com/jackc/pgx/v4"
 	"github.com/jschaf/pggen/internal/pgtest"
 	"github.com/jschaf/pggen/internal/texts"
@@ -73,7 +74,7 @@ func TestFetchColumns(t *testing.T) {
 	}
 }
 
-func findTableOID(t *testing.T, conn *pgx.Conn, table string) OIDInt {
+func findTableOID(t *testing.T, conn *pgx.Conn, table string) pgtype.OID {
 	sql := texts.Dedent(`
 		SELECT oid AS table_oid
 		FROM pg_class
@@ -84,7 +85,7 @@ func findTableOID(t *testing.T, conn *pgx.Conn, table string) OIDInt {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 	row := conn.QueryRow(ctx, sql, table)
-	var oid OIDInt = 0
+	var oid pgtype.OID = 0
 	if err := row.Scan(&oid); err != nil && err != pgx.ErrNoRows {
 		t.Fatal(err)
 	}

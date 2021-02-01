@@ -1,14 +1,14 @@
 package pg
 
 import (
+	"context"
 	"fmt"
 	"github.com/jackc/pgtype"
 	"github.com/jackc/pgx/v4"
+	"github.com/jschaf/pggen/internal/pg/pgoid"
 	"sync"
+	"time"
 )
-
-// OIDInt is the Postgres oid type.
-type OIDInt = uint32
 
 // TypeKind is b for a base type, c for a composite type (e.g., a table's row
 // type), d for a domain, e for an enum type, p for a pseudo-type, or r for a
@@ -27,28 +27,44 @@ const (
 
 // Type is a Postgres type.
 type Type struct {
-	OID  OIDInt // pg_type.oid: row identifier
-	Name string // pg_type.typname: data type name
+	OID  pgtype.OID // pg_type.oid: row identifier
+	Name string     // pg_type.typname: data type name
 }
 
 type (
 	// BaseType is a fundamental Postgres type like text and bool.
 	// https://www.postgresql.org/docs/13/catalog-pg-type.html
 	BaseType struct {
-		ID         OIDInt         // pg_type.oid: row identifier
+		ID         pgtype.OID     // pg_type.oid: row identifier
 		Name       string         // pg_type.typname: data type name
 		Kind       TypeKind       // pg_type.typtype: the kind of type
 		Composite  *CompositeType // pg_type.typrelid: composite type only, the pg_class for the type
 		Dimensions int            // pg_type.typndims: domains on array type only 0 otherwise, number of array dimensions,
 	}
 
+	EnumType struct {
+		ID pgtype.OID
+		// The name of the enum, like 'device_type' in:
+		//     CREATE TYPE device_type AS ENUM ('foo');
+		Name string
+		// All textual labels for this enum in sort order.
+		Labels []string
+		// When an enum type is created, its members are assigned sort-order
+		// positions 1..n. But members added later might be given negative or
+		// fractional values of enumsortorder. The only requirement on these
+		// values is that they be correctly ordered and unique within each enum
+		// type.
+		Orders    []float32
+		ChildOIDs []pgtype.OID
+	}
+
 	// DomainType is a user-create domain type.
 	DomainType struct {
-		ID         OIDInt   // pg_type.oid: row identifier
-		Name       string   // pg_type.typname: data type name
-		IsNotNull  bool     // pg_type.typnotnull: domains only, not null constraint for domains
-		HasDefault bool     // pg_type.typdefault: domains only, if there's a default value
-		BaseType   BaseType // pg_type.typbasetype: domains only, the base type
+		ID         pgtype.OID // pg_type.oid: row identifier
+		Name       string     // pg_type.typname: data type name
+		IsNotNull  bool       // pg_type.typnotnull: domains only, not null constraint for domains
+		HasDefault bool       // pg_type.typdefault: domains only, if there's a default value
+		BaseType   BaseType   // pg_type.typbasetype: domains only, the base type
 	}
 
 	// CompositeType is a type containing multiple columns and is represented as
@@ -75,6 +91,7 @@ var (
 	XID              = Type{OID: pgtype.XIDOID, Name: "xid"}
 	CID              = Type{OID: pgtype.CIDOID, Name: "cid"}
 	JSON             = Type{OID: pgtype.JSONOID, Name: "json"}
+	PgNodeTree       = Type{OID: pgoid.PgNodeTree, Name: "pg_node_tree"}
 	Point            = Type{OID: pgtype.PointOID, Name: "point"}
 	Lseg             = Type{OID: pgtype.LsegOID, Name: "lseg"}
 	Path             = Type{OID: pgtype.PathOID, Name: "path"}
@@ -99,6 +116,7 @@ var (
 	Int8Array        = Type{OID: pgtype.Int8ArrayOID, Name: "_int8"}
 	Float4Array      = Type{OID: pgtype.Float4ArrayOID, Name: "_float4"}
 	Float8Array      = Type{OID: pgtype.Float8ArrayOID, Name: "_float8"}
+	OIDArray         = Type{OID: 1028, Name: "_oid"}
 	ACLItem          = Type{OID: pgtype.ACLItemOID, Name: "aclitem"}
 	ACLItemArray     = Type{OID: pgtype.ACLItemArrayOID, Name: "_aclitem"}
 	InetArray        = Type{OID: pgtype.InetArrayOID, Name: "_inet"}
@@ -132,7 +150,7 @@ var (
 var (
 	typeMapLock = &sync.Mutex{}
 
-	typeMap = map[OIDInt]Type{
+	typeMap = map[uint32]Type{
 		pgtype.BoolOID:             Bool,
 		pgtype.QCharOID:            QChar,
 		pgtype.NameOID:             Name,
@@ -145,6 +163,7 @@ var (
 		pgtype.XIDOID:              XID,
 		pgtype.CIDOID:              CID,
 		pgtype.JSONOID:             JSON,
+		pgoid.PgNodeTree:           PgNodeTree,
 		pgtype.PointOID:            Point,
 		pgtype.LsegOID:             Lseg,
 		pgtype.PathOID:             Path,
@@ -169,6 +188,7 @@ var (
 		pgtype.Int8ArrayOID:        Int8Array,
 		pgtype.Float4ArrayOID:      Float4Array,
 		pgtype.Float8ArrayOID:      Float8Array,
+		pgoid.OIDArray:             OIDArray,
 		pgtype.ACLItemOID:          ACLItem,
 		pgtype.ACLItemArrayOID:     ACLItemArray,
 		pgtype.InetArrayOID:        InetArray,
@@ -201,16 +221,15 @@ var (
 )
 
 // FetchOIDTypes gets the Postgres type for each of the oids.
-func FetchOIDTypes(_ *pgx.Conn, oids ...OIDInt) (map[OIDInt]Type, error) {
-	types := make(map[OIDInt]Type, len(oids))
-	oidsToFetch := make([]OIDInt, 0, len(oids))
+func FetchOIDTypes(conn *pgx.Conn, oids ...uint32) (map[pgtype.OID]Type, error) {
+	types := make(map[pgtype.OID]Type, len(oids))
+	oidsToFetch := make([]uint32, 0, len(oids))
 	typeMapLock.Lock()
 	for _, oid := range oids {
 		if t, ok := typeMap[oid]; ok {
-			types[oid] = t
+			types[pgtype.OID(oid)] = t
 		} else {
-			// We'll use oidsToFetch once we fetch from the database.
-			oidsToFetch = append(oidsToFetch, oid) // nolint
+			oidsToFetch = append(oidsToFetch, oid)
 		}
 	}
 	typeMapLock.Unlock()
@@ -219,7 +238,7 @@ func FetchOIDTypes(_ *pgx.Conn, oids ...OIDInt) (map[OIDInt]Type, error) {
 
 	// Check that we found all OIDs.
 	for _, oid := range oids {
-		if _, ok := types[oid]; !ok {
+		if _, ok := types[pgtype.OID(oid)]; !ok {
 			return nil, fmt.Errorf("did not find all OIDs; missing OID %d", oid)
 		}
 	}

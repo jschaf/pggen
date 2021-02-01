@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/jackc/pgproto3/v2"
+	"github.com/jackc/pgtype"
 	"github.com/jackc/pgx/v4"
 	"github.com/jschaf/pggen/internal/ast"
 	"github.com/jschaf/pggen/internal/errs"
@@ -131,7 +132,7 @@ func (inf *Inferrer) inferInputTypes(query *ast.SourceQuery) (ps []InputParam, m
 	// Build up the input params.
 	params := make([]InputParam, len(query.ParamNames))
 	for i := 0; i < len(params); i++ {
-		pgType := types[oids[i]]
+		pgType := types[pgtype.OID(oids[i])]
 		params[i] = InputParam{
 			PgName:     query.ParamNames[i],
 			DefaultVal: "",
@@ -191,7 +192,7 @@ func (inf *Inferrer) inferOutputTypes(query *ast.SourceQuery) ([]OutputColumn, e
 	// Create output columns
 	outs := make([]OutputColumn, len(descriptions))
 	for i, desc := range descriptions {
-		pgType, ok := types[desc.DataTypeOID]
+		pgType, ok := types[pgtype.OID(desc.DataTypeOID)]
 		if !ok {
 			return nil, fmt.Errorf("no type name found for oid %d", desc.DataTypeOID)
 		}
@@ -247,7 +248,7 @@ func (inf *Inferrer) inferOutputNullability(query *ast.SourceQuery, descs []pgpr
 	for i, desc := range descs {
 		if desc.TableOID > 0 {
 			columnKeys[i] = pg.ColumnKey{
-				TableOID: desc.TableOID,
+				TableOID: pgtype.OID(desc.TableOID),
 				Number:   desc.TableAttributeNumber,
 			}
 		}
