@@ -63,9 +63,9 @@ func (q *DBQuerier) WithTx(tx pgx.Tx) (*DBQuerier, error) {
 }
 
 const findEnumTypesSQL = `WITH enums AS (
-  SELECT enumtypid                                       AS enum_type,
-         array_agg(oid ORDER BY enumsortorder)           AS enum_oids,
-         array_agg(enumsortorder ORDER BY enumsortorder) AS enum_orders,
+  SELECT enumtypid::int8                                   AS enum_type,
+         array_agg(oid::int8 ORDER BY enumsortorder)       AS enum_oids,
+         array_agg(enumsortorder ORDER BY enumsortorder)   AS enum_orders,
          array_agg(enumlabel::text ORDER BY enumsortorder) AS enum_labels
   FROM pg_enum
   GROUP BY pg_enum.enumtypid)
@@ -84,7 +84,7 @@ WHERE typ.typisdefined
 type FindEnumTypesRow struct {
 	OID         pgtype.OID         `json:"oid"`
 	TypeName    pgtype.Text        `json:"type_name"`
-	EnumOIDs    []uint32           `json:"enum_oids"`
+	EnumOIDs    pgtype.Int8Array   `json:"enum_oids"`
 	EnumOrders  pgtype.Float4Array `json:"enum_orders"`
 	EnumLabels  pgtype.TextArray   `json:"enum_labels"`
 	TypeKind    pgtype.QChar       `json:"type_kind"`
