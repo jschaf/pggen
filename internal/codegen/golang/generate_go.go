@@ -47,8 +47,9 @@ type goInputParam struct {
 }
 
 type goOutputColumn struct {
-	Name string // name in Go-style to use for the column
-	Type string // Go type to use for the column
+	PgName string // original name of the Postgres column
+	Name   string // name in Go-style (UpperCamelCase) to use for the column
+	Type   string // Go type to use for the column
 }
 
 // Generate emits generated Go files for each of the queryFiles.
@@ -165,8 +166,9 @@ func buildGoQueryFile(pkgName string, file codegen.QueryFile) (goQueryFile, erro
 			}
 			imports[pkg] = struct{}{}
 			outputs[i] = goOutputColumn{
-				Name: caser.ToUpperCamel(out.PgName),
-				Type: goType,
+				PgName: out.PgName,
+				Name:   caser.ToUpperCamel(out.PgName),
+				Type:   goType,
 			}
 		}
 

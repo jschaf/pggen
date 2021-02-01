@@ -72,10 +72,10 @@ func (q *DBQuerier) WithTx(tx pgx.Tx) (*DBQuerier, error) {
 const findOrdersByCustomerSQL = `SELECT * FROM orders WHERE customer_id = $1;`
 
 type FindOrdersByCustomerRow struct {
-	OrderID    int32
-	OrderDate  pgtype.Timestamptz
-	OrderTotal pgtype.Numeric
-	CustomerID pgtype.Int4
+	OrderID    int32              `json:"order_id"`
+	OrderDate  pgtype.Timestamptz `json:"order_date"`
+	OrderTotal pgtype.Numeric     `json:"order_total"`
+	CustomerID pgtype.Int4        `json:"customer_id"`
 }
 
 // FindOrdersByCustomer implements Querier.FindOrdersByCustomer.
@@ -136,9 +136,9 @@ FROM orders o
 WHERE o.order_id = $1;`
 
 type FindProductsInOrderRow struct {
-	OrderID   pgtype.Int4
-	ProductID pgtype.Int4
-	Name      pgtype.Text
+	OrderID   pgtype.Int4 `json:"order_id"`
+	ProductID pgtype.Int4 `json:"product_id"`
+	Name      pgtype.Text `json:"name"`
 }
 
 // FindProductsInOrder implements Querier.FindProductsInOrder.

@@ -228,14 +228,26 @@ func (tq goTemplateQuery) EmitResultElem() (string, error) {
 	return strings.TrimPrefix(result, "[]"), nil
 }
 
-func getLongestOutput(outs []goOutputColumn) int {
-	max := 0
+// getLongestOutput returns the column of the longest name in all columns and
+// the column of the longest type to enable struct alignment.
+func getLongestOutput(outs []goOutputColumn) (int, int) {
+	nameLen := 0
 	for _, out := range outs {
-		if len(out.Name) > max {
-			max = len(out.Name)
+		if len(out.Name) > nameLen {
+			nameLen = len(out.Name)
 		}
 	}
-	return max
+	nameLen++ // 1 space to separate name from type
+
+	typeLen := 0
+	for _, out := range outs {
+		if len(out.Type) > typeLen {
+			typeLen = len(out.Type)
+		}
+	}
+	typeLen++ // 1 space to separate type from struct tags.
+
+	return nameLen, typeLen
 }
 
 // EmitRowStruct writes the struct definition for query output row if one is
@@ -252,12 +264,19 @@ func (tq goTemplateQuery) EmitRowStruct() string {
 		sb.WriteString("\n\ntype ")
 		sb.WriteString(tq.Name)
 		sb.WriteString("Row struct {\n")
-		typeCol := getLongestOutput(tq.Outputs) + 1 // 1 space
+		typeCol, structCol := getLongestOutput(tq.Outputs)
 		for _, out := range tq.Outputs {
+			// Name
 			sb.WriteString("\t")
 			sb.WriteString(out.Name)
+			// Type
 			sb.WriteString(strings.Repeat(" ", typeCol-len(out.Name)))
 			sb.WriteString(out.Type)
+			// JSON struct tag
+			sb.WriteString(strings.Repeat(" ", structCol-len(out.Type)))
+			sb.WriteString("`json:\"")
+			sb.WriteString(out.PgName)
+			sb.WriteString("\"`")
 			sb.WriteRune('\n')
 		}
 		sb.WriteString("}")
