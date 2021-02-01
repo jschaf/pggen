@@ -171,32 +171,34 @@ Examples embedded in the repo:
 # Features
 
 -   **JSON struct tags**: All `<query_name>Row` structs include JSON struct tags
-    using the Postgres column name. To change the struct tag, use a column 
+    using the Postgres column name. To change the struct tag, use a SQL column 
     alias.
   
     ```sql
     -- name: FindAuthors :many
-    SELECT author_id, first_name, last_name as family_name FROM author;
+    SELECT first_name, last_name as family_name FROM author;
     ```
     
     Generates:
     
     ```go
     type FindAuthorsRow struct {
-        AuthorID  int32  `json:"author_id"`
-        FirstName string `json:"first_name"`
-        LastName  string `json:"family_name"`
+        FirstName   string `json:"first_name"`
+        FamilyName  string `json:"family_name"`
     }
     ```
 
--   **Acronyms**: Custom acronym support with `--acronym` flag. With a query 
-    like `SELECT 10 as order_mrr`, the flag `--acronym mrr` generates the name 
-    `OrderMRR` instead of `OrderMrr`. Supports two formats:
+-   **Acronyms**: Custom acronym support so that `author_id` renders as 
+    `AuthorID` instead of `AuthorId`. Supports two formats:
     
-    1. `--acronym <word>`: replaces `<word>` with uppercase `<WORD>`, 
-       like `id=ID.`.
-    2. `--acronym <word>=<relace>`: replaces `<word>` with `<replace>`, 
-       like `ids=IDs`.
+    1. Long form: `--acronym <word>=<relacement>`: replaces `<word>` with 
+       `<replacement>` literally. Useful plural acronyms like `author_ids` which
+       should render as `AuthorIDs`, not `AuthorIds`; use `--acronym ids=IDs`.
+       
+    1. Short form: `--acronym <word>`: replaces `<word>` with uppercase 
+       `<WORD>`. Equivalent to `--acronym <word>=<WORD>`
+       
+    By default, pggen includes `--acronym id` to render `id` as `ID`.
 
 # Tutorial
 
