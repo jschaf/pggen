@@ -12,9 +12,9 @@ import (
 
 // pgToGoType maps a Postgres type to a Go type and its containing package.
 func pgToGoType(pgType pg.Type, nullable bool) (pkg string, typ string, err error) {
-	goType, ok := goPgTypes[pgType.OID]
+	goType, ok := goPgTypes[pgType.OID()]
 	if !ok {
-		return "", "", fmt.Errorf("no go type found for Postgres type %s oid=%d", pgType.Name, pgType.OID)
+		return "", "", fmt.Errorf("no go type found for Postgres type %s oid=%d", pgType.String(), pgType.OID())
 	}
 	pkg, typ = goType.splitPkg(nullable)
 	return pkg, typ, nil

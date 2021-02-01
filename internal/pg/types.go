@@ -10,25 +10,41 @@ import (
 	"time"
 )
 
-// MetaType is b for a base type, c for a composite type (e.g., a table's row
-// type), d for a domain, e for an enum type, p for a pseudo-type, or r for a
-// range type. See also typrelid and typbasetype.
-type MetaType byte
+// Type is a Postgres type.
+type Type interface {
+	OID() pgtype.OID // pg_type.oid: row identifier
+	String() string  // pg_type.typname: data type name
+	Kind() TypeKind
+}
 
-//goland:noinspection GoUnusedConst
+type TypeKind byte
+
 const (
-	MetaBaseType      MetaType = 'b'
-	MetaCompositeType MetaType = 'c' // table row type
-	MetaDomainType    MetaType = 'd'
-	MetaEnumType      MetaType = 'e'
-	MetaPseudoType    MetaType = 'p'
-	MetaRangeType     MetaType = 'r'
+	KindBaseType      TypeKind = 'b'
+	KindCompositeType TypeKind = 'c'
+	KindDomainType    TypeKind = 'd'
+	KindEnumType      TypeKind = 'e'
+	KindPseudoType    TypeKind = 'p'
+	KindRangeType     TypeKind = 'r'
 )
 
-// Type is a Postgres type.
-type Type struct {
-	OID  pgtype.OID // pg_type.oid: row identifier
-	Name string     // pg_type.typname: data type name
+func (k TypeKind) String() string {
+	switch k {
+	case KindBaseType:
+		return "BaseType"
+	case KindCompositeType:
+		return "CompositeType"
+	case KindDomainType:
+		return "DomainType"
+	case KindEnumType:
+		return "EnumType"
+	case KindPseudoType:
+		return "PseudoType"
+	case KindRangeType:
+		return "RangeType"
+	default:
+		panic("unhandled TypeKind: " + string(k))
+	}
 }
 
 type (
@@ -37,7 +53,6 @@ type (
 	BaseType struct {
 		ID         pgtype.OID     // pg_type.oid: row identifier
 		Name       string         // pg_type.typname: data type name
-		Kind       MetaType       // pg_type.typtype: the kind of type
 		Composite  *CompositeType // pg_type.typrelid: composite type only, the pg_class for the type
 		Dimensions int            // pg_type.typndims: domains on array type only 0 otherwise, number of array dimensions,
 	}
@@ -70,81 +85,97 @@ type (
 	// CompositeType is a type containing multiple columns and is represented as
 	// a class. https://www.postgresql.org/docs/13/catalog-pg-class.html
 	CompositeType struct {
-		ID       uint32 // pg_class.oid: row identifier
-		TypeName string // pg_class.relname: name of the composite type
-		Columns  []Type // pg_attribute: information about columns of the composite type
+		ID      pgtype.OID // pg_class.oid: row identifier
+		Name    string     // pg_class.relname: name of the composite type
+		Columns []Type     // pg_attribute: information about columns of the composite type
 	}
 )
 
+func (b BaseType) OID() pgtype.OID { return b.ID }
+func (b BaseType) String() string  { return b.Name }
+func (b BaseType) Kind() TypeKind  { return KindBaseType }
+
+func (e EnumType) OID() pgtype.OID { return e.ID }
+func (e EnumType) String() string  { return e.Name }
+func (e EnumType) Kind() TypeKind  { return KindEnumType }
+
+func (e DomainType) OID() pgtype.OID { return e.ID }
+func (e DomainType) String() string  { return e.Name }
+func (e DomainType) Kind() TypeKind  { return KindDomainType }
+
+func (e CompositeType) OID() pgtype.OID { return e.ID }
+func (e CompositeType) String() string  { return e.Name }
+func (e CompositeType) Kind() TypeKind  { return KindCompositeType }
+
 //goland:noinspection GoUnusedGlobalVariable
 var (
-	Bool             = Type{OID: pgtype.BoolOID, Name: "bool"}
-	Bytea            = Type{OID: pgtype.ByteaOID, Name: "bytea"}
-	QChar            = Type{OID: pgtype.QCharOID, Name: "char"}
-	Name             = Type{OID: pgtype.NameOID, Name: "name"}
-	Int8             = Type{OID: pgtype.Int8OID, Name: "int8"}
-	Int2             = Type{OID: pgtype.Int2OID, Name: "int2"}
-	Int4             = Type{OID: pgtype.Int4OID, Name: "int4"}
-	Text             = Type{OID: pgtype.TextOID, Name: "text"}
-	OID              = Type{OID: pgtype.OIDOID, Name: "oid"}
-	TID              = Type{OID: pgtype.TIDOID, Name: "tid"}
-	XID              = Type{OID: pgtype.XIDOID, Name: "xid"}
-	CID              = Type{OID: pgtype.CIDOID, Name: "cid"}
-	JSON             = Type{OID: pgtype.JSONOID, Name: "json"}
-	PgNodeTree       = Type{OID: pgoid.PgNodeTree, Name: "pg_node_tree"}
-	Point            = Type{OID: pgtype.PointOID, Name: "point"}
-	Lseg             = Type{OID: pgtype.LsegOID, Name: "lseg"}
-	Path             = Type{OID: pgtype.PathOID, Name: "path"}
-	Box              = Type{OID: pgtype.BoxOID, Name: "box"}
-	Polygon          = Type{OID: pgtype.PolygonOID, Name: "polygon"}
-	Line             = Type{OID: pgtype.LineOID, Name: "line"}
-	CIDR             = Type{OID: pgtype.CIDROID, Name: "cidr"}
-	CIDRArray        = Type{OID: pgtype.CIDRArrayOID, Name: "_cidr"}
-	Float4           = Type{OID: pgtype.Float4OID, Name: "float4"}
-	Float8           = Type{OID: pgtype.Float8OID, Name: "float8"}
-	Unknown          = Type{OID: pgtype.UnknownOID, Name: "unknown"}
-	Circle           = Type{OID: pgtype.CircleOID, Name: "circle"}
-	Macaddr          = Type{OID: pgtype.MacaddrOID, Name: "macaddr"}
-	Inet             = Type{OID: pgtype.InetOID, Name: "inet"}
-	BoolArray        = Type{OID: pgtype.BoolArrayOID, Name: "_bool"}
-	ByteaArray       = Type{OID: pgtype.ByteaArrayOID, Name: "_bytea"}
-	Int2Array        = Type{OID: pgtype.Int2ArrayOID, Name: "_int2"}
-	Int4Array        = Type{OID: pgtype.Int4ArrayOID, Name: "_int4"}
-	TextArray        = Type{OID: pgtype.TextArrayOID, Name: "_text"}
-	BPCharArray      = Type{OID: pgtype.BPCharArrayOID, Name: "_bpchar"}
-	VarcharArray     = Type{OID: pgtype.VarcharArrayOID, Name: "_varchar"}
-	Int8Array        = Type{OID: pgtype.Int8ArrayOID, Name: "_int8"}
-	Float4Array      = Type{OID: pgtype.Float4ArrayOID, Name: "_float4"}
-	Float8Array      = Type{OID: pgtype.Float8ArrayOID, Name: "_float8"}
-	OIDArray         = Type{OID: 1028, Name: "_oid"}
-	ACLItem          = Type{OID: pgtype.ACLItemOID, Name: "aclitem"}
-	ACLItemArray     = Type{OID: pgtype.ACLItemArrayOID, Name: "_aclitem"}
-	InetArray        = Type{OID: pgtype.InetArrayOID, Name: "_inet"}
-	BPChar           = Type{OID: pgtype.BPCharOID, Name: "bpchar"}
-	Varchar          = Type{OID: pgtype.VarcharOID, Name: "varchar"}
-	Date             = Type{OID: pgtype.DateOID, Name: "date"}
-	Time             = Type{OID: pgtype.TimeOID, Name: "time"}
-	Timestamp        = Type{OID: pgtype.TimestampOID, Name: "timestamp"}
-	TimestampArray   = Type{OID: pgtype.TimestampArrayOID, Name: "_timestamp"}
-	DateArray        = Type{OID: pgtype.DateArrayOID, Name: "_date"}
-	Timestamptz      = Type{OID: pgtype.TimestamptzOID, Name: "timestamptz"}
-	TimestamptzArray = Type{OID: pgtype.TimestamptzArrayOID, Name: "_timestamptz"}
-	Interval         = Type{OID: pgtype.IntervalOID, Name: "interval"}
-	NumericArray     = Type{OID: pgtype.NumericArrayOID, Name: "_numeric"}
-	Bit              = Type{OID: pgtype.BitOID, Name: "bit"}
-	Varbit           = Type{OID: pgtype.VarbitOID, Name: "varbit"}
-	Numeric          = Type{OID: pgtype.NumericOID, Name: "numeric"}
-	Record           = Type{OID: pgtype.RecordOID, Name: "record"}
-	UUID             = Type{OID: pgtype.UUIDOID, Name: "uuid"}
-	UUIDArray        = Type{OID: pgtype.UUIDArrayOID, Name: "_uuid"}
-	JSONB            = Type{OID: pgtype.JSONBOID, Name: "jsonb"}
-	JSONBArray       = Type{OID: pgtype.JSONBArrayOID, Name: "_jsonb"}
-	Int4range        = Type{OID: pgtype.Int4rangeOID, Name: "int4range"}
-	Numrange         = Type{OID: pgtype.NumrangeOID, Name: "numrange"}
-	Tsrange          = Type{OID: pgtype.TsrangeOID, Name: "tsrange"}
-	Tstzrange        = Type{OID: pgtype.TstzrangeOID, Name: "tstzrange"}
-	Daterange        = Type{OID: pgtype.DaterangeOID, Name: "daterange"}
-	Int8range        = Type{OID: pgtype.Int8rangeOID, Name: "int8range"}
+	Bool             = BaseType{ID: pgtype.BoolOID, Name: "bool"}
+	Bytea            = BaseType{ID: pgtype.ByteaOID, Name: "bytea"}
+	QChar            = BaseType{ID: pgtype.QCharOID, Name: "char"}
+	Name             = BaseType{ID: pgtype.NameOID, Name: "name"}
+	Int8             = BaseType{ID: pgtype.Int8OID, Name: "int8"}
+	Int2             = BaseType{ID: pgtype.Int2OID, Name: "int2"}
+	Int4             = BaseType{ID: pgtype.Int4OID, Name: "int4"}
+	Text             = BaseType{ID: pgtype.TextOID, Name: "text"}
+	OID              = BaseType{ID: pgtype.OIDOID, Name: "oid"}
+	TID              = BaseType{ID: pgtype.TIDOID, Name: "tid"}
+	XID              = BaseType{ID: pgtype.XIDOID, Name: "xid"}
+	CID              = BaseType{ID: pgtype.CIDOID, Name: "cid"}
+	JSON             = BaseType{ID: pgtype.JSONOID, Name: "json"}
+	PgNodeTree       = BaseType{ID: pgoid.PgNodeTree, Name: "pg_node_tree"}
+	Point            = BaseType{ID: pgtype.PointOID, Name: "point"}
+	Lseg             = BaseType{ID: pgtype.LsegOID, Name: "lseg"}
+	Path             = BaseType{ID: pgtype.PathOID, Name: "path"}
+	Box              = BaseType{ID: pgtype.BoxOID, Name: "box"}
+	Polygon          = BaseType{ID: pgtype.PolygonOID, Name: "polygon"}
+	Line             = BaseType{ID: pgtype.LineOID, Name: "line"}
+	CIDR             = BaseType{ID: pgtype.CIDROID, Name: "cidr"}
+	CIDRArray        = BaseType{ID: pgtype.CIDRArrayOID, Name: "_cidr"}
+	Float4           = BaseType{ID: pgtype.Float4OID, Name: "float4"}
+	Float8           = BaseType{ID: pgtype.Float8OID, Name: "float8"}
+	Unknown          = BaseType{ID: pgtype.UnknownOID, Name: "unknown"}
+	Circle           = BaseType{ID: pgtype.CircleOID, Name: "circle"}
+	Macaddr          = BaseType{ID: pgtype.MacaddrOID, Name: "macaddr"}
+	Inet             = BaseType{ID: pgtype.InetOID, Name: "inet"}
+	BoolArray        = BaseType{ID: pgtype.BoolArrayOID, Name: "_bool"}
+	ByteaArray       = BaseType{ID: pgtype.ByteaArrayOID, Name: "_bytea"}
+	Int2Array        = BaseType{ID: pgtype.Int2ArrayOID, Name: "_int2"}
+	Int4Array        = BaseType{ID: pgtype.Int4ArrayOID, Name: "_int4"}
+	TextArray        = BaseType{ID: pgtype.TextArrayOID, Name: "_text"}
+	BPCharArray      = BaseType{ID: pgtype.BPCharArrayOID, Name: "_bpchar"}
+	VarcharArray     = BaseType{ID: pgtype.VarcharArrayOID, Name: "_varchar"}
+	Int8Array        = BaseType{ID: pgtype.Int8ArrayOID, Name: "_int8"}
+	Float4Array      = BaseType{ID: pgtype.Float4ArrayOID, Name: "_float4"}
+	Float8Array      = BaseType{ID: pgtype.Float8ArrayOID, Name: "_float8"}
+	OIDArray         = BaseType{ID: pgoid.OIDArray, Name: "_oid"}
+	ACLItem          = BaseType{ID: pgtype.ACLItemOID, Name: "aclitem"}
+	ACLItemArray     = BaseType{ID: pgtype.ACLItemArrayOID, Name: "_aclitem"}
+	InetArray        = BaseType{ID: pgtype.InetArrayOID, Name: "_inet"}
+	BPChar           = BaseType{ID: pgtype.BPCharOID, Name: "bpchar"}
+	Varchar          = BaseType{ID: pgtype.VarcharOID, Name: "varchar"}
+	Date             = BaseType{ID: pgtype.DateOID, Name: "date"}
+	Time             = BaseType{ID: pgtype.TimeOID, Name: "time"}
+	Timestamp        = BaseType{ID: pgtype.TimestampOID, Name: "timestamp"}
+	TimestampArray   = BaseType{ID: pgtype.TimestampArrayOID, Name: "_timestamp"}
+	DateArray        = BaseType{ID: pgtype.DateArrayOID, Name: "_date"}
+	Timestamptz      = BaseType{ID: pgtype.TimestamptzOID, Name: "timestamptz"}
+	TimestamptzArray = BaseType{ID: pgtype.TimestamptzArrayOID, Name: "_timestamptz"}
+	Interval         = BaseType{ID: pgtype.IntervalOID, Name: "interval"}
+	NumericArray     = BaseType{ID: pgtype.NumericArrayOID, Name: "_numeric"}
+	Bit              = BaseType{ID: pgtype.BitOID, Name: "bit"}
+	Varbit           = BaseType{ID: pgtype.VarbitOID, Name: "varbit"}
+	Numeric          = BaseType{ID: pgtype.NumericOID, Name: "numeric"}
+	Record           = BaseType{ID: pgtype.RecordOID, Name: "record"}
+	UUID             = BaseType{ID: pgtype.UUIDOID, Name: "uuid"}
+	UUIDArray        = BaseType{ID: pgtype.UUIDArrayOID, Name: "_uuid"}
+	JSONB            = BaseType{ID: pgtype.JSONBOID, Name: "jsonb"}
+	JSONBArray       = BaseType{ID: pgtype.JSONBArrayOID, Name: "_jsonb"}
+	Int4range        = BaseType{ID: pgtype.Int4rangeOID, Name: "int4range"}
+	Numrange         = BaseType{ID: pgtype.NumrangeOID, Name: "numrange"}
+	Tsrange          = BaseType{ID: pgtype.TsrangeOID, Name: "tsrange"}
+	Tstzrange        = BaseType{ID: pgtype.TstzrangeOID, Name: "tstzrange"}
+	Daterange        = BaseType{ID: pgtype.DaterangeOID, Name: "daterange"}
+	Int8range        = BaseType{ID: pgtype.Int8rangeOID, Name: "int8range"}
 )
 
 var (
@@ -243,8 +274,8 @@ func FetchOIDTypes(conn *pgx.Conn, oids ...uint32) (map[pgtype.OID]Type, error) 
 	}
 	// TODO: aggregate all enum elements into a single row.
 	for _, enum := range enums {
-		types[enum.OID] = Type{
-			OID:  enum.OID,
+		types[enum.OID] = BaseType{
+			ID:   enum.OID,
 			Name: enum.TypeName.String,
 		}
 	}
