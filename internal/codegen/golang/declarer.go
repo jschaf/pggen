@@ -50,19 +50,25 @@ func (e EnumDeclarer) Declare() (string, error) {
 	// Doc string.
 	sb.WriteString("// ")
 	sb.WriteString(e.GoName)
-	sb.WriteString(" represents the Postgres enum type ")
+	sb.WriteString(" represents the Postgres enum ")
 	sb.WriteString(e.PgName)
 	sb.WriteString(".\n")
 	// Type declaration.
 	sb.WriteString("type ")
 	sb.WriteString(e.GoName)
 	sb.WriteString(" string\n\n")
-	// Const values.
+	// Const enum values.
 	sb.WriteString("const (\n")
+	nameLen := 0
+	for _, label := range e.GoLabels {
+		if len(label) > nameLen {
+			nameLen = len(label)
+		}
+	}
 	for i, goLabel := range e.GoLabels {
 		sb.WriteString("\t")
 		sb.WriteString(goLabel)
-		sb.WriteString(" ")
+		sb.WriteString(strings.Repeat(" ", nameLen+1-len(goLabel)))
 		sb.WriteString(e.GoName)
 		sb.WriteString(` = `)
 		sb.WriteString(strconv.Quote(e.PgLabels[i]))
@@ -77,6 +83,6 @@ func (e EnumDeclarer) Declare() (string, error) {
 	sb.WriteString(e.GoName)
 	sb.WriteString(") String() string { return string(")
 	sb.WriteByte(dispatcher)
-	sb.WriteString(") }\n")
+	sb.WriteString(") }")
 	return sb.String(), nil
 }

@@ -17,16 +17,16 @@ func TestEnumDeclarer_Declare(t *testing.T) {
 			EnumDeclarer{
 				PgName:   "device_type",
 				GoName:   "DeviceType",
-				GoLabels: []string{"DeviceTypeIOS", "DeviceTypeWeb"},
-				PgLabels: []string{"ios", "web"},
+				GoLabels: []string{"DeviceTypeIOS", "DeviceTypeMobile"},
+				PgLabels: []string{"ios", "mobile"},
 			},
 			texts.Dedent(`
-				// DeviceType represents the Postgres enum type device_type.
+				// DeviceType represents the Postgres enum device_type.
 				type DeviceType string
 
 				const (
-					DeviceTypeIOS DeviceType = "ios"
-					DeviceTypeWeb DeviceType = "web"
+					DeviceTypeIOS    DeviceType = "ios"
+					DeviceTypeMobile DeviceType = "mobile"
 				)
 
 				func (d DeviceType) String() string { return string(d) }
@@ -41,11 +41,11 @@ func TestEnumDeclarer_Declare(t *testing.T) {
 				PgLabels: []string{"\"\n\t", "`\"`"},
 			},
 			texts.Dedent(`
-				// Quoting represents the Postgres enum type quoting.
+				// Quoting represents the Postgres enum quoting.
 				type Quoting string
 
 				const (
-					QuotingQuoteNewlineTab Quoting = "\"\n\t"
+					QuotingQuoteNewlineTab       Quoting = "\"\n\t"
 					QuotingBacktickQuoteBacktick Quoting = "` + "`" + `\"` + "`" + `"
 				)
 

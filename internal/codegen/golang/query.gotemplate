@@ -10,6 +10,7 @@ import (
 {{ end -}}
 )
 
+
 {{- if .IsLeader -}}
 {{- "\n\n" -}}
 // Querier is a typesafe Go interface backed by SQL queries.
@@ -67,6 +68,7 @@ func NewQuerier(conn genericConn) *DBQuerier {
 func (q *DBQuerier) WithTx(tx pgx.Tx) (*DBQuerier, error) {
 	return &DBQuerier{conn: tx}, nil
 }
+{{- range .Declarers}}{{- "\n\n" -}}{{ .Declare }}{{ end -}}
 {{- end -}}
 
 {{- range $i, $q := .Queries -}}

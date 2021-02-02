@@ -95,16 +95,18 @@ func Generate(opts GenerateOptions, queryFiles []codegen.QueryFile) error {
 	}
 	goQueryFiles[firstIndex].IsLeader = true
 	// Add declarers to the leader in a stable sort order, removing duplicates.
-	sort.Slice(declarers, func(i, j int) bool { return declarers[i].DedupeKey() < declarers[j].DedupeKey() })
-	dedupeLen := 0
-	for i := 0; i < len(declarers); i++ {
-		if declarers[i] == declarers[dedupeLen] {
-			continue
+	if len(declarers) > 0 {
+		sort.Slice(declarers, func(i, j int) bool { return declarers[i].DedupeKey() < declarers[j].DedupeKey() })
+		dedupeLen := 1
+		for i := 1; i < len(declarers); i++ {
+			if declarers[i].DedupeKey() == declarers[dedupeLen-1].DedupeKey() {
+				continue
+			}
+			dedupeLen++
+			declarers[dedupeLen] = declarers[i]
 		}
-		dedupeLen++
-		declarers[dedupeLen] = declarers[i]
+		goQueryFiles[firstIndex].Declarers = declarers[:dedupeLen]
 	}
-	goQueryFiles[firstIndex].Declarers = declarers[:dedupeLen]
 
 	// Remove unneeded pgconn import if possible.
 	for i, goFile := range goQueryFiles {
@@ -151,6 +153,7 @@ func buildGoQueryFile(pkgName string, caser casing.Caser, file codegen.QueryFile
 	}
 
 	queries := make([]goTemplateQuery, 0, len(file.Queries))
+	declarers := make([]Declarer, 0, 8)
 	for _, query := range file.Queries {
 		// Build doc string.
 		docs := strings.Builder{}
@@ -177,6 +180,9 @@ func buildGoQueryFile(pkgName string, caser casing.Caser, file codegen.QueryFile
 				Name: caser.ToUpperCamel(input.PgName),
 				Type: goType.Name,
 			}
+			if goType.Decl != nil {
+				declarers = append(declarers, goType.Decl)
+			}
 		}
 
 		// Build outputs.
@@ -191,6 +197,9 @@ func buildGoQueryFile(pkgName string, caser casing.Caser, file codegen.QueryFile
 				PgName: out.PgName,
 				Name:   caser.ToUpperCamel(out.PgName),
 				Type:   goType.Name,
+			}
+			if goType.Decl != nil {
+				declarers = append(declarers, goType.Decl)
 			}
 		}
 
@@ -219,5 +228,5 @@ func buildGoQueryFile(pkgName string, caser casing.Caser, file codegen.QueryFile
 		Path:    file.Path,
 		Queries: queries,
 		Imports: sortedImports,
-	}, nil, nil
+	}, declarers, nil
 }
