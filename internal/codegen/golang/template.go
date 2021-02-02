@@ -3,11 +3,8 @@ package golang
 import (
 	"fmt"
 	"github.com/jschaf/pggen/internal/ast"
-	"github.com/jschaf/pggen/internal/errs"
 	"github.com/rakyll/statik/fs"
 	"io/ioutil"
-	"os"
-	"path/filepath"
 	"strings"
 	"text/template"
 )
@@ -305,19 +302,4 @@ func parseQueryTemplate() (*template.Template, error) {
 		return nil, fmt.Errorf("parse query.gotemplate: %w", err)
 	}
 	return tmpl, nil
-}
-
-// emitQueryFile emits a single query file.
-func emitQueryFile(outDir string, queryFile goQueryFile, tmpl *template.Template) (mErr error) {
-	base := filepath.Base(queryFile.Path)
-	out := filepath.Join(outDir, base+".go")
-	file, err := os.OpenFile(out, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
-	defer errs.Capture(&mErr, file.Close, "close emit query file")
-	if err != nil {
-		return fmt.Errorf("open generated query file for writing: %w", err)
-	}
-	if err := tmpl.ExecuteTemplate(file, "gen_query", queryFile); err != nil {
-		return fmt.Errorf("execute generated query file template %s: %w", out, err)
-	}
-	return nil
 }

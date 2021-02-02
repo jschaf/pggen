@@ -133,8 +133,9 @@ func Generate(opts GenerateOptions, queryFiles []codegen.QueryFile) error {
 	}
 
 	// Emit the files.
+	emitter := NewEmitter(opts.OutputDir, tmpl)
 	for _, qf := range goQueryFiles {
-		if err := emitQueryFile(opts.OutputDir, qf, tmpl); err != nil {
+		if err := emitter.EmitQueryFile(qf); err != nil {
 			return fmt.Errorf("emit generated Go code: %w", err)
 		}
 	}
