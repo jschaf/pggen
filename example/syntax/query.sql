@@ -18,3 +18,7 @@ SELECT '`"';
 -- Query to test escaping in generated Go.
 -- name: BacktickBackslashN :one
 SELECT '`\n';
+
+-- Illegal names.
+-- name: IllegalNameSymbols :one
+SELECT '`\n' as "$", pggen.arg('@hello world!') as "foo.bar!@#$%&*()""--+";

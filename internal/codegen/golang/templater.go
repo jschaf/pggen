@@ -6,6 +6,7 @@ import (
 	"github.com/jschaf/pggen/internal/casing"
 	"github.com/jschaf/pggen/internal/codegen"
 	"sort"
+	"strconv"
 	"strings"
 	"unicode"
 )
@@ -170,7 +171,7 @@ func (tm Templater) templateFile(file codegen.QueryFile) (TemplatedFile, []Decla
 			}
 			imports[goType.Pkg] = struct{}{}
 			inputs[i] = TemplatedParam{
-				Name: tm.caser.ToUpperCamel(input.PgName),
+				Name: tm.chooseName(input.PgName, "UnnamedParam", i, len(query.Inputs)),
 				Type: goType.Name,
 			}
 			if goType.Decl != nil {
@@ -188,7 +189,7 @@ func (tm Templater) templateFile(file codegen.QueryFile) (TemplatedFile, []Decla
 			imports[goType.Pkg] = struct{}{}
 			outputs[i] = TemplatedColumn{
 				PgName: out.PgName,
-				Name:   tm.caser.ToUpperCamel(out.PgName),
+				Name:   tm.chooseName(out.PgName, "UnnamedColumn", i, len(query.Outputs)),
 				Type:   goType.Name,
 			}
 			if goType.Decl != nil {
@@ -222,6 +223,20 @@ func (tm Templater) templateFile(file codegen.QueryFile) (TemplatedFile, []Decla
 		Queries: queries,
 		Imports: sortedImports,
 	}, declarers, nil
+}
+
+// chooseName converts pgName into an capitalized Go identifier name.
+// If it's not possible to convert pgName into an identifier, uses fallback with
+// a suffix using idx.
+func (tm Templater) chooseName(pgName string, fallback string, idx int, numOptions int) string {
+	if name := tm.caser.ToUpperGoIdent(pgName); name != "" {
+		return name
+	}
+	suffix := strconv.Itoa(idx)
+	if numOptions > 9 {
+		suffix = fmt.Sprintf("%2d", idx)
+	}
+	return fallback + suffix
 }
 
 // isLast returns true if index is the last index in item.
@@ -481,9 +496,9 @@ func (tq TemplatedQuery) EmitRowStruct() string {
 			sb.WriteString(out.Type)
 			// JSON struct tag
 			sb.WriteString(strings.Repeat(" ", structCol-len(out.Type)))
-			sb.WriteString("`json:\"")
-			sb.WriteString(out.PgName)
-			sb.WriteString("\"`")
+			sb.WriteString("`json:")
+			sb.WriteString(strconv.Quote(out.PgName))
+			sb.WriteString("`")
 			sb.WriteRune('\n')
 		}
 		sb.WriteString("}")

@@ -251,7 +251,7 @@ func (p *parser) parseQuery() ast.Query {
 	}
 }
 
-var argRegexp = regexp.MustCompile(`pggen[.]arg\('([a-zA-Z0-9_$]+)'\)`)
+var argRegexp = regexp.MustCompile(`pggen[.]arg\('([^']*?)'\)`)
 
 // prepareSQL replaces each pggen.arg with the $n, reflecting the order that the
 // arg first appeared. Args with the same name use the same $n.

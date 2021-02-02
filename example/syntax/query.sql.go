@@ -54,6 +54,14 @@ type Querier interface {
 	BacktickBackslashNBatch(batch *pgx.Batch)
 	// BacktickBackslashNScan scans the result of an executed BacktickBackslashNBatch query.
 	BacktickBackslashNScan(results pgx.BatchResults) (string, error)
+
+	// Illegal names.
+	IllegalNameSymbols(ctx context.Context, helloWorld string) (IllegalNameSymbolsRow, error)
+	// IllegalNameSymbolsBatch enqueues a IllegalNameSymbols query into batch to be executed
+	// later by the batch.
+	IllegalNameSymbolsBatch(batch *pgx.Batch, helloWorld string)
+	// IllegalNameSymbolsScan scans the result of an executed IllegalNameSymbolsBatch query.
+	IllegalNameSymbolsScan(results pgx.BatchResults) (IllegalNameSymbolsRow, error)
 }
 
 type DBQuerier struct {
@@ -226,6 +234,38 @@ func (q *DBQuerier) BacktickBackslashNScan(results pgx.BatchResults) (string, er
 	var item string
 	if err := row.Scan(&item); err != nil {
 		return item, fmt.Errorf("scan BacktickBackslashNBatch row: %w", err)
+	}
+	return item, nil
+}
+
+const illegalNameSymbolsSQL = `SELECT '` + "`" + `\n'as "$", $1 as "foo.bar!@#$%&*()""--+";`
+
+type IllegalNameSymbolsRow struct {
+	UnnamedColumn0 string `json:"$"`
+	FooBar         string `json:"foo.bar!@#$%&*()\"--+"`
+}
+
+// IllegalNameSymbols implements Querier.IllegalNameSymbols.
+func (q *DBQuerier) IllegalNameSymbols(ctx context.Context, helloWorld string) (IllegalNameSymbolsRow, error) {
+	row := q.conn.QueryRow(ctx, illegalNameSymbolsSQL, helloWorld)
+	var item IllegalNameSymbolsRow
+	if err := row.Scan(&item.UnnamedColumn0, &item.FooBar); err != nil {
+		return item, fmt.Errorf("query IllegalNameSymbols: %w", err)
+	}
+	return item, nil
+}
+
+// IllegalNameSymbolsBatch implements Querier.IllegalNameSymbolsBatch.
+func (q *DBQuerier) IllegalNameSymbolsBatch(batch *pgx.Batch, helloWorld string) {
+	batch.Queue(illegalNameSymbolsSQL, helloWorld)
+}
+
+// IllegalNameSymbolsScan implements Querier.IllegalNameSymbolsScan.
+func (q *DBQuerier) IllegalNameSymbolsScan(results pgx.BatchResults) (IllegalNameSymbolsRow, error) {
+	row := results.QueryRow()
+	var item IllegalNameSymbolsRow
+	if err := row.Scan(&item.UnnamedColumn0, &item.FooBar); err != nil {
+		return item, fmt.Errorf("scan IllegalNameSymbolsBatch row: %w", err)
 	}
 	return item, nil
 }
