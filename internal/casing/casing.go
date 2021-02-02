@@ -76,3 +76,13 @@ func (cs Caser) ToUpperCamel(s string) string {
 	cs.appendUpperCamel(sb, chars, lo, hi+1)
 	return sb.String()
 }
+
+// ToUpperGoIdent converts a string into a legal, capitalized Go identifier.
+// Returns the empty string if no conversion is possible.
+func (cs Caser) ToUpperGoIdent(s string) string {
+	san := Sanitize(s)
+	if san == "" {
+		return ""
+	}
+	return cs.ToUpperCamel(san)
+}
