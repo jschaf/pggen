@@ -51,7 +51,7 @@ func (ec *errorCollector) asHandler() ErrorHandler {
 
 func frag(lit string) stringTok    { return stringTok{t: token.QueryFragment, lit: lit, raw: lit} }
 func str(lit string) stringTok     { return stringTok{t: token.String, lit: lit, raw: lit} }
-func ident(ident string) stringTok { return stringTok{t: token.String, lit: ident, raw: ident} }
+func ident(ident string) stringTok { return stringTok{t: token.QuotedIdent, lit: ident, raw: ident} }
 
 func TestScanner_Scan(t *testing.T) {
 	type testCase struct {
@@ -67,6 +67,7 @@ func TestScanner_Scan(t *testing.T) {
 		{`"foo_bar"`, []stringTok{ident(`"foo_bar"`)}, nil},
 		{`"foo$$ $$bar"`, []stringTok{ident(`"foo$$ $$bar"`)}, nil},
 		{`"foo""bar"`, []stringTok{ident(`"foo""bar"`)}, nil},
+		{`"fo$o"`, []stringTok{ident(`"fo$o"`)}, nil},
 		{"/* abc */", []stringTok{{t: token.BlockComment, lit: "/* abc */"}}, nil},
 		{"/* /* abc */ */", []stringTok{{t: token.BlockComment, lit: "/* /* abc */ */"}}, nil},
 		{"SELECT 1", []stringTok{frag("SELECT 1")}, nil},
@@ -77,6 +78,11 @@ func TestScanner_Scan(t *testing.T) {
 		{"SELECT $$a$$", []stringTok{frag("SELECT "), str("$$a$$")}, nil},
 		{"SELECT func($$a$$)", []stringTok{frag("SELECT func("), str("$$a$$"), frag(")")}, nil},
 		{"SELECT 'a'||$$a$$", []stringTok{frag("SELECT "), str("'a'"), frag("||"), str("$$a$$")}, nil},
+		{"SELECT '`\\n' as \"$\"", []stringTok{
+			frag("SELECT "),
+			{t: token.String, lit: "'`\\n'", raw: "'`\\n' "}, // consumes trailing space
+			frag("as "),
+		}, nil},
 	}
 	for _, tt := range tests {
 		t.Run(tt.lit, func(t *testing.T) {
@@ -97,8 +103,8 @@ func TestScanner_Scan(t *testing.T) {
 
 			for i, wantTok := range tt.toks {
 				p, tok, lit := s.Scan()
-				t.Logf("index %2d, gotTok: %-14s wantTok: %-14s  gotLit: %-5q litAtPt: %q",
-					i, tok, wantTok.t, lit, wantTok.raw)
+				t.Logf("index %2d, gotTok: %-14s wantTok: %-14s  gotLit: %-5q wantLit: %q",
+					i, tok, wantTok.t, lit, wantTok.lit)
 				pos := fset.Position(p)
 
 				checkPosOffset(t, wantPos, pos, lit)

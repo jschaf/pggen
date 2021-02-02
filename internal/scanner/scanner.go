@@ -50,18 +50,6 @@ type TemplateQuery struct {
 	SQL string
 }
 
-// func ParseTemplateQueries(bs []byte) []TemplateQuery {
-// 	idx := 0
-// 	queries := make([]TemplateQuery, 0, 4)
-// 	for idx < len(bs) {
-// 		q := TemplateQuery{}
-// 		idx, comments, err := scanComments(bs[idx:])
-//
-// 		// scan comments
-// 		// scan query
-// 	}
-// }
-
 // Read the next Unicode char into s.ch.
 // s.ch < 0 means end-of-file.
 func (s *Scanner) next() {
@@ -266,12 +254,12 @@ func (s *Scanner) scanDoubleQuoteString() (token.Token, string) {
 				continue
 			} else {
 				s.next() // consume closing double quote
-				return token.String, string(s.src[offs:s.offset])
+				return token.QuotedIdent, string(s.src[offs:s.offset])
 			}
 		}
 		s.next()
 	}
-	s.errorf(offs, "unterminated single-quote string literal: %s", string(s.src[offs:s.offset]))
+	s.errorf(offs, "unterminated double-quote string literal: %s", string(s.src[offs:s.offset]))
 	return token.Illegal, ""
 }
 
@@ -290,7 +278,7 @@ func (s *Scanner) scanQueryFragment() (token.Token, string) {
 			return token.QueryFragment, string(s.src[offs:s.offset])
 		case s.ch == '/' && s.peek() == '*':
 			return token.QueryFragment, string(s.src[offs:s.offset])
-		case s.ch == '\'':
+		case s.ch == '\'' || s.ch == '"':
 			return token.QueryFragment, string(s.src[offs:s.offset])
 		case s.ch == '$':
 			// A dollar sign can be part of an identifier. Consume the identifier
