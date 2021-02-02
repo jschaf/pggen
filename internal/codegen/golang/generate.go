@@ -12,7 +12,7 @@ type GenerateOptions struct {
 	GoPkg     string
 	OutputDir string
 	// A map of lowercase acronyms to the upper case equivalent, like:
-	// "api" => "API". ID is included by default.
+	// "api" => "API".
 	Acronyms map[string]string
 }
 
@@ -23,7 +23,6 @@ func Generate(opts GenerateOptions, queryFiles []codegen.QueryFile) error {
 		pkgName = filepath.Base(opts.OutputDir)
 	}
 	caser := casing.NewCaser()
-	caser.AddAcronym("id", "ID")
 	caser.AddAcronyms(opts.Acronyms)
 	typeResolver := NewTypeResolver(caser)
 

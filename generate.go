@@ -54,7 +54,7 @@ type GenerateOptions struct {
 	// ConnString is set.
 	DockerInitScripts []string
 	// A map of lowercase acronyms to the upper case equivalent, like:
-	// "api" => "API". ID is included by default.
+	// "api" => "API".
 	Acronyms map[string]string
 }
 
@@ -105,6 +105,10 @@ func Generate(opts GenerateOptions) (mErr error) {
 	}
 
 	// Codegen.
+	if opts.Acronyms == nil {
+		opts.Acronyms = make(map[string]string, 1)
+	}
+	opts.Acronyms["id"] = "ID"
 	switch opts.Language {
 	case LangGo:
 		goOpts := golang.GenerateOptions{
