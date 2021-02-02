@@ -11,7 +11,7 @@ import (
 // need to declare the enum.
 type Declarer interface {
 	// DedupeKey uniquely identifies the declaration so that we only emit
-	// declarations once.
+	// declarations once. Should be namespaced like enum::some_enum.
 	DedupeKey() string
 	// Declare returns the string of the Go declaration.
 	Declare() (string, error)

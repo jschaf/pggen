@@ -30,6 +30,8 @@ type goQueryFile struct {
 	// True if this file is the leader file. The leader defines common code used
 	// by by all queries in the same directory. Only one leader per directory.
 	IsLeader bool
+	// Any declarations this file should declare. Only set on leader.
+	Declarers []Declarer
 }
 
 // goTemplateQuery is a query with all information required to execute the
@@ -71,15 +73,17 @@ func Generate(opts GenerateOptions, queryFiles []codegen.QueryFile) error {
 
 	// Build go specific query files.
 	goQueryFiles := make([]goQueryFile, 0, len(queryFiles))
+	declarers := make([]Declarer, 0, 8)
 	for _, queryFile := range queryFiles {
-		goFile, err := buildGoQueryFile(pkgName, caser, queryFile)
+		goFile, decls, err := buildGoQueryFile(pkgName, caser, queryFile)
 		if err != nil {
 			return fmt.Errorf("prepare query file %s for go: %w", queryFile.Path, err)
 		}
 		goQueryFiles = append(goQueryFiles, goFile)
+		declarers = append(declarers, decls...)
 	}
 
-	// Pick leader file to define common structs and interfaces.
+	// Pick leader file to define common structs and interfaces via Declarer.
 	firstIndex := -1
 	firstName := string(unicode.MaxRune)
 	for i, goFile := range goQueryFiles {
@@ -89,6 +93,17 @@ func Generate(opts GenerateOptions, queryFiles []codegen.QueryFile) error {
 		}
 	}
 	goQueryFiles[firstIndex].IsLeader = true
+	// Add declarers to the leader in a stable sort order, removing duplicates.
+	sort.Slice(declarers, func(i, j int) bool { return declarers[i].DedupeKey() < declarers[j].DedupeKey() })
+	dedupeLen := 0
+	for i := 0; i < len(declarers); i++ {
+		if declarers[i] == declarers[dedupeLen] {
+			continue
+		}
+		dedupeLen++
+		declarers[dedupeLen] = declarers[i]
+	}
+	goQueryFiles[firstIndex].Declarers = declarers[:dedupeLen]
 
 	// Remove unneeded pgconn import if possible.
 	for i, goFile := range goQueryFiles {
@@ -123,7 +138,10 @@ func Generate(opts GenerateOptions, queryFiles []codegen.QueryFile) error {
 	return nil
 }
 
-func buildGoQueryFile(pkgName string, caser casing.Caser, file codegen.QueryFile) (goQueryFile, error) {
+// buildGoQueryFile creates the data needed to build a Go file for a query file.
+// Also returns any declarations needed by this query file. The caller must
+// dedupe declarations.
+func buildGoQueryFile(pkgName string, caser casing.Caser, file codegen.QueryFile) (goQueryFile, []Declarer, error) {
 	imports := map[string]struct{}{
 		"context":                 {},
 		"fmt":                     {},
@@ -151,7 +169,7 @@ func buildGoQueryFile(pkgName string, caser casing.Caser, file codegen.QueryFile
 		for i, input := range query.Inputs {
 			pkg, goType, err := pgToGoType(input.PgType, false)
 			if err != nil {
-				return goQueryFile{}, err
+				return goQueryFile{}, nil, err
 			}
 			imports[pkg] = struct{}{}
 			inputs[i] = goInputParam{
@@ -165,7 +183,7 @@ func buildGoQueryFile(pkgName string, caser casing.Caser, file codegen.QueryFile
 		for i, out := range query.Outputs {
 			pkg, goType, err := pgToGoType(out.PgType, out.Nullable)
 			if err != nil {
-				return goQueryFile{}, err
+				return goQueryFile{}, nil, err
 			}
 			imports[pkg] = struct{}{}
 			outputs[i] = goOutputColumn{
@@ -200,5 +218,5 @@ func buildGoQueryFile(pkgName string, caser casing.Caser, file codegen.QueryFile
 		Path:    file.Path,
 		Queries: queries,
 		Imports: sortedImports,
-	}, nil
+	}, nil, nil
 }
