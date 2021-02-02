@@ -4,29 +4,56 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/jackc/pgtype"
+	"github.com/jschaf/pggen/internal/casing"
 	"github.com/jschaf/pggen/internal/pg"
 	"github.com/jschaf/pggen/internal/pg/pgoid"
 	"regexp"
 	"strings"
 )
 
-// pgToGoType maps a Postgres type to a Go type and its containing package.
-func pgToGoType(pgType pg.Type, nullable bool) (pkg string, typ string, err error) {
-	goType, ok := goPgTypes[pgType.OID()]
-	if !ok {
-		return "", "", fmt.Errorf("no go type found for Postgres type %s oid=%d", pgType.String(), pgType.OID())
-	}
-	pkg, typ = goType.splitPkg(nullable)
-	return pkg, typ, nil
+type GoType struct {
+	Pkg  string   // fully qualified package path
+	Name string   // package qualified name of the type, like "pgtype.Int4" or "string"
+	Decl Declarer // optional Declarer for the type
 }
 
-// goType is the nullable and non-nullable types for a Postgres type.
+// TypeResolver handles the mapping between Postgres and Go types.
+type TypeResolver struct {
+	caser casing.Caser
+}
+
+func NewTypeResolver(c casing.Caser) TypeResolver {
+	return TypeResolver{caser: c}
+}
+
+// Resolve maps a Postgres type to a Go type and its containing package.
+func (tr TypeResolver) Resolve(pgt pg.Type, nullable bool) (GoType, error) {
+	goType, ok := goPgTypes[pgt.OID()]
+	if !ok && pgt.Kind() != pg.KindEnumType {
+		return GoType{}, fmt.Errorf("no go type found for Postgres type %s oid=%d", pgt.String(), pgt.OID())
+	}
+
+	if enumType, ok := pgt.(pg.EnumType); ok {
+		decl := NewEnumDeclarer(enumType.Name, enumType.Labels, tr.caser)
+		typ := GoType{
+			Pkg:  "", // declared in same package
+			Name: decl.GoName,
+			Decl: decl,
+		}
+		return typ, nil
+	}
+
+	pkg, typ := goType.splitPkg(nullable)
+	return GoType{Pkg: pkg, Name: typ}, nil
+}
+
+// knownGoType is the nullable and non-nullable types for a Postgres type.
 // We use a non-nullable type when possible because it offers better ergonomics.
 // It's nicer to get a string as an output column rather than pgtype.Text which
 // requires checking for a null value.
-type goType struct{ nullable, nonNullable string }
+type knownGoType struct{ nullable, nonNullable string }
 
-func (gt goType) splitPkg(nullable bool) (pkg string, typ string) {
+func (gt knownGoType) splitPkg(nullable bool) (pkg string, typ string) {
 	if nullable || gt.nonNullable == "" {
 		return splitQualifiedType(gt.nullable)
 	}
@@ -58,7 +85,7 @@ func splitQualifiedType(qualType string) (pkg string, typ string) {
 	return string(pkgFull), string(shortPkgType)
 }
 
-var goPgTypes = map[pgtype.OID]goType{
+var goPgTypes = map[pgtype.OID]knownGoType{
 	pgtype.BoolOID:             {"github.com/jackc/pgtype.Bool", "bool"},
 	pgtype.QCharOID:            {"github.com/jackc/pgtype.QChar", ""},
 	pgtype.NameOID:             {"github.com/jackc/pgtype.Name", ""},

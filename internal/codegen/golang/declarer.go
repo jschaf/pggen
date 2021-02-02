@@ -1,6 +1,7 @@
 package golang
 
 import (
+	"github.com/jschaf/pggen/internal/casing"
 	"strconv"
 	"strings"
 )
@@ -24,6 +25,20 @@ type EnumDeclarer struct {
 	GoName   string   // name of the enum formatted as a Go identifier
 	GoLabels []string // the ordered labels of the enum formatted as Go identifiers
 	PgLabels []string // original labels in Postgres
+}
+
+func NewEnumDeclarer(pgName string, pgLabels []string, caser casing.Caser) EnumDeclarer {
+	goName := caser.ToUpperCamel(pgName)
+	goLabels := make([]string, len(pgLabels))
+	for i, label := range pgLabels {
+		goLabels[i] = caser.ToUpperCamel(label)
+	}
+	return EnumDeclarer{
+		PgName:   pgName,
+		GoName:   goName,
+		GoLabels: goLabels,
+		PgLabels: pgLabels,
+	}
 }
 
 func (e EnumDeclarer) DedupeKey() string {

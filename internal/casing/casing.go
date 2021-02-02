@@ -54,6 +54,9 @@ func (cs Caser) appendUpperCamel(sb *strings.Builder, chars []byte, lo, hi int) 
 // acronyms.
 func (cs Caser) ToUpperCamel(s string) string {
 	s = strings.TrimSpace(s)
+	if len(s) == 0 {
+		return s
+	}
 	sb := &strings.Builder{}
 	sb.Grow(len(s))
 	// Find underscore delimited word.

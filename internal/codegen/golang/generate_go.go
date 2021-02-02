@@ -48,7 +48,7 @@ type goTemplateQuery struct {
 
 type goInputParam struct {
 	Name string // name of the param, like 'FirstName' in pggen.arg('FirstName')
-	Type string // Go type to use generated for this param
+	Type string // package-qualified Go type to use generated for this param
 }
 
 type goOutputColumn struct {
@@ -70,12 +70,13 @@ func Generate(opts GenerateOptions, queryFiles []codegen.QueryFile) error {
 	caser := casing.NewCaser()
 	caser.AddAcronym("id", "ID")
 	caser.AddAcronyms(opts.Acronyms)
+	typeResolver := NewTypeResolver(caser)
 
 	// Build go specific query files.
 	goQueryFiles := make([]goQueryFile, 0, len(queryFiles))
 	declarers := make([]Declarer, 0, 8)
 	for _, queryFile := range queryFiles {
-		goFile, decls, err := buildGoQueryFile(pkgName, caser, queryFile)
+		goFile, decls, err := buildGoQueryFile(pkgName, caser, queryFile, typeResolver)
 		if err != nil {
 			return fmt.Errorf("prepare query file %s for go: %w", queryFile.Path, err)
 		}
@@ -141,7 +142,7 @@ func Generate(opts GenerateOptions, queryFiles []codegen.QueryFile) error {
 // buildGoQueryFile creates the data needed to build a Go file for a query file.
 // Also returns any declarations needed by this query file. The caller must
 // dedupe declarations.
-func buildGoQueryFile(pkgName string, caser casing.Caser, file codegen.QueryFile) (goQueryFile, []Declarer, error) {
+func buildGoQueryFile(pkgName string, caser casing.Caser, file codegen.QueryFile, typeResolver TypeResolver) (goQueryFile, []Declarer, error) {
 	imports := map[string]struct{}{
 		"context":                 {},
 		"fmt":                     {},
@@ -167,29 +168,29 @@ func buildGoQueryFile(pkgName string, caser casing.Caser, file codegen.QueryFile
 		// Build inputs.
 		inputs := make([]goInputParam, len(query.Inputs))
 		for i, input := range query.Inputs {
-			pkg, goType, err := pgToGoType(input.PgType, false)
+			goType, err := typeResolver.Resolve(input.PgType /*nullable*/, false)
 			if err != nil {
 				return goQueryFile{}, nil, err
 			}
-			imports[pkg] = struct{}{}
+			imports[goType.Pkg] = struct{}{}
 			inputs[i] = goInputParam{
 				Name: caser.ToUpperCamel(input.PgName),
-				Type: goType,
+				Type: goType.Name,
 			}
 		}
 
 		// Build outputs.
 		outputs := make([]goOutputColumn, len(query.Outputs))
 		for i, out := range query.Outputs {
-			pkg, goType, err := pgToGoType(out.PgType, out.Nullable)
+			goType, err := typeResolver.Resolve(out.PgType, out.Nullable)
 			if err != nil {
 				return goQueryFile{}, nil, err
 			}
-			imports[pkg] = struct{}{}
+			imports[goType.Pkg] = struct{}{}
 			outputs[i] = goOutputColumn{
 				PgName: out.PgName,
 				Name:   caser.ToUpperCamel(out.PgName),
-				Type:   goType,
+				Type:   goType.Name,
 			}
 		}
 
