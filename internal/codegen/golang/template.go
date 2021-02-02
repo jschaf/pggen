@@ -23,10 +23,10 @@ func lowercaseFirstLetter(s string) string {
 	return strings.ToLower(string(first)) + rest
 }
 
-// EmitParams emits the goTemplateQuery.Inputs into method parameters with both
+// EmitParams emits the TemplatedQuery.Inputs into method parameters with both
 // a name and type based on the number of params. For use in a method
 // definition.
-func (tq goTemplateQuery) EmitParams() string {
+func (tq TemplatedQuery) EmitParams() string {
 	switch len(tq.Inputs) {
 	case 0:
 		return ""
@@ -45,7 +45,7 @@ func (tq goTemplateQuery) EmitParams() string {
 }
 
 // EmitPreparedSQL emits the prepared SQL query with appropriate quoting.
-func (tq goTemplateQuery) EmitPreparedSQL() string {
+func (tq TemplatedQuery) EmitPreparedSQL() string {
 	hasBacktick := strings.ContainsRune(tq.PreparedSQL, '`')
 	if !hasBacktick {
 		return "`" + tq.PreparedSQL + "`"
@@ -72,7 +72,7 @@ func (tq goTemplateQuery) EmitPreparedSQL() string {
 	return "`" + strings.ReplaceAll(tq.PreparedSQL, "`", "` + \"`\" + `") + "`"
 }
 
-func getLongestInput(inputs []goInputParam) int {
+func getLongestInput(inputs []TemplatedParam) int {
 	max := 0
 	for _, in := range inputs {
 		if len(in.Name) > max {
@@ -83,7 +83,7 @@ func getLongestInput(inputs []goInputParam) int {
 }
 
 // EmitParamStruct emits the struct definition for query params if needed.
-func (tq goTemplateQuery) EmitParamStruct() string {
+func (tq TemplatedQuery) EmitParamStruct() string {
 	if len(tq.Inputs) < 3 {
 		return ""
 	}
@@ -103,9 +103,9 @@ func (tq goTemplateQuery) EmitParamStruct() string {
 	return sb.String()
 }
 
-// EmitParamNames emits the goTemplateQuery.Inputs into comma separated names
+// EmitParamNames emits the TemplatedQuery.Inputs into comma separated names
 // for use in a method invocation.
-func (tq goTemplateQuery) EmitParamNames() string {
+func (tq TemplatedQuery) EmitParamNames() string {
 	switch len(tq.Inputs) {
 	case 0:
 		return ""
@@ -128,7 +128,7 @@ func (tq goTemplateQuery) EmitParamNames() string {
 
 // EmitRowScanArgs emits the args to scan a single row from a pgx.Row or
 // pgx.Rows.
-func (tq goTemplateQuery) EmitRowScanArgs() (string, error) {
+func (tq TemplatedQuery) EmitRowScanArgs() (string, error) {
 	switch tq.ResultKind {
 	case ast.ResultKindExec:
 		return "", fmt.Errorf("cannot EmitRowScanArgs for :exec query %s", tq.Name)
@@ -159,7 +159,7 @@ func (tq goTemplateQuery) EmitRowScanArgs() (string, error) {
 
 // EmitResultType returns the string representing the overall query result type,
 // meaning the return result.
-func (tq goTemplateQuery) EmitResultType() (string, error) {
+func (tq TemplatedQuery) EmitResultType() (string, error) {
 	switch tq.ResultKind {
 	case ast.ResultKindExec:
 		return "pgconn.CommandTag", nil
@@ -190,7 +190,7 @@ func (tq goTemplateQuery) EmitResultType() (string, error) {
 // name, typically "item" or "items". For array type, we take care to not use a
 // var declaration so that JSON serialization returns an empty array instead of
 // null.
-func (tq goTemplateQuery) EmitResultTypeInit(name string) (string, error) {
+func (tq TemplatedQuery) EmitResultTypeInit(name string) (string, error) {
 	result, err := tq.EmitResultType()
 	if err != nil {
 		return "", fmt.Errorf("create result type for EmitResultTypeInit: %w", err)
@@ -217,7 +217,7 @@ func (tq goTemplateQuery) EmitResultTypeInit(name string) (string, error) {
 // query result type. For :one and :exec queries, this is the same as
 // EmitResultType. For :many queries, this is the element type of the slice
 // result type.
-func (tq goTemplateQuery) EmitResultElem() (string, error) {
+func (tq TemplatedQuery) EmitResultElem() (string, error) {
 	result, err := tq.EmitResultType()
 	if err != nil {
 		return "", fmt.Errorf("unhandled EmitResultElem type: %w", err)
@@ -227,7 +227,7 @@ func (tq goTemplateQuery) EmitResultElem() (string, error) {
 
 // getLongestOutput returns the column of the longest name in all columns and
 // the column of the longest type to enable struct alignment.
-func getLongestOutput(outs []goOutputColumn) (int, int) {
+func getLongestOutput(outs []TemplatedColumn) (int, int) {
 	nameLen := 0
 	for _, out := range outs {
 		if len(out.Name) > nameLen {
@@ -249,7 +249,7 @@ func getLongestOutput(outs []goOutputColumn) (int, int) {
 
 // EmitRowStruct writes the struct definition for query output row if one is
 // needed.
-func (tq goTemplateQuery) EmitRowStruct() string {
+func (tq TemplatedQuery) EmitRowStruct() string {
 	switch tq.ResultKind {
 	case ast.ResultKindExec:
 		return ""

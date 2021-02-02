@@ -19,7 +19,7 @@ func NewEmitter(outDir string, tmpl *template.Template) Emitter {
 }
 
 // EmitQueryFile emits a single query file.
-func (em Emitter) EmitQueryFile(queryFile goQueryFile) (mErr error) {
+func (em Emitter) EmitQueryFile(queryFile TemplatedFile) (mErr error) {
 	base := filepath.Base(queryFile.Path)
 	out := filepath.Join(em.outDir, base+".go")
 	file, err := os.OpenFile(out, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
