@@ -33,3 +33,7 @@ integration-test:
 .PHONY: update-integration-test
 update-integration-test:
 	./script/integration-test.sh --update
+
+.PHONY: lint
+lint:
+	golangci-lint run
