@@ -38,7 +38,7 @@ type TemplatedQuery struct {
 
 type TemplatedParam struct {
 	Name string // name of the param, like 'FirstName' in pggen.arg('FirstName')
-	Type string // package-qualified Go type to use generated for this param
+	Type string // package-qualified Go type to use for this param
 }
 
 type TemplatedColumn struct {
@@ -69,7 +69,7 @@ func NewTemplater(opts TemplaterOpts) Templater {
 	}
 }
 
-// TemplateAll creates query template files for each of the codegen.QueryFile.
+// TemplateAll creates query template files for each codegen.QueryFile.
 func (tm Templater) TemplateAll(files []codegen.QueryFile) ([]TemplatedFile, error) {
 	goQueryFiles := make([]TemplatedFile, 0, len(files))
 	declarers := make([]Declarer, 0, 8)
