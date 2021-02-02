@@ -171,7 +171,7 @@ Examples embedded in the repo:
 # Features
 
 -   **JSON struct tags**: All `<query_name>Row` structs include JSON struct tags
-    using the Postgres column name. To change the struct tag, use a SQL column 
+    using the Postgres column name. To change the struct tag, use an SQL column 
     alias.
   
     ```sql
