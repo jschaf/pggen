@@ -238,7 +238,7 @@ func (q *DBQuerier) BacktickBackslashNScan(results pgx.BatchResults) (string, er
 	return item, nil
 }
 
-const illegalNameSymbolsSQL = `SELECT '` + "`" + `\n'as "$", $1 as "foo.bar!@#$%&*()""--+";`
+const illegalNameSymbolsSQL = `SELECT '` + "`" + `\n' as "$", $1 as "foo.bar!@#$%&*()""--+";`
 
 type IllegalNameSymbolsRow struct {
 	UnnamedColumn0 string `json:"$"`

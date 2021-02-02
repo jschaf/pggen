@@ -16,6 +16,7 @@ type parser struct {
 	file    *gotok.File
 	errors  goscan.ErrorList
 	scanner scanner.Scanner
+	src     []byte // original source
 
 	// Tracing and debugging
 	mode   Mode // parsing mode
@@ -36,6 +37,7 @@ func (p *parser) init(fset *gotok.FileSet, filename string, src []byte, mode Mod
 	p.file = fset.AddFile(filename, -1, len(src))
 	eh := func(pos gotok.Position, msg string) { p.errors.Add(pos, msg) }
 	p.scanner.Init(p.file, src, eh)
+	p.src = src
 
 	p.mode = mode
 	p.trace = mode&Trace != 0 // for convenience (p.trace is used frequently)
@@ -213,16 +215,15 @@ func (p *parser) parseQuery() ast.Query {
 
 	for p.tok != token.Semicolon {
 		if p.tok == token.EOF || p.tok == token.Illegal {
-			p.error(p.pos, "unterminated query (no semicolon): "+sql.String())
+			p.error(p.pos, "unterminated query (no semicolon): "+string(p.src[pos:p.pos]))
 			return &ast.BadQuery{From: pos, To: p.pos}
 		}
-		sql.WriteString(p.lit)
 		p.next()
 	}
 
 	semi := p.pos
 	p.expect(token.Semicolon)
-	sql.WriteRune(';')
+	sql.Write(p.src[pos-1 : semi])
 
 	// Extract annotations
 	if doc == nil || doc.List == nil || len(doc.List) == 0 {
