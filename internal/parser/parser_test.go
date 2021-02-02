@@ -92,3 +92,19 @@ func TestParseFile_Queries(t *testing.T) {
 	}
 
 }
+
+func TestParseFile_Queries_Fuzz(t *testing.T) {
+	tests := []struct {
+		src string
+	}{
+		{"-- name: Qux :many\nSELECT '`\\n' as \" joe!@#$%&*()-+=\";"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.src, func(t *testing.T) {
+			_, err := ParseFile(gotok.NewFileSet(), "", tt.src, Trace)
+			if err != nil {
+				t.Fatal(err)
+			}
+		})
+	}
+}
