@@ -199,7 +199,7 @@ var (
 var (
 	typeMapLock = &sync.Mutex{}
 
-	typeMap = map[uint32]Type{
+	typeMap = map[pgtype.OID]Type{
 		pgtype.BoolOID:             Bool,
 		pgtype.QCharOID:            QChar,
 		pgtype.NameOID:             Name,
@@ -272,11 +272,14 @@ var (
 
 // FetchOIDTypes gets the Postgres type for each of the oids.
 func FetchOIDTypes(conn *pgx.Conn, oids ...uint32) (map[pgtype.OID]Type, error) {
+	// The return value
 	types := make(map[pgtype.OID]Type, len(oids))
+
+	// Figure out which OIDs that need type information.
 	oidsToFetch := make([]uint32, 0, len(oids))
 	typeMapLock.Lock()
 	for _, oid := range oids {
-		if t, ok := typeMap[oid]; ok {
+		if t, ok := typeMap[pgtype.OID(oid)]; ok {
 			types[pgtype.OID(oid)] = t
 		} else {
 			oidsToFetch = append(oidsToFetch, oid)
@@ -287,15 +290,35 @@ func FetchOIDTypes(conn *pgx.Conn, oids ...uint32) (map[pgtype.OID]Type, error) 
 	querier := NewQuerier(conn)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
+
+	// Get enum types.
 	enums, err := querier.FindEnumTypes(ctx, oidsToFetch)
 	if err != nil {
 		return nil, fmt.Errorf("find enum oid types: %w", err)
 	}
-	// TODO: aggregate all enum elements into a single row.
 	for _, enum := range enums {
-		types[enum.OID] = BaseType{
-			ID:   enum.OID,
-			Name: enum.TypeName.String,
+		labels := make([]string, len(enum.Labels.Elements))
+		if err := enum.Labels.AssignTo(&labels); err != nil {
+			return nil, fmt.Errorf("assign labels to string slice for enum %s: %w", enum.TypeName.String, err)
+		}
+		orders := make([]float32, len(enum.Orders.Elements))
+		if err := enum.Orders.AssignTo(&orders); err != nil {
+			return nil, fmt.Errorf("assign orders to float32 slice for enum %s: %w", enum.TypeName.String, err)
+		}
+		childOIDUint32s := make([]uint32, len(enum.ChildOIDs.Elements))
+		if err := enum.ChildOIDs.AssignTo(&childOIDUint32s); err != nil {
+			return nil, fmt.Errorf("assign child OIDs to uint32 slice for enum %s: %w", enum.TypeName.String, err)
+		}
+		childOIDs := make([]pgtype.OID, len(enum.ChildOIDs.Elements))
+		for i, oidUint32 := range childOIDUint32s {
+			childOIDs[i] = pgtype.OID(oidUint32)
+		}
+		types[enum.OID] = EnumType{
+			ID:        enum.OID,
+			Name:      enum.TypeName.String,
+			Labels:    labels,
+			Orders:    orders,
+			ChildOIDs: childOIDs,
 		}
 	}
 
@@ -305,6 +328,13 @@ func FetchOIDTypes(conn *pgx.Conn, oids ...uint32) (map[pgtype.OID]Type, error) 
 			return nil, fmt.Errorf("did not find all OIDs; missing OID %d", oid)
 		}
 	}
+
+	// Update type cache.
+	typeMapLock.Lock()
+	for oid, typ := range types {
+		typeMap[oid] = typ
+	}
+	typeMapLock.Unlock()
 
 	return types, nil
 }

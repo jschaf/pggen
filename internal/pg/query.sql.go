@@ -22,6 +22,13 @@ type Querier interface {
 	FindEnumTypesBatch(ctx context.Context, batch *pgx.Batch, oIDs []uint32)
 	// FindEnumTypesScan scans the result of an executed FindEnumTypesBatch query.
 	FindEnumTypesScan(results pgx.BatchResults) ([]FindEnumTypesRow, error)
+
+	FindOIDByName(ctx context.Context, name string) (pgtype.OID, error)
+	// FindOIDByNameBatch enqueues a FindOIDByName query into batch to be executed
+	// later by the batch.
+	FindOIDByNameBatch(ctx context.Context, batch *pgx.Batch, name string)
+	// FindOIDByNameScan scans the result of an executed FindOIDByNameBatch query.
+	FindOIDByNameScan(results pgx.BatchResults) (pgtype.OID, error)
 }
 
 type DBQuerier struct {
@@ -69,13 +76,14 @@ const findEnumTypesSQL = `WITH enums AS (
          array_agg(enumlabel::text ORDER BY enumsortorder) AS enum_labels
   FROM pg_enum
   GROUP BY pg_enum.enumtypid)
-SELECT typ.oid           AS oid,
-       typ.typname::text AS type_name,
-       enum.enum_oids,
-       enum.enum_orders,
-       enum.enum_labels,
-       typ.typtype       AS type_kind,
-       typ.typdefault    AS default_expr
+SELECT
+  typ.oid           AS oid,
+  typ.typname::text AS type_name,
+  enum.enum_oids    AS child_oids,
+  enum.enum_orders  AS orders,
+  enum.enum_labels  AS labels,
+  typ.typtype       AS type_kind,
+  typ.typdefault    AS default_expr
 FROM pg_type typ
   JOIN enums enum ON typ.oid = enum.enum_type
 WHERE typ.typisdefined
@@ -84,9 +92,9 @@ WHERE typ.typisdefined
 type FindEnumTypesRow struct {
 	OID         pgtype.OID         `json:"oid"`
 	TypeName    pgtype.Text        `json:"type_name"`
-	EnumOIDs    pgtype.Int8Array   `json:"enum_oids"`
-	EnumOrders  pgtype.Float4Array `json:"enum_orders"`
-	EnumLabels  pgtype.TextArray   `json:"enum_labels"`
+	ChildOIDs   pgtype.Int8Array   `json:"child_oids"`
+	Orders      pgtype.Float4Array `json:"orders"`
+	Labels      pgtype.TextArray   `json:"labels"`
 	TypeKind    pgtype.QChar       `json:"type_kind"`
 	DefaultExpr pgtype.Text        `json:"default_expr"`
 }
@@ -103,7 +111,7 @@ func (q *DBQuerier) FindEnumTypes(ctx context.Context, oIDs []uint32) ([]FindEnu
 	items := []FindEnumTypesRow{}
 	for rows.Next() {
 		var item FindEnumTypesRow
-		if err := rows.Scan(&item.OID, &item.TypeName, &item.EnumOIDs, &item.EnumOrders, &item.EnumLabels, &item.TypeKind, &item.DefaultExpr); err != nil {
+		if err := rows.Scan(&item.OID, &item.TypeName, &item.ChildOIDs, &item.Orders, &item.Labels, &item.TypeKind, &item.DefaultExpr); err != nil {
 			return nil, fmt.Errorf("scan FindEnumTypes row: %w", err)
 		}
 		items = append(items, item)
@@ -131,7 +139,7 @@ func (q *DBQuerier) FindEnumTypesScan(results pgx.BatchResults) ([]FindEnumTypes
 	items := []FindEnumTypesRow{}
 	for rows.Next() {
 		var item FindEnumTypesRow
-		if err := rows.Scan(&item.OID, &item.TypeName, &item.EnumOIDs, &item.EnumOrders, &item.EnumLabels, &item.TypeKind, &item.DefaultExpr); err != nil {
+		if err := rows.Scan(&item.OID, &item.TypeName, &item.ChildOIDs, &item.Orders, &item.Labels, &item.TypeKind, &item.DefaultExpr); err != nil {
 			return nil, fmt.Errorf("scan FindEnumTypesBatch row: %w", err)
 		}
 		items = append(items, item)
@@ -140,4 +148,33 @@ func (q *DBQuerier) FindEnumTypesScan(results pgx.BatchResults) ([]FindEnumTypes
 		return nil, err
 	}
 	return items, err
+}
+
+const findOIDByNameSQL = `SELECT oid
+FROM pg_type
+WHERE typname::text = $1;`
+
+// FindOIDByName implements Querier.FindOIDByName.
+func (q *DBQuerier) FindOIDByName(ctx context.Context, name string) (pgtype.OID, error) {
+	row := q.conn.QueryRow(ctx, findOIDByNameSQL, name)
+	var item pgtype.OID
+	if err := row.Scan(&item); err != nil {
+		return item, fmt.Errorf("query FindOIDByName: %w", err)
+	}
+	return item, nil
+}
+
+// FindOIDByNameBatch implements Querier.FindOIDByNameBatch.
+func (q *DBQuerier) FindOIDByNameBatch(ctx context.Context, batch *pgx.Batch, name string) {
+	batch.Queue(findOIDByNameSQL, name)
+}
+
+// FindOIDByNameScan implements Querier.FindOIDByNameScan.
+func (q *DBQuerier) FindOIDByNameScan(results pgx.BatchResults) (pgtype.OID, error) {
+	row := results.QueryRow()
+	var item pgtype.OID
+	if err := row.Scan(&item); err != nil {
+		return item, fmt.Errorf("scan FindOIDByNameBatch row: %w", err)
+	}
+	return item, nil
 }

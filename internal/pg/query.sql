@@ -18,25 +18,31 @@ WITH enums AS (
          array_agg(enumlabel::text ORDER BY enumsortorder) AS enum_labels
   FROM pg_enum
   GROUP BY pg_enum.enumtypid)
-SELECT typ.oid           AS oid,
-       -- typename: Data type name.
-       typ.typname::text AS type_name,
-       enum.enum_oids,
-       enum.enum_orders,
-       enum.enum_labels,
-       -- typtype: b for a base type, c for a composite type (e.g., a table's
-       -- row type), d for a domain, e for an enum type, p for a pseudo-type,
-       -- or r for a range type.
-       typ.typtype       AS type_kind,
-       -- typdefault is null if the type has no associated default value. If
-       -- typdefaultbin is not null, typdefault must contain a human-readable
-       -- version of the default expression represented by typdefaultbin. If
-       -- typdefaultbin is null and typdefault is not, then typdefault is the
-       -- external representation of the type's default value, which can be fed
-       -- to the type's input converter to produce a constant.
-       typ.typdefault    AS default_expr
+SELECT
+  typ.oid           AS oid,
+  -- typename: Data type name.
+  typ.typname::text AS type_name,
+  enum.enum_oids    AS child_oids,
+  enum.enum_orders  AS orders,
+  enum.enum_labels  AS labels,
+  -- typtype: b for a base type, c for a composite type (e.g., a table's
+  -- row type), d for a domain, e for an enum type, p for a pseudo-type,
+  -- or r for a range type.
+  typ.typtype       AS type_kind,
+  -- typdefault is null if the type has no associated default value. If
+  -- typdefaultbin is not null, typdefault must contain a human-readable
+  -- version of the default expression represented by typdefaultbin. If
+  -- typdefaultbin is null and typdefault is not, then typdefault is the
+  -- external representation of the type's default value, which can be fed
+  -- to the type's input converter to produce a constant.
+  typ.typdefault    AS default_expr
 FROM pg_type typ
   JOIN enums enum ON typ.oid = enum.enum_type
 WHERE typ.typisdefined
   AND typ.typtype = 'e'
   AND typ.oid = ANY (pggen.arg('OIDs')::oid[]);
+
+-- name: FindOIDByName :one
+SELECT oid
+FROM pg_type
+WHERE typname::text = pggen.arg('Name');
