@@ -10,6 +10,9 @@ import (
 // declaration and const values. If we use the enum in any Querier function, we
 // need to declare the enum.
 type Declarer interface {
+	// DedupeKey uniquely identifies the declaration so that we only emit
+	// declarations once.
+	DedupeKey() string
 	// Declare returns the string of the Go declaration.
 	Declare() (string, error)
 }
@@ -21,6 +24,10 @@ type EnumDeclarer struct {
 	GoName   string   // name of the enum formatted as a Go identifier
 	GoLabels []string // the ordered labels of the enum formatted as Go identifiers
 	PgLabels []string // original labels in Postgres
+}
+
+func (e EnumDeclarer) DedupeKey() string {
+	return "enum::" + e.PgName
 }
 
 func (e EnumDeclarer) Declare() (string, error) {
