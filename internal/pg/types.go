@@ -20,7 +20,7 @@ type Type interface {
 type TypeKind byte
 
 const (
-	KindBaseType      TypeKind = 'b'
+	KindBaseType      TypeKind = 'b' // includes array types
 	KindCompositeType TypeKind = 'c'
 	KindDomainType    TypeKind = 'd'
 	KindEnumType      TypeKind = 'e'
@@ -51,16 +51,27 @@ type (
 	// BaseType is a fundamental Postgres type like text and bool.
 	// https://www.postgresql.org/docs/13/catalog-pg-type.html
 	BaseType struct {
-		ID         pgtype.OID     // pg_type.oid: row identifier
-		Name       string         // pg_type.typname: data type name
-		Composite  *CompositeType // pg_type.typrelid: composite type only, the pg_class for the type
-		Dimensions int            // pg_type.typndims: domains on array type only 0 otherwise, number of array dimensions,
+		ID   pgtype.OID // pg_type.oid: row identifier
+		Name string     // pg_type.typname: data type name
+	}
+
+	// ArrayType is an array type where pg_type.typelem != 0 and the name begins
+	// with an underscore.
+	ArrayType struct {
+		ID pgtype.OID // pg_type.oid: row identifier
+		// The name of the type, like _int4. Array types in Postgres typically
+		// begin with an underscore.
+		// From pg_type.typname:
+		Name string
+		// pg_type.typelem: the element type of the array
+		ElemType Type
 	}
 
 	EnumType struct {
-		ID pgtype.OID
+		ID pgtype.OID // pg_type.oid: row identifier
 		// The name of the enum, like 'device_type' in:
 		//     CREATE TYPE device_type AS ENUM ('foo');
+		// From pg_type.typname.
 		Name string
 		// All textual labels for this enum in sort order.
 		Labels []string
@@ -80,6 +91,7 @@ type (
 		IsNotNull  bool       // pg_type.typnotnull: domains only, not null constraint for domains
 		HasDefault bool       // pg_type.typdefault: domains only, if there's a default value
 		BaseType   BaseType   // pg_type.typbasetype: domains only, the base type
+		Dimensions int        // pg_type.typndims: domains on array type only, 0 otherwise, number of array dimensions
 	}
 
 	// CompositeType is a type containing multiple columns and is represented as
@@ -88,12 +100,17 @@ type (
 		ID      pgtype.OID // pg_class.oid: row identifier
 		Name    string     // pg_class.relname: name of the composite type
 		Columns []Type     // pg_attribute: information about columns of the composite type
+		RelID   pgtype.OID // pg_type.typrelid: composite type only, the pg_class for the type
 	}
 )
 
 func (b BaseType) OID() pgtype.OID { return b.ID }
 func (b BaseType) String() string  { return b.Name }
 func (b BaseType) Kind() TypeKind  { return KindBaseType }
+
+func (b ArrayType) OID() pgtype.OID { return b.ID }
+func (b ArrayType) String() string  { return b.Name }
+func (b ArrayType) Kind() TypeKind  { return KindBaseType } // arrays are base types
 
 func (e EnumType) OID() pgtype.OID { return e.ID }
 func (e EnumType) String() string  { return e.Name }
@@ -130,7 +147,7 @@ var (
 	Polygon          = BaseType{ID: pgtype.PolygonOID, Name: "polygon"}
 	Line             = BaseType{ID: pgtype.LineOID, Name: "line"}
 	CIDR             = BaseType{ID: pgtype.CIDROID, Name: "cidr"}
-	CIDRArray        = BaseType{ID: pgtype.CIDRArrayOID, Name: "_cidr"}
+	CIDRArray        = ArrayType{ID: pgtype.CIDRArrayOID, Name: "_cidr"}
 	Float4           = BaseType{ID: pgtype.Float4OID, Name: "float4"}
 	Float8           = BaseType{ID: pgtype.Float8OID, Name: "float8"}
 	Unknown          = BaseType{ID: pgtype.UnknownOID, Name: "unknown"}
