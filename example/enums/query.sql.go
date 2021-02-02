@@ -22,6 +22,13 @@ type Querier interface {
 	FindAllDevicesBatch(ctx context.Context, batch *pgx.Batch)
 	// FindAllDevicesScan scans the result of an executed FindAllDevicesBatch query.
 	FindAllDevicesScan(results pgx.BatchResults) ([]FindAllDevicesRow, error)
+
+	InsertDevice(ctx context.Context, mac pgtype.Macaddr, typePg DeviceType) (pgconn.CommandTag, error)
+	// InsertDeviceBatch enqueues a InsertDevice query into batch to be executed
+	// later by the batch.
+	InsertDeviceBatch(ctx context.Context, batch *pgx.Batch, mac pgtype.Macaddr, typePg DeviceType)
+	// InsertDeviceScan scans the result of an executed InsertDeviceBatch query.
+	InsertDeviceScan(results pgx.BatchResults) (pgconn.CommandTag, error)
 }
 
 type DBQuerier struct {
@@ -132,4 +139,29 @@ func (q *DBQuerier) FindAllDevicesScan(results pgx.BatchResults) ([]FindAllDevic
 		return nil, err
 	}
 	return items, err
+}
+
+const insertDeviceSQL = `INSERT INTO device (mac, type) VALUES ($1, $2);`
+
+// InsertDevice implements Querier.InsertDevice.
+func (q *DBQuerier) InsertDevice(ctx context.Context, mac pgtype.Macaddr, typePg DeviceType) (pgconn.CommandTag, error) {
+	cmdTag, err := q.conn.Exec(ctx, insertDeviceSQL, mac, typePg)
+	if err != nil {
+		return cmdTag, fmt.Errorf("exec query InsertDevice: %w", err)
+	}
+	return cmdTag, err
+}
+
+// InsertDeviceBatch implements Querier.InsertDeviceBatch.
+func (q *DBQuerier) InsertDeviceBatch(ctx context.Context, batch *pgx.Batch, mac pgtype.Macaddr, typePg DeviceType) {
+	batch.Queue(insertDeviceSQL, mac, typePg)
+}
+
+// InsertDeviceScan implements Querier.InsertDeviceScan.
+func (q *DBQuerier) InsertDeviceScan(results pgx.BatchResults) (pgconn.CommandTag, error) {
+	cmdTag, err := results.Exec()
+	if err != nil {
+		return cmdTag, fmt.Errorf("exec InsertDeviceBatch: %w", err)
+	}
+	return cmdTag, err
 }
