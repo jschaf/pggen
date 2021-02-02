@@ -20,7 +20,7 @@ func TestQuerier(t *testing.T) {
 	_, err := q.InsertDevice(ctx, pgtype.Macaddr{
 		Addr:   mac,
 		Status: pgtype.Present,
-	}, Desktop)
+	}, DeviceTypeDesktop)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -31,6 +31,6 @@ func TestQuerier(t *testing.T) {
 	}
 	assert.Equal(t, []FindAllDevicesRow{{
 		Mac:  pgtype.Macaddr{Addr: mac, Status: pgtype.Present},
-		Type: Desktop,
+		Type: DeviceTypeDesktop,
 	}}, devices)
 }

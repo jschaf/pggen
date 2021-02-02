@@ -31,7 +31,7 @@ func NewEnumDeclarer(pgName string, pgLabels []string, caser casing.Caser) EnumD
 	goName := caser.ToUpperCamel(pgName)
 	goLabels := make([]string, len(pgLabels))
 	for i, label := range pgLabels {
-		goLabels[i] = caser.ToUpperCamel(label)
+		goLabels[i] = goName + caser.ToUpperCamel(label)
 	}
 	return EnumDeclarer{
 		PgName:   pgName,

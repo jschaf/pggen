@@ -73,12 +73,12 @@ func (q *DBQuerier) WithTx(tx pgx.Tx) (*DBQuerier, error) {
 type DeviceType string
 
 const (
-	Undefined DeviceType = "undefined"
-	Phone     DeviceType = "phone"
-	Laptop    DeviceType = "laptop"
-	Ipad      DeviceType = "ipad"
-	Desktop   DeviceType = "desktop"
-	Iot       DeviceType = "iot"
+	DeviceTypeUndefined DeviceType = "undefined"
+	DeviceTypePhone     DeviceType = "phone"
+	DeviceTypeLaptop    DeviceType = "laptop"
+	DeviceTypeIpad      DeviceType = "ipad"
+	DeviceTypeDesktop   DeviceType = "desktop"
+	DeviceTypeIot       DeviceType = "iot"
 )
 
 func (d DeviceType) String() string { return string(d) }
