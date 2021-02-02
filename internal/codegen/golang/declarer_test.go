@@ -60,7 +60,7 @@ func TestEnumDeclarer_Declare(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			assert.Equal(t, tt.want+"\n", got)
+			assert.Equal(t, tt.want, got)
 		})
 	}
 }
