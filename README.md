@@ -160,11 +160,13 @@ Examples embedded in the repo:
 
 - [./script/integration-test.sh] - End-to-end examples of how to call pggen.
 - [./example/author] - A single table schema with simple queries.
+- [./example/enums] - Postgres and Go enums.
 - [./example/erp] - A few tables with mildly complex queries.
 - [./example/syntax] - A smoke test of interesting SQL syntax.
 
 [./script/integration-test.sh]: ./script/integration-test.sh
 [./example/author]: ./example/author
+[./example/enums]: ./example/enums
 [./example/erp]: ./example/erp
 [./example/syntax]: ./example/syntax
 
@@ -192,13 +194,37 @@ Examples embedded in the repo:
     `AuthorID` instead of `AuthorId`. Supports two formats:
     
     1. Long form: `--acronym <word>=<relacement>`: replaces `<word>` with 
-       `<replacement>` literally. Useful plural acronyms like `author_ids` which
-       should render as `AuthorIDs`, not `AuthorIds`; use `--acronym ids=IDs`.
+       `<replacement>` literally. Useful for plural acronyms like `author_ids` 
+       which should render as `AuthorIDs`, not `AuthorIds`. For the IDs example,
+        use `--acronym ids=IDs`.
        
     1. Short form: `--acronym <word>`: replaces `<word>` with uppercase 
        `<WORD>`. Equivalent to `--acronym <word>=<WORD>`
        
     By default, pggen includes `--acronym id` to render `id` as `ID`.
+
+-   **Enums**: Postgres enums map to Go string constant enums. The Postgres 
+    type:
+    
+    ```sql
+    CREATE TYPE device_type AS ENUM ('undefined', 'phone', 'ipad');
+    ```
+    
+    Generates the Go code:
+    
+    ```go
+    // DeviceType represents the Postgres enum device_type.
+    type DeviceType string
+
+    const (
+        DeviceTypeUndefined DeviceType = "undefined"
+        DeviceTypePhone     DeviceType = "phone"
+        DeviceTypeIpad      DeviceType = "ipad"
+    )
+
+    func (d DeviceType) String() string { return string(d) }
+    ```
+
 
 # Tutorial
 
