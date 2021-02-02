@@ -24,7 +24,7 @@ type Querier interface {
 	{{.Name}}(ctx context.Context {{- $q.EmitParams }}) ({{ $q.EmitResultType }}, error)
 	// {{.Name}}Batch enqueues a {{.Name}} query into batch to be executed
 	// later by the batch.
-	{{.Name}}Batch(ctx context.Context, batch *pgx.Batch {{- $q.EmitParams }})
+	{{.Name}}Batch(batch *pgx.Batch {{- $q.EmitParams }})
 	// {{.Name}}Scan scans the result of an executed {{.Name}}Batch query.
 	{{.Name}}Scan(results pgx.BatchResults) ({{ $q.EmitResultType }}, error)
 	{{- "\n" -}}
@@ -116,7 +116,7 @@ func (q *DBQuerier) {{ $q.Name }}(ctx context.Context {{- $q.EmitParams }}) ({{ 
 }
 
 // {{$q.Name}}Batch implements Querier.{{$q.Name}}Batch.
-func (q *DBQuerier) {{.Name}}Batch(ctx context.Context, batch *pgx.Batch {{- $q.EmitParams }}) {
+func (q *DBQuerier) {{.Name}}Batch(batch *pgx.Batch {{- $q.EmitParams }}) {
 	batch.Queue({{ $q.SQLVarName }} {{- $q.EmitParamNames }})
 }
 

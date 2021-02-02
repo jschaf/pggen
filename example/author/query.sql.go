@@ -20,7 +20,7 @@ type Querier interface {
 	FindAuthorByID(ctx context.Context, authorID int32) (FindAuthorByIDRow, error)
 	// FindAuthorByIDBatch enqueues a FindAuthorByID query into batch to be executed
 	// later by the batch.
-	FindAuthorByIDBatch(ctx context.Context, batch *pgx.Batch, authorID int32)
+	FindAuthorByIDBatch(batch *pgx.Batch, authorID int32)
 	// FindAuthorByIDScan scans the result of an executed FindAuthorByIDBatch query.
 	FindAuthorByIDScan(results pgx.BatchResults) (FindAuthorByIDRow, error)
 
@@ -28,7 +28,7 @@ type Querier interface {
 	FindAuthors(ctx context.Context, firstName string) ([]FindAuthorsRow, error)
 	// FindAuthorsBatch enqueues a FindAuthors query into batch to be executed
 	// later by the batch.
-	FindAuthorsBatch(ctx context.Context, batch *pgx.Batch, firstName string)
+	FindAuthorsBatch(batch *pgx.Batch, firstName string)
 	// FindAuthorsScan scans the result of an executed FindAuthorsBatch query.
 	FindAuthorsScan(results pgx.BatchResults) ([]FindAuthorsRow, error)
 
@@ -36,7 +36,7 @@ type Querier interface {
 	DeleteAuthors(ctx context.Context) (pgconn.CommandTag, error)
 	// DeleteAuthorsBatch enqueues a DeleteAuthors query into batch to be executed
 	// later by the batch.
-	DeleteAuthorsBatch(ctx context.Context, batch *pgx.Batch)
+	DeleteAuthorsBatch(batch *pgx.Batch)
 	// DeleteAuthorsScan scans the result of an executed DeleteAuthorsBatch query.
 	DeleteAuthorsScan(results pgx.BatchResults) (pgconn.CommandTag, error)
 
@@ -44,7 +44,7 @@ type Querier interface {
 	DeleteAuthorsByFirstName(ctx context.Context, firstName string) (pgconn.CommandTag, error)
 	// DeleteAuthorsByFirstNameBatch enqueues a DeleteAuthorsByFirstName query into batch to be executed
 	// later by the batch.
-	DeleteAuthorsByFirstNameBatch(ctx context.Context, batch *pgx.Batch, firstName string)
+	DeleteAuthorsByFirstNameBatch(batch *pgx.Batch, firstName string)
 	// DeleteAuthorsByFirstNameScan scans the result of an executed DeleteAuthorsByFirstNameBatch query.
 	DeleteAuthorsByFirstNameScan(results pgx.BatchResults) (pgconn.CommandTag, error)
 
@@ -52,7 +52,7 @@ type Querier interface {
 	DeleteAuthorsByFullName(ctx context.Context, params DeleteAuthorsByFullNameParams) (pgconn.CommandTag, error)
 	// DeleteAuthorsByFullNameBatch enqueues a DeleteAuthorsByFullName query into batch to be executed
 	// later by the batch.
-	DeleteAuthorsByFullNameBatch(ctx context.Context, batch *pgx.Batch, params DeleteAuthorsByFullNameParams)
+	DeleteAuthorsByFullNameBatch(batch *pgx.Batch, params DeleteAuthorsByFullNameParams)
 	// DeleteAuthorsByFullNameScan scans the result of an executed DeleteAuthorsByFullNameBatch query.
 	DeleteAuthorsByFullNameScan(results pgx.BatchResults) (pgconn.CommandTag, error)
 
@@ -60,7 +60,7 @@ type Querier interface {
 	InsertAuthor(ctx context.Context, firstName string, lastName string) (int32, error)
 	// InsertAuthorBatch enqueues a InsertAuthor query into batch to be executed
 	// later by the batch.
-	InsertAuthorBatch(ctx context.Context, batch *pgx.Batch, firstName string, lastName string)
+	InsertAuthorBatch(batch *pgx.Batch, firstName string, lastName string)
 	// InsertAuthorScan scans the result of an executed InsertAuthorBatch query.
 	InsertAuthorScan(results pgx.BatchResults) (int32, error)
 
@@ -69,7 +69,7 @@ type Querier interface {
 	InsertAuthorSuffix(ctx context.Context, params InsertAuthorSuffixParams) (InsertAuthorSuffixRow, error)
 	// InsertAuthorSuffixBatch enqueues a InsertAuthorSuffix query into batch to be executed
 	// later by the batch.
-	InsertAuthorSuffixBatch(ctx context.Context, batch *pgx.Batch, params InsertAuthorSuffixParams)
+	InsertAuthorSuffixBatch(batch *pgx.Batch, params InsertAuthorSuffixParams)
 	// InsertAuthorSuffixScan scans the result of an executed InsertAuthorSuffixBatch query.
 	InsertAuthorSuffixScan(results pgx.BatchResults) (InsertAuthorSuffixRow, error)
 }
@@ -132,7 +132,7 @@ func (q *DBQuerier) FindAuthorByID(ctx context.Context, authorID int32) (FindAut
 }
 
 // FindAuthorByIDBatch implements Querier.FindAuthorByIDBatch.
-func (q *DBQuerier) FindAuthorByIDBatch(ctx context.Context, batch *pgx.Batch, authorID int32) {
+func (q *DBQuerier) FindAuthorByIDBatch(batch *pgx.Batch, authorID int32) {
 	batch.Queue(findAuthorByIDSQL, authorID)
 }
 
@@ -179,7 +179,7 @@ func (q *DBQuerier) FindAuthors(ctx context.Context, firstName string) ([]FindAu
 }
 
 // FindAuthorsBatch implements Querier.FindAuthorsBatch.
-func (q *DBQuerier) FindAuthorsBatch(ctx context.Context, batch *pgx.Batch, firstName string) {
+func (q *DBQuerier) FindAuthorsBatch(batch *pgx.Batch, firstName string) {
 	batch.Queue(findAuthorsSQL, firstName)
 }
 
@@ -218,7 +218,7 @@ func (q *DBQuerier) DeleteAuthors(ctx context.Context) (pgconn.CommandTag, error
 }
 
 // DeleteAuthorsBatch implements Querier.DeleteAuthorsBatch.
-func (q *DBQuerier) DeleteAuthorsBatch(ctx context.Context, batch *pgx.Batch) {
+func (q *DBQuerier) DeleteAuthorsBatch(batch *pgx.Batch) {
 	batch.Queue(deleteAuthorsSQL)
 }
 
@@ -243,7 +243,7 @@ func (q *DBQuerier) DeleteAuthorsByFirstName(ctx context.Context, firstName stri
 }
 
 // DeleteAuthorsByFirstNameBatch implements Querier.DeleteAuthorsByFirstNameBatch.
-func (q *DBQuerier) DeleteAuthorsByFirstNameBatch(ctx context.Context, batch *pgx.Batch, firstName string) {
+func (q *DBQuerier) DeleteAuthorsByFirstNameBatch(batch *pgx.Batch, firstName string) {
 	batch.Queue(deleteAuthorsByFirstNameSQL, firstName)
 }
 
@@ -278,7 +278,7 @@ func (q *DBQuerier) DeleteAuthorsByFullName(ctx context.Context, params DeleteAu
 }
 
 // DeleteAuthorsByFullNameBatch implements Querier.DeleteAuthorsByFullNameBatch.
-func (q *DBQuerier) DeleteAuthorsByFullNameBatch(ctx context.Context, batch *pgx.Batch, params DeleteAuthorsByFullNameParams) {
+func (q *DBQuerier) DeleteAuthorsByFullNameBatch(batch *pgx.Batch, params DeleteAuthorsByFullNameParams) {
 	batch.Queue(deleteAuthorsByFullNameSQL, params.FirstName, params.LastName, params.Suffix)
 }
 
@@ -306,7 +306,7 @@ func (q *DBQuerier) InsertAuthor(ctx context.Context, firstName string, lastName
 }
 
 // InsertAuthorBatch implements Querier.InsertAuthorBatch.
-func (q *DBQuerier) InsertAuthorBatch(ctx context.Context, batch *pgx.Batch, firstName string, lastName string) {
+func (q *DBQuerier) InsertAuthorBatch(batch *pgx.Batch, firstName string, lastName string) {
 	batch.Queue(insertAuthorSQL, firstName, lastName)
 }
 
@@ -348,7 +348,7 @@ func (q *DBQuerier) InsertAuthorSuffix(ctx context.Context, params InsertAuthorS
 }
 
 // InsertAuthorSuffixBatch implements Querier.InsertAuthorSuffixBatch.
-func (q *DBQuerier) InsertAuthorSuffixBatch(ctx context.Context, batch *pgx.Batch, params InsertAuthorSuffixParams) {
+func (q *DBQuerier) InsertAuthorSuffixBatch(batch *pgx.Batch, params InsertAuthorSuffixParams) {
 	batch.Queue(insertAuthorSuffixSQL, params.FirstName, params.LastName, params.Suffix)
 }
 

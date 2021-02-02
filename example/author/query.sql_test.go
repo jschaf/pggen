@@ -49,7 +49,7 @@ func TestNewQuerier_FindAuthorByID_Batch(t *testing.T) {
 	insertAuthor(t, q, "george", "washington")
 
 	batch := &pgx.Batch{}
-	q.FindAuthorByIDBatch(context.Background(), batch, adamsID)
+	q.FindAuthorByIDBatch(batch, adamsID)
 	results := conn.SendBatch(context.Background(), batch)
 	authors, err := q.FindAuthorByIDScan(results)
 	if err != nil {
@@ -110,7 +110,7 @@ func TestNewQuerier_FindAuthors_Batch(t *testing.T) {
 	carverID := insertAuthor(t, q, "george", "carver")
 
 	batch := &pgx.Batch{}
-	q.FindAuthorsBatch(context.Background(), batch, "george")
+	q.FindAuthorsBatch(batch, "george")
 	results := conn.SendBatch(context.Background(), batch)
 	authors, err := q.FindAuthorsScan(results)
 	if err != nil {
@@ -174,7 +174,7 @@ func TestNewQuerier_DeleteAuthorsByFirstName_Batch(t *testing.T) {
 	insertAuthor(t, q, "george", "carver")
 
 	batch := &pgx.Batch{}
-	q.DeleteAuthorsByFirstNameBatch(context.Background(), batch, "george")
+	q.DeleteAuthorsByFirstNameBatch(batch, "george")
 	results := conn.SendBatch(context.Background(), batch)
 	_, err := q.DeleteAuthorsByFirstNameScan(results)
 	if err != nil {

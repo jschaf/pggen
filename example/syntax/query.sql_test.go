@@ -35,11 +35,11 @@ func TestQuerier(t *testing.T) {
 	assert.Equal(t, "`\\n", val, "BacktickBackslashN")
 
 	batch := &pgx.Batch{}
-	q.BacktickBatch(ctx, batch)
-	q.BacktickDoubleQuoteBatch(ctx, batch)
-	q.BacktickQuoteBacktickBatch(ctx, batch)
-	q.BacktickNewlineBatch(ctx, batch)
-	q.BacktickBackslashNBatch(ctx, batch)
+	q.BacktickBatch(batch)
+	q.BacktickDoubleQuoteBatch(batch)
+	q.BacktickQuoteBacktickBatch(batch)
+	q.BacktickNewlineBatch(batch)
+	q.BacktickBackslashNBatch(batch)
 	results := conn.SendBatch(ctx, batch)
 
 	val, err = q.BacktickScan(results)

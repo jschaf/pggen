@@ -19,14 +19,14 @@ type Querier interface {
 	FindOrdersByCustomer(ctx context.Context, customerID int32) ([]FindOrdersByCustomerRow, error)
 	// FindOrdersByCustomerBatch enqueues a FindOrdersByCustomer query into batch to be executed
 	// later by the batch.
-	FindOrdersByCustomerBatch(ctx context.Context, batch *pgx.Batch, customerID int32)
+	FindOrdersByCustomerBatch(batch *pgx.Batch, customerID int32)
 	// FindOrdersByCustomerScan scans the result of an executed FindOrdersByCustomerBatch query.
 	FindOrdersByCustomerScan(results pgx.BatchResults) ([]FindOrdersByCustomerRow, error)
 
 	FindProductsInOrder(ctx context.Context, orderID int32) ([]FindProductsInOrderRow, error)
 	// FindProductsInOrderBatch enqueues a FindProductsInOrder query into batch to be executed
 	// later by the batch.
-	FindProductsInOrderBatch(ctx context.Context, batch *pgx.Batch, orderID int32)
+	FindProductsInOrderBatch(batch *pgx.Batch, orderID int32)
 	// FindProductsInOrderScan scans the result of an executed FindProductsInOrderBatch query.
 	FindProductsInOrderScan(results pgx.BatchResults) ([]FindProductsInOrderRow, error)
 }
@@ -102,7 +102,7 @@ func (q *DBQuerier) FindOrdersByCustomer(ctx context.Context, customerID int32) 
 }
 
 // FindOrdersByCustomerBatch implements Querier.FindOrdersByCustomerBatch.
-func (q *DBQuerier) FindOrdersByCustomerBatch(ctx context.Context, batch *pgx.Batch, customerID int32) {
+func (q *DBQuerier) FindOrdersByCustomerBatch(batch *pgx.Batch, customerID int32) {
 	batch.Queue(findOrdersByCustomerSQL, customerID)
 }
 
@@ -165,7 +165,7 @@ func (q *DBQuerier) FindProductsInOrder(ctx context.Context, orderID int32) ([]F
 }
 
 // FindProductsInOrderBatch implements Querier.FindProductsInOrderBatch.
-func (q *DBQuerier) FindProductsInOrderBatch(ctx context.Context, batch *pgx.Batch, orderID int32) {
+func (q *DBQuerier) FindProductsInOrderBatch(batch *pgx.Batch, orderID int32) {
 	batch.Queue(findProductsInOrderSQL, orderID)
 }
 

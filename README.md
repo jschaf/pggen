@@ -275,7 +275,7 @@ We'll walk through the generated file `author/query.sql.go`:
         FindAuthors(ctx context.Context, firstName string) ([]FindAuthorsRow, error)
         // FindAuthorsBatch enqueues a FindAuthors query into batch to be executed
         // later by the batch.
-        FindAuthorsBatch(ctx context.Context, batch *pgx.Batch, firstName string)
+        FindAuthorsBatch(batch *pgx.Batch, firstName string)
         // FindAuthorsScan scans the result of an executed FindAuthorsBatch query.
         FindAuthorsScan(results pgx.BatchResults) ([]FindAuthorsRow, error)
     }
@@ -289,8 +289,8 @@ We'll walk through the generated file `author/query.sql.go`:
     ```sql
 	q := NewQuerier(conn)
 	batch := &pgx.Batch{}
-	q.FindAuthorsBatch(context.Background(), batch, "alice")
-	q.FindAuthorsBatch(context.Background(), batch, "bob")
+	q.FindAuthorsBatch(batch, "alice")
+	q.FindAuthorsBatch(batch, "bob")
 	results := conn.SendBatch(context.Background(), batch)
 	aliceAuthors, err := q.FindAuthorsScan(results)
 	bobAuthors, err := q.FindAuthorsScan(results)

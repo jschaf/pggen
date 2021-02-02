@@ -19,14 +19,14 @@ type Querier interface {
 	FindEnumTypes(ctx context.Context, oIDs []uint32) ([]FindEnumTypesRow, error)
 	// FindEnumTypesBatch enqueues a FindEnumTypes query into batch to be executed
 	// later by the batch.
-	FindEnumTypesBatch(ctx context.Context, batch *pgx.Batch, oIDs []uint32)
+	FindEnumTypesBatch(batch *pgx.Batch, oIDs []uint32)
 	// FindEnumTypesScan scans the result of an executed FindEnumTypesBatch query.
 	FindEnumTypesScan(results pgx.BatchResults) ([]FindEnumTypesRow, error)
 
 	FindOIDByName(ctx context.Context, name string) (pgtype.OID, error)
 	// FindOIDByNameBatch enqueues a FindOIDByName query into batch to be executed
 	// later by the batch.
-	FindOIDByNameBatch(ctx context.Context, batch *pgx.Batch, name string)
+	FindOIDByNameBatch(batch *pgx.Batch, name string)
 	// FindOIDByNameScan scans the result of an executed FindOIDByNameBatch query.
 	FindOIDByNameScan(results pgx.BatchResults) (pgtype.OID, error)
 }
@@ -123,7 +123,7 @@ func (q *DBQuerier) FindEnumTypes(ctx context.Context, oIDs []uint32) ([]FindEnu
 }
 
 // FindEnumTypesBatch implements Querier.FindEnumTypesBatch.
-func (q *DBQuerier) FindEnumTypesBatch(ctx context.Context, batch *pgx.Batch, oIDs []uint32) {
+func (q *DBQuerier) FindEnumTypesBatch(batch *pgx.Batch, oIDs []uint32) {
 	batch.Queue(findEnumTypesSQL, oIDs)
 }
 
@@ -165,7 +165,7 @@ func (q *DBQuerier) FindOIDByName(ctx context.Context, name string) (pgtype.OID,
 }
 
 // FindOIDByNameBatch implements Querier.FindOIDByNameBatch.
-func (q *DBQuerier) FindOIDByNameBatch(ctx context.Context, batch *pgx.Batch, name string) {
+func (q *DBQuerier) FindOIDByNameBatch(batch *pgx.Batch, name string) {
 	batch.Queue(findOIDByNameSQL, name)
 }
 

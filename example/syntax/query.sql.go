@@ -19,7 +19,7 @@ type Querier interface {
 	Backtick(ctx context.Context) (string, error)
 	// BacktickBatch enqueues a Backtick query into batch to be executed
 	// later by the batch.
-	BacktickBatch(ctx context.Context, batch *pgx.Batch)
+	BacktickBatch(batch *pgx.Batch)
 	// BacktickScan scans the result of an executed BacktickBatch query.
 	BacktickScan(results pgx.BatchResults) (string, error)
 
@@ -27,7 +27,7 @@ type Querier interface {
 	BacktickQuoteBacktick(ctx context.Context) (string, error)
 	// BacktickQuoteBacktickBatch enqueues a BacktickQuoteBacktick query into batch to be executed
 	// later by the batch.
-	BacktickQuoteBacktickBatch(ctx context.Context, batch *pgx.Batch)
+	BacktickQuoteBacktickBatch(batch *pgx.Batch)
 	// BacktickQuoteBacktickScan scans the result of an executed BacktickQuoteBacktickBatch query.
 	BacktickQuoteBacktickScan(results pgx.BatchResults) (string, error)
 
@@ -35,7 +35,7 @@ type Querier interface {
 	BacktickNewline(ctx context.Context) (string, error)
 	// BacktickNewlineBatch enqueues a BacktickNewline query into batch to be executed
 	// later by the batch.
-	BacktickNewlineBatch(ctx context.Context, batch *pgx.Batch)
+	BacktickNewlineBatch(batch *pgx.Batch)
 	// BacktickNewlineScan scans the result of an executed BacktickNewlineBatch query.
 	BacktickNewlineScan(results pgx.BatchResults) (string, error)
 
@@ -43,7 +43,7 @@ type Querier interface {
 	BacktickDoubleQuote(ctx context.Context) (string, error)
 	// BacktickDoubleQuoteBatch enqueues a BacktickDoubleQuote query into batch to be executed
 	// later by the batch.
-	BacktickDoubleQuoteBatch(ctx context.Context, batch *pgx.Batch)
+	BacktickDoubleQuoteBatch(batch *pgx.Batch)
 	// BacktickDoubleQuoteScan scans the result of an executed BacktickDoubleQuoteBatch query.
 	BacktickDoubleQuoteScan(results pgx.BatchResults) (string, error)
 
@@ -51,7 +51,7 @@ type Querier interface {
 	BacktickBackslashN(ctx context.Context) (string, error)
 	// BacktickBackslashNBatch enqueues a BacktickBackslashN query into batch to be executed
 	// later by the batch.
-	BacktickBackslashNBatch(ctx context.Context, batch *pgx.Batch)
+	BacktickBackslashNBatch(batch *pgx.Batch)
 	// BacktickBackslashNScan scans the result of an executed BacktickBackslashNBatch query.
 	BacktickBackslashNScan(results pgx.BatchResults) (string, error)
 }
@@ -107,7 +107,7 @@ func (q *DBQuerier) Backtick(ctx context.Context) (string, error) {
 }
 
 // BacktickBatch implements Querier.BacktickBatch.
-func (q *DBQuerier) BacktickBatch(ctx context.Context, batch *pgx.Batch) {
+func (q *DBQuerier) BacktickBatch(batch *pgx.Batch) {
 	batch.Queue(backtickSQL)
 }
 
@@ -134,7 +134,7 @@ func (q *DBQuerier) BacktickQuoteBacktick(ctx context.Context) (string, error) {
 }
 
 // BacktickQuoteBacktickBatch implements Querier.BacktickQuoteBacktickBatch.
-func (q *DBQuerier) BacktickQuoteBacktickBatch(ctx context.Context, batch *pgx.Batch) {
+func (q *DBQuerier) BacktickQuoteBacktickBatch(batch *pgx.Batch) {
 	batch.Queue(backtickQuoteBacktickSQL)
 }
 
@@ -162,7 +162,7 @@ func (q *DBQuerier) BacktickNewline(ctx context.Context) (string, error) {
 }
 
 // BacktickNewlineBatch implements Querier.BacktickNewlineBatch.
-func (q *DBQuerier) BacktickNewlineBatch(ctx context.Context, batch *pgx.Batch) {
+func (q *DBQuerier) BacktickNewlineBatch(batch *pgx.Batch) {
 	batch.Queue(backtickNewlineSQL)
 }
 
@@ -189,7 +189,7 @@ func (q *DBQuerier) BacktickDoubleQuote(ctx context.Context) (string, error) {
 }
 
 // BacktickDoubleQuoteBatch implements Querier.BacktickDoubleQuoteBatch.
-func (q *DBQuerier) BacktickDoubleQuoteBatch(ctx context.Context, batch *pgx.Batch) {
+func (q *DBQuerier) BacktickDoubleQuoteBatch(batch *pgx.Batch) {
 	batch.Queue(backtickDoubleQuoteSQL)
 }
 
@@ -216,7 +216,7 @@ func (q *DBQuerier) BacktickBackslashN(ctx context.Context) (string, error) {
 }
 
 // BacktickBackslashNBatch implements Querier.BacktickBackslashNBatch.
-func (q *DBQuerier) BacktickBackslashNBatch(ctx context.Context, batch *pgx.Batch) {
+func (q *DBQuerier) BacktickBackslashNBatch(batch *pgx.Batch) {
 	batch.Queue(backtickBackslashNSQL)
 }
 

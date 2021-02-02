@@ -19,7 +19,7 @@ type Querier interface {
 	FindDevicesByUser(ctx context.Context, iD int) ([]FindDevicesByUserRow, error)
 	// FindDevicesByUserBatch enqueues a FindDevicesByUser query into batch to be executed
 	// later by the batch.
-	FindDevicesByUserBatch(ctx context.Context, batch *pgx.Batch, iD int)
+	FindDevicesByUserBatch(batch *pgx.Batch, iD int)
 	// FindDevicesByUserScan scans the result of an executed FindDevicesByUserBatch query.
 	FindDevicesByUserScan(results pgx.BatchResults) ([]FindDevicesByUserRow, error)
 }
@@ -99,7 +99,7 @@ func (q *DBQuerier) FindDevicesByUser(ctx context.Context, iD int) ([]FindDevice
 }
 
 // FindDevicesByUserBatch implements Querier.FindDevicesByUserBatch.
-func (q *DBQuerier) FindDevicesByUserBatch(ctx context.Context, batch *pgx.Batch, iD int) {
+func (q *DBQuerier) FindDevicesByUserBatch(batch *pgx.Batch, iD int) {
 	batch.Queue(findDevicesByUserSQL, iD)
 }
 
