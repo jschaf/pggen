@@ -4,7 +4,10 @@ import (
 	"fmt"
 	"github.com/jschaf/pggen/internal/casing"
 	"github.com/jschaf/pggen/internal/codegen"
+	"github.com/rakyll/statik/fs"
+	"io/ioutil"
 	"path/filepath"
+	"text/template"
 )
 
 // GenerateOptions are options to control generated Go output.
@@ -47,4 +50,25 @@ func Generate(opts GenerateOptions, queryFiles []codegen.QueryFile) error {
 		}
 	}
 	return nil
+}
+
+func parseQueryTemplate() (*template.Template, error) {
+	statikFS, err := fs.New()
+	if err != nil {
+		return nil, fmt.Errorf("create statik filesystem: %w", err)
+	}
+	tmplFile, err := statikFS.Open("/golang/query.gotemplate")
+	if err != nil {
+		return nil, fmt.Errorf("open embedded template file: %w", err)
+	}
+	tmplBytes, err := ioutil.ReadAll(tmplFile)
+	if err != nil {
+		return nil, fmt.Errorf("read embedded template file: %w", err)
+	}
+
+	tmpl, err := template.New("gen_query").Parse(string(tmplBytes))
+	if err != nil {
+		return nil, fmt.Errorf("parse query.gotemplate: %w", err)
+	}
+	return tmpl, nil
 }
