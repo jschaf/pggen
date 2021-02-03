@@ -150,7 +150,7 @@ func connectPostgres(ctx context.Context, opts GenerateOptions, l *zap.SugaredLo
 	if err != nil {
 		return nil, nil, fmt.Errorf("parse postgres conn string: %w", err)
 	}
-	pgConn, err := pgx.ConnectConfig(context.TODO(), pgConnConfig)
+	pgConn, err := pgx.ConnectConfig(ctx, pgConnConfig)
 	if err != nil {
 		return nil, nil, fmt.Errorf("connect to pggen postgres database: %w", err)
 	}
