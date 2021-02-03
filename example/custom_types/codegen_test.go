@@ -9,19 +9,22 @@ import (
 	"testing"
 )
 
-func TestGenerate_Go_Example_Syntax(t *testing.T) {
+func TestGenerate_Go_Example_CustomTypes(t *testing.T) {
 	conn, cleanupFunc := pgtest.NewPostgresSchema(t, []string{"schema.sql"})
 	defer cleanupFunc()
 
 	tmpDir := t.TempDir()
 	err := pggen.Generate(
 		pggen.GenerateOptions{
-			ConnString:    conn.Config().ConnString(),
-			QueryFiles:    []string{"query.sql"},
-			OutputDir:     tmpDir,
-			GoPackage:     "custom_types",
-			Language:      pggen.LangGo,
-			TypeOverrides: map[string]string{"text": "github.com/jschaf/pggen/example/custom_types/mytype.String"},
+			ConnString: conn.Config().ConnString(),
+			QueryFiles: []string{"query.sql"},
+			OutputDir:  tmpDir,
+			GoPackage:  "custom_types",
+			Language:   pggen.LangGo,
+			TypeOverrides: map[string]string{
+				"text": "github.com/jschaf/pggen/example/custom_types/mytype.String",
+				"int8": "github.com/jschaf/pggen/example/custom_types.CustomInt",
+			},
 		})
 	if err != nil {
 		t.Fatalf("Generate() example/syntax: %s", err)
