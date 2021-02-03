@@ -5,6 +5,7 @@ import (
 	"github.com/jschaf/pggen/internal/ast"
 	"github.com/jschaf/pggen/internal/casing"
 	"github.com/jschaf/pggen/internal/codegen"
+	"github.com/jschaf/pggen/internal/gomod"
 	"sort"
 	"strconv"
 	"strings"
@@ -110,19 +111,12 @@ func (tm Templater) TemplateAll(files []codegen.QueryFile) ([]TemplatedFile, err
 	}
 
 	// Remove unneeded pgconn import if possible.
-	for i, goFile := range goQueryFiles {
-		if goFile.IsLeader {
-			// Leader files define genericConn.Exec which returns pgconn.CommandTag.
+	for i, file := range goQueryFiles {
+		if file.needsPgconnImport() {
 			continue
 		}
-		for _, query := range goFile.Queries {
-			if query.ResultKind == ast.ResultKindExec {
-				continue // :exec queries return pgconn.CommandTag
-			}
-		}
-		// By here, we don't need pgconn.
 		pgconnIdx := -1
-		imports := goFile.Imports
+		imports := file.Imports
 		for i, pkg := range imports {
 			if pkg == "github.com/jackc/pgconn" {
 				pgconnIdx = i
@@ -132,7 +126,23 @@ func (tm Templater) TemplateAll(files []codegen.QueryFile) ([]TemplatedFile, err
 		copy(imports[pgconnIdx:], imports[pgconnIdx+1:])
 		goQueryFiles[i].Imports = imports[:len(imports)-1]
 	}
-
+	// Remove self imports.
+	for i, file := range goQueryFiles {
+		selfPkg, err := gomod.ResolvePackage(file.Path)
+		if err != nil || selfPkg == "" {
+			continue // ignore error, assume it's not a self import
+		}
+		selfPkgIdx := -1
+		imports := file.Imports
+		for i, pkg := range file.Imports {
+			if pkg == selfPkg {
+				selfPkgIdx = i
+				break
+			}
+		}
+		copy(imports[selfPkgIdx:], imports[selfPkgIdx+1:])
+		goQueryFiles[i].Imports = imports[:len(imports)-1]
+	}
 	return goQueryFiles, nil
 }
 
@@ -274,6 +284,18 @@ func (tq TemplatedQuery) EmitParams() string {
 	default:
 		return ", params " + tq.Name + "Params"
 	}
+}
+func (tf TemplatedFile) needsPgconnImport() bool {
+	if tf.IsLeader {
+		// Leader files define genericConn.Exec which returns pgconn.CommandTag.
+		return true
+	}
+	for _, query := range tf.Queries {
+		if query.ResultKind == ast.ResultKindExec {
+			return true // :exec queries return pgconn.CommandTag
+		}
+	}
+	return false
 }
 
 // EmitPreparedSQL emits the prepared SQL query with appropriate quoting.
