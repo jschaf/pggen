@@ -129,7 +129,7 @@ func (q *DBQuerier) BacktickScan(results pgx.BatchResults) (string, error) {
 	return item, nil
 }
 
-const backtickQuoteBacktickSQL = `SELECT '` + "`" + `"` + "`" + `';`
+const backtickQuoteBacktickSQL = "SELECT '`\"`';"
 
 // BacktickQuoteBacktick implements Querier.BacktickQuoteBacktick.
 func (q *DBQuerier) BacktickQuoteBacktick(ctx context.Context) (string, error) {
@@ -156,8 +156,7 @@ func (q *DBQuerier) BacktickQuoteBacktickScan(results pgx.BatchResults) (string,
 	return item, nil
 }
 
-const backtickNewlineSQL = `SELECT '` + "`" + `
-';`
+const backtickNewlineSQL = "SELECT '`\n';"
 
 // BacktickNewline implements Querier.BacktickNewline.
 func (q *DBQuerier) BacktickNewline(ctx context.Context) (string, error) {
@@ -184,7 +183,7 @@ func (q *DBQuerier) BacktickNewlineScan(results pgx.BatchResults) (string, error
 	return item, nil
 }
 
-const backtickDoubleQuoteSQL = `SELECT '` + "`" + `"';`
+const backtickDoubleQuoteSQL = "SELECT '`\"';"
 
 // BacktickDoubleQuote implements Querier.BacktickDoubleQuote.
 func (q *DBQuerier) BacktickDoubleQuote(ctx context.Context) (string, error) {
@@ -238,7 +237,7 @@ func (q *DBQuerier) BacktickBackslashNScan(results pgx.BatchResults) (string, er
 	return item, nil
 }
 
-const illegalNameSymbolsSQL = `SELECT '` + "`" + `\n' as "$", $1 as "foo.bar!@#$%&*()""--+";`
+const illegalNameSymbolsSQL = "SELECT '`\\n' as \"$\", $1 as \"foo.bar!@#$%&*()\"\"--+\";"
 
 type IllegalNameSymbolsRow struct {
 	UnnamedColumn0 string `json:"$"`
