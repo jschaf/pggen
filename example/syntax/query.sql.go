@@ -70,6 +70,13 @@ type Querier interface {
 	BadEnumNameBatch(batch *pgx.Batch)
 	// BadEnumNameScan scans the result of an executed BadEnumNameBatch query.
 	BadEnumNameScan(results pgx.BatchResults) (UnnamedEnum123, error)
+
+	GoKeyword(ctx context.Context, go_ string) (string, error)
+	// GoKeywordBatch enqueues a GoKeyword query into batch to be executed
+	// later by the batch.
+	GoKeywordBatch(batch *pgx.Batch, go_ string)
+	// GoKeywordScan scans the result of an executed GoKeywordBatch query.
+	GoKeywordScan(results pgx.BatchResults) (string, error)
 }
 
 type DBQuerier struct {
@@ -312,6 +319,33 @@ func (q *DBQuerier) BadEnumNameScan(results pgx.BatchResults) (UnnamedEnum123, e
 	var item UnnamedEnum123
 	if err := row.Scan(&item); err != nil {
 		return item, fmt.Errorf("scan BadEnumNameBatch row: %w", err)
+	}
+	return item, nil
+}
+
+const goKeywordSQL = `SELECT $1::text;`
+
+// GoKeyword implements Querier.GoKeyword.
+func (q *DBQuerier) GoKeyword(ctx context.Context, go_ string) (string, error) {
+	row := q.conn.QueryRow(ctx, goKeywordSQL, go_)
+	var item string
+	if err := row.Scan(&item); err != nil {
+		return item, fmt.Errorf("query GoKeyword: %w", err)
+	}
+	return item, nil
+}
+
+// GoKeywordBatch implements Querier.GoKeywordBatch.
+func (q *DBQuerier) GoKeywordBatch(batch *pgx.Batch, go_ string) {
+	batch.Queue(goKeywordSQL, go_)
+}
+
+// GoKeywordScan implements Querier.GoKeywordScan.
+func (q *DBQuerier) GoKeywordScan(results pgx.BatchResults) (string, error) {
+	row := results.QueryRow()
+	var item string
+	if err := row.Scan(&item); err != nil {
+		return item, fmt.Errorf("scan GoKeywordBatch row: %w", err)
 	}
 	return item, nil
 }

@@ -49,7 +49,15 @@ func (cs Caser) ToLowerGoIdent(s string) string {
 	if san == "" {
 		return ""
 	}
-	return cs.convert(san, cs.appendLowerCamel)
+	con := cs.convert(san, cs.appendLowerCamel)
+	switch con {
+	case "func", "interface", "select", "case", "defer", "go", "map", "struct",
+		"chan", "else", "goto", "package", "switch", "const", "fallthrough", "if",
+		"range", "type", "continue", "for", "import", "return", "var":
+		return con + "_"
+	default:
+		return con
+	}
 }
 
 type converter func(*strings.Builder, []byte)

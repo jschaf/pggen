@@ -73,6 +73,8 @@ func TestCaser_ToLowerGoIdent(t *testing.T) {
 		{"Ě", "ě", nil},
 		{"ě", "ě", nil},
 		{"Ěě_ě", "ěěĚ", nil},
+		{"if", "if_", nil},
+		{"type", "type_", nil},
 	}
 	for _, tt := range tests {
 		t.Run(tt.word+"="+tt.want, func(t *testing.T) {
