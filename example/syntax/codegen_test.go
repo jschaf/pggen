@@ -10,7 +10,7 @@ import (
 )
 
 func TestGenerate_Go_Example_Syntax(t *testing.T) {
-	conn, cleanupFunc := pgtest.NewPostgresSchema(t, nil)
+	conn, cleanupFunc := pgtest.NewPostgresSchema(t, []string{"schema.sql"})
 	defer cleanupFunc()
 
 	tmpDir := t.TempDir()

@@ -22,3 +22,7 @@ SELECT '`\n';
 -- Illegal names.
 -- name: IllegalNameSymbols :one
 SELECT '`\n' as "$", pggen.arg('@hello world!') as "foo.bar!@#$%&*()""--+";
+
+-- Enum named 123.
+-- name: BadEnumName :one
+SELECT 'inconvertible_enum_name'::"123";

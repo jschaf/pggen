@@ -5,7 +5,7 @@ CREATE TYPE device_type AS ENUM (
   'ipad',
   'desktop',
   'iot'
-);
+  );
 
 CREATE TABLE IF NOT EXISTS device (
   mac  MACADDR PRIMARY KEY,

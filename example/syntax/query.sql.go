@@ -62,6 +62,14 @@ type Querier interface {
 	IllegalNameSymbolsBatch(batch *pgx.Batch, helloWorld string)
 	// IllegalNameSymbolsScan scans the result of an executed IllegalNameSymbolsBatch query.
 	IllegalNameSymbolsScan(results pgx.BatchResults) (IllegalNameSymbolsRow, error)
+
+	// Enum named 123.
+	BadEnumName(ctx context.Context) (UnnamedEnum123, error)
+	// BadEnumNameBatch enqueues a BadEnumName query into batch to be executed
+	// later by the batch.
+	BadEnumNameBatch(batch *pgx.Batch)
+	// BadEnumNameScan scans the result of an executed BadEnumNameBatch query.
+	BadEnumNameScan(results pgx.BatchResults) (UnnamedEnum123, error)
 }
 
 type DBQuerier struct {
@@ -101,6 +109,18 @@ func NewQuerier(conn genericConn) *DBQuerier {
 func (q *DBQuerier) WithTx(tx pgx.Tx) (*DBQuerier, error) {
 	return &DBQuerier{conn: tx}, nil
 }
+
+// UnnamedEnum123 represents the Postgres enum "123".
+type UnnamedEnum123 string
+
+const (
+	UnnamedEnum123InconvertibleEnumName UnnamedEnum123 = "inconvertible_enum_name"
+	UnnamedEnum123UnnamedLabel1         UnnamedEnum123 = ""
+	UnnamedEnum123UnnamedLabel2111      UnnamedEnum123 = "111"
+	UnnamedEnum123UnnamedLabel3         UnnamedEnum123 = "!!"
+)
+
+func (u UnnamedEnum123) String() string { return string(u) }
 
 const backtickSQL = "SELECT '`';"
 
@@ -265,6 +285,33 @@ func (q *DBQuerier) IllegalNameSymbolsScan(results pgx.BatchResults) (IllegalNam
 	var item IllegalNameSymbolsRow
 	if err := row.Scan(&item.UnnamedColumn0, &item.FooBar); err != nil {
 		return item, fmt.Errorf("scan IllegalNameSymbolsBatch row: %w", err)
+	}
+	return item, nil
+}
+
+const badEnumNameSQL = `SELECT 'inconvertible_enum_name'::"123";`
+
+// BadEnumName implements Querier.BadEnumName.
+func (q *DBQuerier) BadEnumName(ctx context.Context) (UnnamedEnum123, error) {
+	row := q.conn.QueryRow(ctx, badEnumNameSQL)
+	var item UnnamedEnum123
+	if err := row.Scan(&item); err != nil {
+		return item, fmt.Errorf("query BadEnumName: %w", err)
+	}
+	return item, nil
+}
+
+// BadEnumNameBatch implements Querier.BadEnumNameBatch.
+func (q *DBQuerier) BadEnumNameBatch(batch *pgx.Batch) {
+	batch.Queue(badEnumNameSQL)
+}
+
+// BadEnumNameScan implements Querier.BadEnumNameScan.
+func (q *DBQuerier) BadEnumNameScan(results pgx.BatchResults) (UnnamedEnum123, error) {
+	row := results.QueryRow()
+	var item UnnamedEnum123
+	if err := row.Scan(&item); err != nil {
+		return item, fmt.Errorf("scan BadEnumNameBatch row: %w", err)
 	}
 	return item, nil
 }

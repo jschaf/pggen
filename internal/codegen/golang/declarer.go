@@ -4,6 +4,7 @@ import (
 	"github.com/jschaf/pggen/internal/casing"
 	"strconv"
 	"strings"
+	"unicode"
 )
 
 // Declarer is implemented by any value that needs to declare types or data
@@ -28,10 +29,17 @@ type EnumDeclarer struct {
 }
 
 func NewEnumDeclarer(pgName string, pgLabels []string, caser casing.Caser) EnumDeclarer {
-	goName := caser.ToUpperCamel(pgName)
+	goName := caser.ToUpperGoIdent(pgName)
+	if goName == "" {
+		goName = chooseFallbackName(pgName, "UnnamedEnum")
+	}
 	goLabels := make([]string, len(pgLabels))
 	for i, label := range pgLabels {
-		goLabels[i] = goName + caser.ToUpperCamel(label)
+		ident := caser.ToUpperGoIdent(label)
+		if ident == "" {
+			ident = chooseFallbackName(label, "UnnamedLabel"+strconv.Itoa(i))
+		}
+		goLabels[i] = goName + ident
 	}
 	return EnumDeclarer{
 		PgName:   pgName,
@@ -51,7 +59,7 @@ func (e EnumDeclarer) Declare() (string, error) {
 	sb.WriteString("// ")
 	sb.WriteString(e.GoName)
 	sb.WriteString(" represents the Postgres enum ")
-	sb.WriteString(e.PgName)
+	sb.WriteString(strconv.Quote(e.PgName))
 	sb.WriteString(".\n")
 	// Type declaration.
 	sb.WriteString("type ")
@@ -85,4 +93,15 @@ func (e EnumDeclarer) Declare() (string, error) {
 	sb.WriteByte(dispatcher)
 	sb.WriteString(") }")
 	return sb.String(), nil
+}
+
+func chooseFallbackName(pgName string, prefix string) string {
+	sb := strings.Builder{}
+	sb.WriteString(prefix)
+	for _, ch := range pgName {
+		if unicode.IsLetter(ch) || ch == '_' || unicode.IsDigit(ch) {
+			sb.WriteRune(ch)
+		}
+	}
+	return sb.String()
 }
