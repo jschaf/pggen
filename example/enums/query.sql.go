@@ -19,14 +19,14 @@ type Querier interface {
 	FindAllDevices(ctx context.Context) ([]FindAllDevicesRow, error)
 	// FindAllDevicesBatch enqueues a FindAllDevices query into batch to be executed
 	// later by the batch.
-	FindAllDevicesBatch(ctx context.Context, batch *pgx.Batch)
+	FindAllDevicesBatch(batch *pgx.Batch)
 	// FindAllDevicesScan scans the result of an executed FindAllDevicesBatch query.
 	FindAllDevicesScan(results pgx.BatchResults) ([]FindAllDevicesRow, error)
 
 	InsertDevice(ctx context.Context, mac pgtype.Macaddr, typePg DeviceType) (pgconn.CommandTag, error)
 	// InsertDeviceBatch enqueues a InsertDevice query into batch to be executed
 	// later by the batch.
-	InsertDeviceBatch(ctx context.Context, batch *pgx.Batch, mac pgtype.Macaddr, typePg DeviceType)
+	InsertDeviceBatch(batch *pgx.Batch, mac pgtype.Macaddr, typePg DeviceType)
 	// InsertDeviceScan scans the result of an executed InsertDeviceBatch query.
 	InsertDeviceScan(results pgx.BatchResults) (pgconn.CommandTag, error)
 }
@@ -69,7 +69,7 @@ func (q *DBQuerier) WithTx(tx pgx.Tx) (*DBQuerier, error) {
 	return &DBQuerier{conn: tx}, nil
 }
 
-// DeviceType represents the Postgres enum device_type.
+// DeviceType represents the Postgres enum "device_type".
 type DeviceType string
 
 const (
@@ -114,7 +114,7 @@ func (q *DBQuerier) FindAllDevices(ctx context.Context) ([]FindAllDevicesRow, er
 }
 
 // FindAllDevicesBatch implements Querier.FindAllDevicesBatch.
-func (q *DBQuerier) FindAllDevicesBatch(ctx context.Context, batch *pgx.Batch) {
+func (q *DBQuerier) FindAllDevicesBatch(batch *pgx.Batch) {
 	batch.Queue(findAllDevicesSQL)
 }
 
@@ -153,7 +153,7 @@ func (q *DBQuerier) InsertDevice(ctx context.Context, mac pgtype.Macaddr, typePg
 }
 
 // InsertDeviceBatch implements Querier.InsertDeviceBatch.
-func (q *DBQuerier) InsertDeviceBatch(ctx context.Context, batch *pgx.Batch, mac pgtype.Macaddr, typePg DeviceType) {
+func (q *DBQuerier) InsertDeviceBatch(batch *pgx.Batch, mac pgtype.Macaddr, typePg DeviceType) {
 	batch.Queue(insertDeviceSQL, mac, typePg)
 }
 

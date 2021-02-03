@@ -52,11 +52,11 @@ ${pggen} gen go \
     --query-glob 'example/author/query.sql'
 assert_no_diff
 
-# test_header 'example/enums: direct file for query'
-# ${pggen} gen go \
-#     --schema-glob 'example/enums/schema.sql' \
-#     --query-glob 'example/enums/query.sql' \
-# assert_no_diff
+ test_header 'example/enums: direct file for query'
+ ${pggen} gen go \
+     --schema-glob 'example/enums/schema.sql' \
+     --query-glob 'example/enums/query.sql' \
+ assert_no_diff
 
 test_header 'internal/pg'
 ${pggen} gen go \
