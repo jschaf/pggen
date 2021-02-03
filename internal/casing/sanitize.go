@@ -6,12 +6,12 @@ import (
 	"unicode/utf8"
 )
 
-// Sanitize replaces a string with a version safe for using as a Go
+// sanitize replaces a string with a version safe for using as a Go
 // identifier. A Go identifier begins with a unicode letter or underscore and
 // is followed by 0 or more unicode letters or digits, or underscores.
 // Replaces illegal runes with underscores. Skips leading characters that aren't
 // a letter or underscore.
-func Sanitize(s string) string {
+func sanitize(s string) string {
 	sb := &strings.Builder{}
 	sb.Grow(len(s))
 	var firstLetter rune

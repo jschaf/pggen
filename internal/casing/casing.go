@@ -80,7 +80,7 @@ func (cs Caser) ToUpperCamel(s string) string {
 // ToUpperGoIdent converts a string into a legal, capitalized Go identifier.
 // Returns the empty string if no conversion is possible.
 func (cs Caser) ToUpperGoIdent(s string) string {
-	san := Sanitize(s)
+	san := sanitize(s)
 	if san == "" {
 		return ""
 	}

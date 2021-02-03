@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestSanitizer_Sanitize(t *testing.T) {
+func TestSanitize(t *testing.T) {
 	tests := []struct {
 		str  string
 		want string
@@ -22,7 +22,7 @@ func TestSanitizer_Sanitize(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.str, func(t *testing.T) {
-			got := Sanitize(tt.str)
+			got := sanitize(tt.str)
 			assert.Equal(t, tt.want, got)
 		})
 	}
