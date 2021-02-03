@@ -88,7 +88,7 @@ func splitQualifiedType(qualType string) (pkg string, typ string) {
 var goPgTypes = map[pgtype.OID]knownGoType{
 	pgtype.BoolOID:             {"github.com/jackc/pgtype.Bool", "bool"},
 	pgtype.QCharOID:            {"github.com/jackc/pgtype.QChar", ""},
-	pgtype.NameOID:             {"github.com/jackc/pgtype.Name", ""},
+	pgtype.NameOID:             {"github.com/jackc/pgtype.UpperName", ""},
 	pgtype.Int8OID:             {"github.com/jackc/pgtype.Int8", "int"},
 	pgtype.Int2OID:             {"github.com/jackc/pgtype.Int2", "int16"},
 	pgtype.Int4OID:             {"github.com/jackc/pgtype.Int4", "int32"},

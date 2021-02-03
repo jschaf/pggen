@@ -38,8 +38,9 @@ type TemplatedQuery struct {
 }
 
 type TemplatedParam struct {
-	Name string // name of the param, like 'FirstName' in pggen.arg('FirstName')
-	Type string // package-qualified Go type to use for this param
+	UpperName string // name of the param in UpperCamelCase, like 'FirstName' from pggen.arg('FirstName')
+	LowerName string // name of the param in lowerCamelCase, like 'firstName' from pggen.arg('FirstName')
+	Type      string // package-qualified Go type to use for this param
 }
 
 type TemplatedColumn struct {
@@ -171,8 +172,9 @@ func (tm Templater) templateFile(file codegen.QueryFile) (TemplatedFile, []Decla
 			}
 			imports[goType.Pkg] = struct{}{}
 			inputs[i] = TemplatedParam{
-				Name: tm.chooseName(input.PgName, "UnnamedParam", i, len(query.Inputs)),
-				Type: goType.Name,
+				UpperName: tm.chooseUpperName(input.PgName, "UnnamedParam", i, len(query.Inputs)),
+				LowerName: tm.chooseLowerName(input.PgName, "unnamedParam", i, len(query.Inputs)),
+				Type:      goType.Name,
 			}
 			if goType.Decl != nil {
 				declarers = append(declarers, goType.Decl)
@@ -189,7 +191,7 @@ func (tm Templater) templateFile(file codegen.QueryFile) (TemplatedFile, []Decla
 			imports[goType.Pkg] = struct{}{}
 			outputs[i] = TemplatedColumn{
 				PgName: out.PgName,
-				Name:   tm.chooseName(out.PgName, "UnnamedColumn", i, len(query.Outputs)),
+				Name:   tm.chooseUpperName(out.PgName, "UnnamedColumn", i, len(query.Outputs)),
 				Type:   goType.Name,
 			}
 			if goType.Decl != nil {
@@ -198,8 +200,8 @@ func (tm Templater) templateFile(file codegen.QueryFile) (TemplatedFile, []Decla
 		}
 
 		queries = append(queries, TemplatedQuery{
-			Name:        query.Name,
-			SQLVarName:  lowercaseFirstLetter(query.Name) + "SQL",
+			Name:        tm.caser.ToUpperGoIdent(query.Name),
+			SQLVarName:  tm.caser.ToLowerGoIdent(query.Name) + "SQL",
 			ResultKind:  query.ResultKind,
 			Doc:         docs.String(),
 			PreparedSQL: query.PreparedSQL,
@@ -225,10 +227,10 @@ func (tm Templater) templateFile(file codegen.QueryFile) (TemplatedFile, []Decla
 	}, declarers, nil
 }
 
-// chooseName converts pgName into an capitalized Go identifier name.
+// chooseUpperName converts pgName into an capitalized Go identifier name.
 // If it's not possible to convert pgName into an identifier, uses fallback with
 // a suffix using idx.
-func (tm Templater) chooseName(pgName string, fallback string, idx int, numOptions int) string {
+func (tm Templater) chooseUpperName(pgName string, fallback string, idx int, numOptions int) string {
 	if name := tm.caser.ToUpperGoIdent(pgName); name != "" {
 		return name
 	}
@@ -239,13 +241,18 @@ func (tm Templater) chooseName(pgName string, fallback string, idx int, numOptio
 	return fallback + suffix
 }
 
-// isLast returns true if index is the last index in item.
-func lowercaseFirstLetter(s string) string {
-	if s == "" {
-		return ""
+// chooseLowerName converts pgName into an uncapitalized Go identifier name.
+// If it's not possible to convert pgName into an identifier, uses fallback with
+// a suffix using idx.
+func (tm Templater) chooseLowerName(pgName string, fallback string, idx int, numOptions int) string {
+	if name := tm.caser.ToLowerGoIdent(pgName); name != "" {
+		return name
 	}
-	first, rest := s[0], s[1:]
-	return strings.ToLower(string(first)) + rest
+	suffix := strconv.Itoa(idx)
+	if numOptions > 9 {
+		suffix = fmt.Sprintf("%2d", idx)
+	}
+	return fallback + suffix
 }
 
 // EmitParams emits the TemplatedQuery.Inputs into method parameters with both
@@ -259,7 +266,7 @@ func (tq TemplatedQuery) EmitParams() string {
 		sb := strings.Builder{}
 		for _, input := range tq.Inputs {
 			sb.WriteString(", ")
-			sb.WriteString(lowercaseFirstLetter(input.Name))
+			sb.WriteString(input.LowerName)
 			sb.WriteRune(' ')
 			sb.WriteString(input.Type)
 		}
@@ -280,8 +287,8 @@ func (tq TemplatedQuery) EmitPreparedSQL() string {
 func getLongestInput(inputs []TemplatedParam) int {
 	max := 0
 	for _, in := range inputs {
-		if len(in.Name) > max {
-			max = len(in.Name)
+		if len(in.UpperName) > max {
+			max = len(in.UpperName)
 		}
 	}
 	return max
@@ -299,8 +306,8 @@ func (tq TemplatedQuery) EmitParamStruct() string {
 	typeCol := getLongestInput(tq.Inputs) + 1 // 1 space
 	for _, out := range tq.Inputs {
 		sb.WriteString("\t")
-		sb.WriteString(out.Name)
-		sb.WriteString(strings.Repeat(" ", typeCol-len(out.Name)))
+		sb.WriteString(out.UpperName)
+		sb.WriteString(strings.Repeat(" ", typeCol-len(out.UpperName)))
 		sb.WriteString(out.Type)
 		sb.WriteRune('\n')
 	}
@@ -318,14 +325,14 @@ func (tq TemplatedQuery) EmitParamNames() string {
 		sb := strings.Builder{}
 		for _, input := range tq.Inputs {
 			sb.WriteString(", ")
-			sb.WriteString(lowercaseFirstLetter(input.Name))
+			sb.WriteString(input.LowerName)
 		}
 		return sb.String()
 	default:
 		sb := strings.Builder{}
 		for _, input := range tq.Inputs {
 			sb.WriteString(", params.")
-			sb.WriteString(input.Name)
+			sb.WriteString(input.UpperName)
 		}
 		return sb.String()
 	}
