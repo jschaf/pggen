@@ -92,6 +92,13 @@ ${pggen} gen go \
     --query-glob 'example/syntax/query.sql' \
 assert_no_diff
 
+test_header 'example/custom_types'
+${pggen} gen go \
+    --schema-glob example/custom_types/schema.sql \
+    --query-glob example/custom_types/query.sql \
+    --go-type 'text=github.com/jschaf/pggen/example/custom_types/mytype.String'
+assert_no_diff
+
 printf '\n\n'
 if [[ "$has_update" == 'y' ]]; then
   echo 'Updated all integration tests'

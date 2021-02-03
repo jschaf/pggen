@@ -225,6 +225,49 @@ Examples embedded in the repo:
     func (d DeviceType) String() string { return string(d) }
     ```
 
+-   **Custom types**: Use a custom Go type to represent a Postgres type with the 
+    `--go-type` flag. The format is `<pg_type>=<qualified_go_type>`. For 
+    example:
+
+    ```sh
+    pggen gen go \
+        --schema-glob example/custom_types/schema.sql \
+        --query-glob example/custom_types/query.sql \
+        --go-type 'text=github.com/jschaf/pggen/example/custom_types/mytype.String'
+    ```
+    
+    pgx must be able to deserialize the Postgres type using the Go type. That 
+    means the Go type must fulfill at least one of following:
+    
+    - The Go type is a wrapper around primitive type, like `type AuthorID int`.
+      pgx will use the decode methods on the primitive type.
+
+    - The Go type implements both [`pgtype.BinaryDecoder`] and 
+      [`pgtype.TextDecoder`]. pgx will use the correct decoder based on the wire
+      format. See the [pgtype repo] for many example types.
+      
+    - The pgx connection executing the query must have registered a data type 
+      using the Go type with [`ConnInfo.RegisterDataType`].
+      
+      ```go
+      ci := conn.ConnInfo()
+      
+      ci.RegisterDataType(pgtype.DataType{
+      	Value: new(mytype.Numeric),
+      	Name: "numeric",
+      	OID: pgtype.NumericOID,
+      })
+      ```
+      
+    - The Go type implements [`sql.Scanner`].
+    
+    - pgx is able to use reflection to build an object to write fields into.
+
+[pgtype repo]: https://github.com/jackc/pgtype
+[`pgtype.BinaryDecoder`]: https://pkg.go.dev/github.com/jackc/pgtype#BinaryDecoder
+[`pgtype.TextDecoder`]: https://pkg.go.dev/github.com/jackc/pgtype#TextDecoder
+[`ConnInfo.RegisterDataType`]: https://pkg.go.dev/github.com/jackc/pgtype#ConnInfo.RegisterDataType
+[`sql.Scanner`]: https://golang.org/pkg/database/sql/#Scanner
 
 # Tutorial
 
