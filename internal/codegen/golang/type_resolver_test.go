@@ -1,6 +1,7 @@
 package golang
 
 import (
+	"github.com/jackc/pgtype"
 	"github.com/jschaf/pggen/internal/casing"
 	"github.com/jschaf/pggen/internal/pg"
 	"github.com/stretchr/testify/assert"
@@ -12,6 +13,7 @@ func TestTypeResolver_Resolve(t *testing.T) {
 		name      string
 		overrides map[string]string
 		pgType    pg.Type
+		nullable  bool
 		want      GoType
 	}{
 		{
@@ -37,11 +39,31 @@ func TestTypeResolver_Resolve(t *testing.T) {
 				Name:    "Type",
 			},
 		},
+		{
+			name:     "known nonNullable empty",
+			pgType:   pg.BaseType{Name: "text", ID: pgtype.PointOID},
+			nullable: false,
+			want: GoType{
+				PkgPath: "github.com/jackc/pgtype",
+				Pkg:     "pgtype",
+				Name:    "Point",
+			},
+		},
+		{
+			name:     "known nullable",
+			pgType:   pg.BaseType{Name: "text", ID: pgtype.PointOID},
+			nullable: true,
+			want: GoType{
+				PkgPath: "github.com/jackc/pgtype",
+				Pkg:     "pgtype",
+				Name:    "Point",
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			resolver := NewTypeResolver(casing.NewCaser(), tt.overrides)
-			got, err := resolver.Resolve(tt.pgType, false, "")
+			got, err := resolver.Resolve(tt.pgType, tt.nullable, "")
 			if err != nil {
 				t.Fatal(err)
 			}

@@ -46,7 +46,7 @@ func (tr TypeResolver) Resolve(pgt pg.Type, nullable bool, path string) (GoType,
 		return typ, nil
 	}
 
-	if nullable {
+	if nullable || knownType.nonNullable == "" {
 		return NewGoType(knownType.nullable), nil
 	}
 	return NewGoType(knownType.nonNullable), nil
