@@ -1,3 +1,5 @@
+// +build integration_test
+
 package example
 
 import (
@@ -15,16 +17,6 @@ var update = flag.Bool("update", false, "update integration tests if true")
 
 const projDir = ".." // hardcoded
 
-func TestMain(m *testing.M) {
-	flag.Parse()
-	if *update {
-		// update only disables the assertions. Running the test causes pggen
-		// to overwrite generated code.
-		fmt.Println("updating integration test generated files")
-	}
-	os.Exit(m.Run())
-}
-
 // Checks that running pggen doesn't generate a diff.
 func TestExamples(t *testing.T) {
 	tests := []struct {
@@ -32,14 +24,74 @@ func TestExamples(t *testing.T) {
 		args []string
 	}{
 		{
+			name: "example/author",
+			args: []string{
+				"--schema-glob", "example/author/schema.sql",
+				"--query-glob", "example/author/query.sql",
+			},
+		},
+		{
 			name: "example/enums",
 			args: []string{
 				"--schema-glob", "example/enums/schema.sql",
 				"--query-glob", "example/enums/query.sql",
 			},
 		},
+		{
+			name: "internal/pg",
+			args: []string{
+				"--schema-glob", "example/author/schema.sql", // force docker usage
+				"--query-glob", "internal/pg/query.sql",
+				"--acronym", "oid",
+				"--acronym", "oids=OIDs",
+			},
+		},
+		{
+			name: "example/device",
+			args: []string{
+				"--schema-glob", "example/device/schema.sql",
+				"--query-glob", "example/device/query.sql",
+			},
+		},
+		{
+			name: "example/erp star glob",
+			args: []string{
+				"--schema-glob", "example/erp/*.sql",
+				"--query-glob", "example/erp/order/*.sql",
+				"--acronym", "mrr",
+			},
+		},
+		{
+			name: "example/erp question marks",
+			args: []string{
+				"--schema-glob", "example/erp/??_schema.sql",
+				"--query-glob", "example/erp/order/*.sql",
+				"--acronym", "mrr",
+			},
+		},
+		{
+			name: "example/syntax",
+			args: []string{
+				"--schema-glob", "example/syntax/schema.sql",
+				"--query-glob", "example/syntax/query.sql",
+			},
+		},
+		{
+			name: "example/custom_types",
+			args: []string{
+				"--schema-glob", "example/custom_types/schema.sql",
+				"--query-glob", "example/custom_types/query.sql",
+				"--go-type", "text=github.com/jschaf/pggen/example/custom_types/mytype.String",
+				"--go-type", "int8=github.com/jschaf/pggen/example/custom_types.CustomInt",
+			},
+		},
 	}
 	pggen := compilePggen(t)
+	if *update {
+		// update only disables the assertions. Running the tests causes pggen
+		// to overwrite generated code.
+		fmt.Println("updating integration test generated files")
+	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			runPggen(t, pggen, tt.args...)
