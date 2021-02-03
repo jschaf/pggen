@@ -1,21 +1,14 @@
 package golang
 
 import (
-	"bytes"
 	"fmt"
 	"github.com/jackc/pgtype"
 	"github.com/jschaf/pggen/internal/casing"
+	"github.com/jschaf/pggen/internal/gomod"
 	"github.com/jschaf/pggen/internal/pg"
 	"github.com/jschaf/pggen/internal/pg/pgoid"
 	"regexp"
-	"strings"
 )
-
-type GoType struct {
-	Pkg  string   // fully qualified package path
-	Name string   // package qualified name of the type, like "pgtype.Int4" or "string"
-	Decl Declarer // optional Declarer for the type
-}
 
 // TypeResolver handles the mapping between Postgres and Go types.
 type TypeResolver struct {
@@ -28,30 +21,35 @@ func NewTypeResolver(c casing.Caser, overrides map[string]string) TypeResolver {
 }
 
 // Resolve maps a Postgres type to a Go type and its containing package.
-func (tr TypeResolver) Resolve(pgt pg.Type, nullable bool) (GoType, error) {
+func (tr TypeResolver) Resolve(pgt pg.Type, nullable bool, path string) (GoType, error) {
 	// Custom user override.
 	if goType, ok := tr.overrides[pgt.String()]; ok {
-		pkg, typ := splitQualifiedType(goType)
-		return GoType{Pkg: pkg, Name: typ}, nil
+		return NewGoType(goType), nil
 	}
 
-	goType, ok := goPgTypes[pgt.OID()]
+	knownType, ok := knownTypesByOID[pgt.OID()]
 	if !ok && pgt.Kind() != pg.KindEnumType {
 		return GoType{}, fmt.Errorf("no go type found for Postgres type %s oid=%d", pgt.String(), pgt.OID())
 	}
 
 	if enumType, ok := pgt.(pg.EnumType); ok {
 		decl := NewEnumDeclarer(enumType.Name, enumType.Labels, tr.caser)
-		typ := GoType{
-			Pkg:  "", // declared in same package
-			Name: decl.GoName,
-			Decl: decl,
+		pkg, err := gomod.ResolvePackage(path)
+		if err != nil {
+			// Ignore error. Resolving the package isn't perfect. Create an
+			// unqualified type which will likely work since the enum is declared in
+			// this package.
+			return NewGoType(decl.GoName), nil
 		}
+		typ := NewGoType(pkg + "." + decl.GoName)
+		typ.Decl = decl
 		return typ, nil
 	}
 
-	pkg, typ := goType.splitPkg(nullable)
-	return GoType{Pkg: pkg, Name: typ}, nil
+	if nullable {
+		return NewGoType(knownType.nullable), nil
+	}
+	return NewGoType(knownType.nonNullable), nil
 }
 
 // knownGoType is the nullable and non-nullable types for a Postgres type.
@@ -60,39 +58,9 @@ func (tr TypeResolver) Resolve(pgt pg.Type, nullable bool) (GoType, error) {
 // requires checking for a null value.
 type knownGoType struct{ nullable, nonNullable string }
 
-func (gt knownGoType) splitPkg(nullable bool) (pkg string, typ string) {
-	if nullable || gt.nonNullable == "" {
-		return splitQualifiedType(gt.nullable)
-	}
-	return splitQualifiedType(gt.nonNullable)
-}
-
 var majorVersionRegexp = regexp.MustCompile(`^v[0-9]+$`)
 
-// splitQualifiedType splits a qualified or builtin type like
-// github.com/jackc/pgtype.Int8range into the package "github.com/jackc/pgtype"
-// and package qualified type name "pgtype.Int8range".
-//
-// For builtin types returns empty string as the pkg.
-func splitQualifiedType(qualType string) (pkg string, typ string) {
-	if !strings.ContainsRune(qualType, '.') {
-		return "", qualType // builtin type like string
-	}
-	bs := []byte(qualType)
-	idx := bytes.LastIndexByte(bs, '.')
-	pkgFull := bs[:idx]
-	parts := bytes.Split(pkgFull, []byte{'/'})
-	last := parts[len(parts)-1]
-	// Skip major version suffixes got get package name.
-	if bytes.HasPrefix(last, []byte{'v'}) && majorVersionRegexp.Match(last) {
-		last = parts[len(parts)-2]
-	}
-	shortPkgType := append(last, '.')
-	shortPkgType = append(shortPkgType, bs[idx+1:]...)
-	return string(pkgFull), string(shortPkgType)
-}
-
-var goPgTypes = map[pgtype.OID]knownGoType{
+var knownTypesByOID = map[pgtype.OID]knownGoType{
 	pgtype.BoolOID:             {"github.com/jackc/pgtype.Bool", "bool"},
 	pgtype.QCharOID:            {"github.com/jackc/pgtype.QChar", ""},
 	pgtype.NameOID:             {"github.com/jackc/pgtype.UpperName", ""},
