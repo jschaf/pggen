@@ -1,6 +1,10 @@
 package casing
 
-import "strings"
+import (
+	"strings"
+	"unicode"
+	"unicode/utf8"
+)
 
 // Caser converts strings from camel_case to UpperCamelCase.
 type Caser struct {
@@ -26,27 +30,18 @@ func (cs Caser) AddAcronym(str, acronym string) {
 	cs.acronyms[str] = acronym
 }
 
-func isLower(ch byte) bool { return 'a' <= ch && ch <= 'z' }
-func isUpper(ch byte) bool { return 'A' <= ch && ch <= 'Z' }
-
-func upper(ch byte) byte { return ch - ('a' - 'A') } // returns upper-case ch iff ch is ASCII letter
-
-func (cs Caser) appendUpperCamel(sb *strings.Builder, chars []byte, lo, hi int) {
-	if lo == hi {
+func (cs Caser) appendUpperCamel(sb *strings.Builder, chars []byte) {
+	if len(chars) == 0 {
 		return
 	}
-	wordChars := chars[lo:hi]
-	if a, ok := cs.acronyms[string(wordChars)]; ok {
+	if a, ok := cs.acronyms[string(chars)]; ok {
 		sb.WriteString(a)
 		return
 	}
-	if isLower(chars[lo]) {
-		sb.WriteByte(upper(chars[lo]))
-	} else {
-		sb.WriteByte(chars[lo])
-	}
-	for i := lo + 1; i < hi; i++ {
-		sb.WriteByte(chars[i])
+	firstCh, size := utf8.DecodeRune(chars)
+	sb.WriteRune(unicode.ToUpper(firstCh))
+	for _, ch := range chars[size:] {
+		sb.WriteByte(ch)
 	}
 }
 
@@ -59,26 +54,27 @@ func (cs Caser) ToUpperCamel(s string) string {
 	}
 	sb := &strings.Builder{}
 	sb.Grow(len(s))
-	// Find underscore delimited word.
 	chars := []byte(s)
-	lo, hi := 0, 0
-	for i, ch := range chars {
-		hi = i
+	lo := 0
+	for hi := 0; hi < len(chars); {
+		ch, size := utf8.DecodeRune(chars[hi:])
 		switch {
 		case ch == '_':
-			cs.appendUpperCamel(sb, chars, lo, hi)
-			lo = i + 1 // skip underscore
-		case isUpper(ch):
-			cs.appendUpperCamel(sb, chars, lo, hi)
-			lo = i
+			cs.appendUpperCamel(sb, chars[lo:hi])
+			lo = hi + size // skip underscore
+		case unicode.IsUpper(ch):
+			cs.appendUpperCamel(sb, chars[lo:hi])
+			lo = hi
 		}
+		hi += size
 	}
-	cs.appendUpperCamel(sb, chars, lo, hi+1)
+	cs.appendUpperCamel(sb, chars[lo:])
 	return sb.String()
 }
 
-// ToUpperGoIdent converts a string into a legal, capitalized Go identifier.
-// Returns the empty string if no conversion is possible.
+// ToUpperGoIdent converts a string into a legal, capitalized Go identifier,
+// respecting registered acronyms. // Returns the empty string if no conversion
+// is possible.
 func (cs Caser) ToUpperGoIdent(s string) string {
 	san := sanitize(s)
 	if san == "" {

@@ -21,10 +21,14 @@ func TestCaser_ToUpperCamel(t *testing.T) {
 		{"_foo_", "Foo", nil},
 		{"foo__", "Foo", nil},
 		{"foo__bar", "FooBar", nil},
+		{"FooBar", "FooBar", nil},
 		{"foo_bar", "FooBar", nil},
 		{"foo_bar_baz", "FooBarBaz", nil},
 		{"foo_bar_baz", "FooBarBAZ", map[string]string{"baz": "BAZ"}},
 		{"foo_bar_baz", "FooBARBAZ", map[string]string{"bar": "BAR", "baz": "BAZ"}},
+		{"Ě", "Ě", nil},
+		{"ě", "Ě", nil},
+		{"Ěě_ě", "ĚěĚ", nil},
 	}
 	for _, tt := range tests {
 		t.Run(tt.word+"="+tt.want, func(t *testing.T) {
@@ -43,7 +47,9 @@ func TestCaser_ToUpperGoIdent(t *testing.T) {
 		acronyms map[string]string
 	}{
 		{"fooBar", "FooBar", nil},
+		{"FooBar", "FooBar", nil},
 		{"$", "", nil},
+		{"user.id", "UserID", map[string]string{"id": "ID"}},
 		{"$foo$bar", "FooBar", nil},
 		{"foo bar@@@!", "FooBar", nil},
 		{"12!foo bar@@@!", "FooBar", nil},
@@ -60,6 +66,9 @@ func TestCaser_ToUpperGoIdent(t *testing.T) {
 		{"foo_bar_baz", "FooBarBaz", nil},
 		{"foo_bar_baz", "FooBarBAZ", map[string]string{"baz": "BAZ"}},
 		{"foo_bar_baz", "FooBARBAZ", map[string]string{"bar": "BAR", "baz": "BAZ"}},
+		{"Ě", "Ě", nil},
+		{"ě", "Ě", nil},
+		{"Ěě_ě", "ĚěĚ", nil},
 	}
 	for _, tt := range tests {
 		t.Run(tt.word+"="+tt.want, func(t *testing.T) {
