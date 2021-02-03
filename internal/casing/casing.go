@@ -41,6 +41,17 @@ func (cs Caser) ToUpperGoIdent(s string) string {
 	return cs.convert(san, cs.appendUpperCamel)
 }
 
+// ToLowerGoIdent converts a string into a legal, uncapitalized Go identifier,
+// respecting registered acronyms. Returns the empty string if no conversion
+// is possible.
+func (cs Caser) ToLowerGoIdent(s string) string {
+	san := sanitize(s)
+	if san == "" {
+		return ""
+	}
+	return cs.convert(san, cs.appendLowerCamel)
+}
+
 type converter func(*strings.Builder, []byte)
 
 // convert converts a string using converter for each sub-word while
@@ -66,7 +77,7 @@ func (cs Caser) convert(s string, converter converter) string {
 		}
 		hi += size
 	}
-	cs.appendUpperCamel(sb, chars[lo:])
+	converter(sb, chars[lo:])
 	return sb.String()
 }
 
@@ -80,5 +91,29 @@ func (cs Caser) appendUpperCamel(sb *strings.Builder, chars []byte) {
 	}
 	firstCh, size := utf8.DecodeRune(chars)
 	sb.WriteRune(unicode.ToUpper(firstCh))
+	sb.Write(chars[size:])
+}
+
+func (cs Caser) appendLowerCamel(sb *strings.Builder, chars []byte) {
+	if len(chars) == 0 {
+		return
+	}
+	isFirst := sb.Len() == 0
+	if a, ok := cs.acronyms[string(chars)]; ok {
+		if isFirst {
+			// First word should be uncapitalized. We don't know exactly how to do
+			// that, so assume lower casing the acronym is sufficient.
+			sb.WriteString(strings.ToLower(a))
+		} else {
+			sb.WriteString(a)
+		}
+		return
+	}
+	firstCh, size := utf8.DecodeRune(chars)
+	if isFirst {
+		sb.WriteRune(unicode.ToLower(firstCh))
+	} else {
+		sb.WriteRune(unicode.ToUpper(firstCh))
+	}
 	sb.Write(chars[size:])
 }
