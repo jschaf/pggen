@@ -21,7 +21,7 @@ func TestEnumDeclarer_Declare(t *testing.T) {
 				PgLabels: []string{"ios", "mobile"},
 			},
 			texts.Dedent(`
-				// DeviceType represents the Postgres enum device_type.
+				// DeviceType represents the Postgres enum "device_type".
 				type DeviceType string
 
 				const (
@@ -41,7 +41,7 @@ func TestEnumDeclarer_Declare(t *testing.T) {
 				PgLabels: []string{"\"\n\t", "`\"`"},
 			},
 			texts.Dedent(`
-				// Quoting represents the Postgres enum quoting.
+				// Quoting represents the Postgres enum "quoting".
 				type Quoting string
 
 				const (
