@@ -9,7 +9,7 @@ import (
 )
 
 func TestQuerier(t *testing.T) {
-	conn, cleanup := pgtest.NewPostgresSchema(t, nil)
+	conn, cleanup := pgtest.NewPostgresSchema(t, []string{"schema.sql"})
 	defer cleanup()
 	q := NewQuerier(conn)
 	ctx := context.Background()
