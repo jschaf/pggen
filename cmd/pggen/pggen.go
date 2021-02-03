@@ -69,7 +69,8 @@ func newGenCmd() *ffcli.Command {
 		"create schema in Dockerized Postgres from all sql, sql.gz, or shell "+
 			"scripts (*.sh) that match a glob, like 'migrations/*.sql'")
 	acronyms := flags.Strings(fset, "acronym", nil,
-		"lowercase acronym that should convert to all caps, or custom mapping like 'ids=IDs'")
+		"lowercase acronym that should convert to all caps like 'api', "+
+			"or custom mapping like 'apis=APIs'")
 	goSubCmd := &ffcli.Command{
 		Name:       "go",
 		ShortUsage: "pggen gen go [options...]",
