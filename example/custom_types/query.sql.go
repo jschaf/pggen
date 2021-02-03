@@ -16,12 +16,12 @@ import (
 // calling SendBatch on pgx.Conn, pgxpool.Pool, or pgx.Tx, use the Scan methods
 // to parse the results.
 type Querier interface {
-	FindText(ctx context.Context) (mytype.String, error)
-	// FindTextBatch enqueues a FindText query into batch to be executed
+	CustomTypes(ctx context.Context) (CustomTypesRow, error)
+	// CustomTypesBatch enqueues a CustomTypes query into batch to be executed
 	// later by the batch.
-	FindTextBatch(batch *pgx.Batch)
-	// FindTextScan scans the result of an executed FindTextBatch query.
-	FindTextScan(results pgx.BatchResults) (mytype.String, error)
+	CustomTypesBatch(batch *pgx.Batch)
+	// CustomTypesScan scans the result of an executed CustomTypesBatch query.
+	CustomTypesScan(results pgx.BatchResults) (CustomTypesRow, error)
 }
 
 type DBQuerier struct {
@@ -62,29 +62,34 @@ func (q *DBQuerier) WithTx(tx pgx.Tx) (*DBQuerier, error) {
 	return &DBQuerier{conn: tx}, nil
 }
 
-const findTextSQL = `SELECT 'some_text';`
+const customTypesSQL = `SELECT 'some_text', 1::bigint;`
 
-// FindText implements Querier.FindText.
-func (q *DBQuerier) FindText(ctx context.Context) (mytype.String, error) {
-	row := q.conn.QueryRow(ctx, findTextSQL)
-	var item mytype.String
-	if err := row.Scan(&item); err != nil {
-		return item, fmt.Errorf("query FindText: %w", err)
+type CustomTypesRow struct {
+	Column mytype.String `json:"?column?"`
+	Int8   CustomInt     `json:"int8"`
+}
+
+// CustomTypes implements Querier.CustomTypes.
+func (q *DBQuerier) CustomTypes(ctx context.Context) (CustomTypesRow, error) {
+	row := q.conn.QueryRow(ctx, customTypesSQL)
+	var item CustomTypesRow
+	if err := row.Scan(&item.Column, &item.Int8); err != nil {
+		return item, fmt.Errorf("query CustomTypes: %w", err)
 	}
 	return item, nil
 }
 
-// FindTextBatch implements Querier.FindTextBatch.
-func (q *DBQuerier) FindTextBatch(batch *pgx.Batch) {
-	batch.Queue(findTextSQL)
+// CustomTypesBatch implements Querier.CustomTypesBatch.
+func (q *DBQuerier) CustomTypesBatch(batch *pgx.Batch) {
+	batch.Queue(customTypesSQL)
 }
 
-// FindTextScan implements Querier.FindTextScan.
-func (q *DBQuerier) FindTextScan(results pgx.BatchResults) (mytype.String, error) {
+// CustomTypesScan implements Querier.CustomTypesScan.
+func (q *DBQuerier) CustomTypesScan(results pgx.BatchResults) (CustomTypesRow, error) {
 	row := results.QueryRow()
-	var item mytype.String
-	if err := row.Scan(&item); err != nil {
-		return item, fmt.Errorf("scan FindTextBatch row: %w", err)
+	var item CustomTypesRow
+	if err := row.Scan(&item.Column, &item.Int8); err != nil {
+		return item, fmt.Errorf("scan CustomTypesBatch row: %w", err)
 	}
 	return item, nil
 }

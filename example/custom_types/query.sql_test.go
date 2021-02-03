@@ -14,12 +14,12 @@ func TestQuerier(t *testing.T) {
 	q := NewQuerier(conn)
 	ctx := context.Background()
 
-	_, err := q.FindText(ctx)
+	_, err := q.CustomTypes(ctx)
 	assert.NoError(t, err)
 
 	batch := &pgx.Batch{}
-	q.FindTextBatch(batch)
+	q.CustomTypesBatch(batch)
 	results := conn.SendBatch(ctx, batch)
-	_, err = q.FindTextScan(results)
+	_, err = q.CustomTypesScan(results)
 	assert.NoError(t, err)
 }

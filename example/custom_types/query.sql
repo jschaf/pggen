@@ -1,2 +1,2 @@
--- name: FindText :one
-SELECT 'some_text';
+-- name: CustomTypes :one
+SELECT 'some_text', 1::bigint;

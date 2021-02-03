@@ -94,9 +94,10 @@ assert_no_diff
 
 test_header 'example/custom_types'
 ${pggen} gen go \
-    --schema-glob example/custom_types/schema.sql \
-    --query-glob example/custom_types/query.sql \
-    --go-type 'text=github.com/jschaf/pggen/example/custom_types/mytype.String'
+     --schema-glob example/custom_types/schema.sql \
+     --query-glob example/custom_types/query.sql \
+     --go-type 'text=github.com/jschaf/pggen/example/custom_types/mytype.String' \
+     --go-type 'int8=github.com/jschaf/pggen/example/custom_types.CustomInt'
 assert_no_diff
 
 printf '\n\n'
