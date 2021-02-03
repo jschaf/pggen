@@ -40,9 +40,7 @@ func (cs Caser) appendUpperCamel(sb *strings.Builder, chars []byte) {
 	}
 	firstCh, size := utf8.DecodeRune(chars)
 	sb.WriteRune(unicode.ToUpper(firstCh))
-	for _, ch := range chars[size:] {
-		sb.WriteByte(ch)
-	}
+	sb.Write(chars[size:])
 }
 
 // ToUpperCamel converts a string to UpperCamelCase respecting the registered
