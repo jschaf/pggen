@@ -123,8 +123,10 @@ func (tm Templater) TemplateAll(files []codegen.QueryFile) ([]TemplatedFile, err
 				break
 			}
 		}
-		copy(imports[pgconnIdx:], imports[pgconnIdx+1:])
-		goQueryFiles[i].Imports = imports[:len(imports)-1]
+		if pgconnIdx > -1 {
+			copy(imports[pgconnIdx:], imports[pgconnIdx+1:])
+			goQueryFiles[i].Imports = imports[:len(imports)-1]
+		}
 	}
 	// Remove self imports.
 	for i, file := range goQueryFiles {
@@ -140,8 +142,10 @@ func (tm Templater) TemplateAll(files []codegen.QueryFile) ([]TemplatedFile, err
 				break
 			}
 		}
-		copy(imports[selfPkgIdx:], imports[selfPkgIdx+1:])
-		goQueryFiles[i].Imports = imports[:len(imports)-1]
+		if selfPkgIdx > -1 {
+			copy(imports[selfPkgIdx:], imports[selfPkgIdx+1:])
+			goQueryFiles[i].Imports = imports[:len(imports)-1]
+		}
 	}
 	return goQueryFiles, nil
 }
