@@ -30,22 +30,22 @@ func (cs Caser) AddAcronym(str, acronym string) {
 	cs.acronyms[str] = acronym
 }
 
-func (cs Caser) appendUpperCamel(sb *strings.Builder, chars []byte) {
-	if len(chars) == 0 {
-		return
+// ToUpperGoIdent converts a string into a legal, capitalized Go identifier,
+// respecting registered acronyms. Returns the empty string if no conversion
+// is possible.
+func (cs Caser) ToUpperGoIdent(s string) string {
+	san := sanitize(s)
+	if san == "" {
+		return ""
 	}
-	if a, ok := cs.acronyms[string(chars)]; ok {
-		sb.WriteString(a)
-		return
-	}
-	firstCh, size := utf8.DecodeRune(chars)
-	sb.WriteRune(unicode.ToUpper(firstCh))
-	sb.Write(chars[size:])
+	return cs.convert(san, cs.appendUpperCamel)
 }
 
-// ToUpperCamel converts a string to UpperCamelCase respecting the registered
-// acronyms.
-func (cs Caser) ToUpperCamel(s string) string {
+type converter func(*strings.Builder, []byte)
+
+// convert converts a string using converter for each sub-word while
+// respecting the registered acronyms.
+func (cs Caser) convert(s string, converter converter) string {
 	s = strings.TrimSpace(s)
 	if len(s) == 0 {
 		return s
@@ -58,10 +58,10 @@ func (cs Caser) ToUpperCamel(s string) string {
 		ch, size := utf8.DecodeRune(chars[hi:])
 		switch {
 		case ch == '_':
-			cs.appendUpperCamel(sb, chars[lo:hi])
+			converter(sb, chars[lo:hi])
 			lo = hi + size // skip underscore
 		case unicode.IsUpper(ch):
-			cs.appendUpperCamel(sb, chars[lo:hi])
+			converter(sb, chars[lo:hi])
 			lo = hi
 		}
 		hi += size
@@ -70,13 +70,15 @@ func (cs Caser) ToUpperCamel(s string) string {
 	return sb.String()
 }
 
-// ToUpperGoIdent converts a string into a legal, capitalized Go identifier,
-// respecting registered acronyms. // Returns the empty string if no conversion
-// is possible.
-func (cs Caser) ToUpperGoIdent(s string) string {
-	san := sanitize(s)
-	if san == "" {
-		return ""
+func (cs Caser) appendUpperCamel(sb *strings.Builder, chars []byte) {
+	if len(chars) == 0 {
+		return
 	}
-	return cs.ToUpperCamel(san)
+	if a, ok := cs.acronyms[string(chars)]; ok {
+		sb.WriteString(a)
+		return
+	}
+	firstCh, size := utf8.DecodeRune(chars)
+	sb.WriteRune(unicode.ToUpper(firstCh))
+	sb.Write(chars[size:])
 }
