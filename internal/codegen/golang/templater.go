@@ -198,7 +198,7 @@ func (tm Templater) templateFile(file codegen.QueryFile) (TemplatedFile, []Decla
 		// Build outputs.
 		outputs := make([]TemplatedColumn, len(query.Outputs))
 		for i, out := range query.Outputs {
-			goType, err := tm.resolver.Resolve(out.PgType, out.Nullable, "")
+			goType, err := tm.resolver.Resolve(out.PgType, out.Nullable, file.Path)
 			if err != nil {
 				return TemplatedFile{}, nil, err
 			}
