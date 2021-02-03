@@ -24,13 +24,27 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
+// Checks that running pggen doesn't generate a diff.
 func TestExamples(t *testing.T) {
+	tests := []struct {
+		name string
+		args []string
+	}{
+		{
+			name: "example/enums",
+			args: []string{
+				"--schema-glob", "example/enums/schema.sql",
+				"--query-glob", "example/enums/query.sql",
+			},
+		},
+	}
 	pggen := compilePggen(t)
-	runPggen(t, pggen,
-		"--schema-glob", "example/enums/schema.sql",
-		"--query-glob", "example/enums/query.sql",
-	)
-	assertNoDiff(t)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			runPggen(t, pggen, tt.args...)
+			assertNoDiff(t)
+		})
+	}
 }
 
 func runPggen(t *testing.T, pggen string, args ...string) string {
