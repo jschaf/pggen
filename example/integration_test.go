@@ -18,8 +18,9 @@ const projDir = ".." // hardcoded
 func TestMain(m *testing.M) {
 	flag.Parse()
 	if *update {
+		// update only disables the assertions. Running the test causes pggen
+		// to overwrite generated code.
 		fmt.Println("updating integration test generated files")
-		os.Exit(0)
 	}
 	os.Exit(m.Run())
 }
@@ -42,7 +43,9 @@ func TestExamples(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			runPggen(t, pggen, tt.args...)
-			assertNoDiff(t)
+			if !*update {
+				assertNoDiff(t)
+			}
 		})
 	}
 }
