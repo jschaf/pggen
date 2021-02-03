@@ -17,6 +17,8 @@ type GenerateOptions struct {
 	// A map of lowercase acronyms to the upper case equivalent, like:
 	// "api" => "API".
 	Acronyms map[string]string
+	// A map from a Postgres type name to a fully qualified Go type.
+	TypeOverrides map[string]string
 }
 
 // Generate emits generated Go files for each of the queryFiles.
@@ -27,11 +29,9 @@ func Generate(opts GenerateOptions, queryFiles []codegen.QueryFile) error {
 	}
 	caser := casing.NewCaser()
 	caser.AddAcronyms(opts.Acronyms)
-	typeResolver := NewTypeResolver(caser)
-
 	templater := NewTemplater(TemplaterOpts{
 		Caser:    caser,
-		Resolver: typeResolver,
+		Resolver: NewTypeResolver(caser, opts.TypeOverrides),
 		Pkg:      pkgName,
 	})
 	templatedFiles, err := templater.TemplateAll(queryFiles)

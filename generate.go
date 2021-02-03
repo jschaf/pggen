@@ -56,6 +56,8 @@ type GenerateOptions struct {
 	// A map of lowercase acronyms to the upper case equivalent, like:
 	// "api" => "API".
 	Acronyms map[string]string
+	// A map from a Postgres type name to a fully qualified Go type.
+	TypeOverrides map[string]string
 }
 
 // Generate generates language specific code to safely wrap each SQL
@@ -112,9 +114,10 @@ func Generate(opts GenerateOptions) (mErr error) {
 	switch opts.Language {
 	case LangGo:
 		goOpts := golang.GenerateOptions{
-			GoPkg:     opts.GoPackage,
-			OutputDir: opts.OutputDir,
-			Acronyms:  opts.Acronyms,
+			GoPkg:         opts.GoPackage,
+			OutputDir:     opts.OutputDir,
+			Acronyms:      opts.Acronyms,
+			TypeOverrides: opts.TypeOverrides,
 		}
 		if err := golang.Generate(goOpts, queryFiles); err != nil {
 			return fmt.Errorf("generate go code: %w", err)

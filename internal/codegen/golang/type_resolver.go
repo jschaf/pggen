@@ -19,15 +19,22 @@ type GoType struct {
 
 // TypeResolver handles the mapping between Postgres and Go types.
 type TypeResolver struct {
-	caser casing.Caser
+	caser     casing.Caser
+	overrides map[string]string
 }
 
-func NewTypeResolver(c casing.Caser) TypeResolver {
-	return TypeResolver{caser: c}
+func NewTypeResolver(c casing.Caser, overrides map[string]string) TypeResolver {
+	return TypeResolver{caser: c, overrides: overrides}
 }
 
 // Resolve maps a Postgres type to a Go type and its containing package.
 func (tr TypeResolver) Resolve(pgt pg.Type, nullable bool) (GoType, error) {
+	// Custom user override.
+	if goType, ok := tr.overrides[pgt.String()]; ok {
+		pkg, typ := splitQualifiedType(goType)
+		return GoType{Pkg: pkg, Name: typ}, nil
+	}
+
 	goType, ok := goPgTypes[pgt.OID()]
 	if !ok && pgt.Kind() != pg.KindEnumType {
 		return GoType{}, fmt.Errorf("no go type found for Postgres type %s oid=%d", pgt.String(), pgt.OID())

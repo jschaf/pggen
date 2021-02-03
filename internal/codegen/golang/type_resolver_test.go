@@ -44,9 +44,10 @@ func Test_pgToGoType_splitPkg(t *testing.T) {
 
 func TestTypeResolver_Resolve(t *testing.T) {
 	tests := []struct {
-		name   string
-		pgType pg.Type
-		want   GoType
+		name      string
+		overrides map[string]string
+		pgType    pg.Type
+		want      GoType
 	}{
 		{
 			name: "enum",
@@ -58,11 +59,21 @@ func TestTypeResolver_Resolve(t *testing.T) {
 				Pkg:  "",
 				Name: "DeviceType",
 				Decl: NewEnumDeclarer("device_type", []string{"macos", "ios", "web"}, casing.NewCaser()),
-			}},
+			},
+		},
+		{
+			name:      "override",
+			overrides: map[string]string{"custom_type": "example.com/custom.Type"},
+			pgType:    pg.BaseType{Name: "custom_type"},
+			want: GoType{
+				Pkg:  "example.com/custom",
+				Name: "custom.Type",
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			resolver := NewTypeResolver(casing.NewCaser())
+			resolver := NewTypeResolver(casing.NewCaser(), tt.overrides)
 			got, err := resolver.Resolve(tt.pgType, false)
 			if err != nil {
 				t.Fatal(err)

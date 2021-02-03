@@ -71,6 +71,9 @@ func newGenCmd() *ffcli.Command {
 	acronyms := flags.Strings(fset, "acronym", nil,
 		"lowercase acronym that should convert to all caps like 'api', "+
 			"or custom mapping like 'apis=APIs'")
+	goTypes := flags.Strings(fset, "go-type", nil,
+		"custom type mapping from Postgres to fully qualified Go type, "+
+			"like 'device_type=github.com/jschaf/pggen.DeviceType'")
 	goSubCmd := &ffcli.Command{
 		Name:       "go",
 		ShortUsage: "pggen gen go [options...]",
@@ -107,7 +110,7 @@ func newGenCmd() *ffcli.Command {
 				}
 			}
 
-			// Support two formats '--acronym api' and '--acronym oids=OIDs'
+			// Parse two acronym formats "--acronym api" and "--acronym oids=OIDs"
 			acros := make(map[string]string)
 			for _, acro := range *acronyms {
 				ss := strings.SplitN(acro, "=", 2)
@@ -122,6 +125,15 @@ func newGenCmd() *ffcli.Command {
 				acros[word] = replacement
 			}
 
+			typeOverrides := make(map[string]string, len(*goTypes))
+			for _, typeAssoc := range *goTypes {
+				if strings.Count(typeAssoc, "=") != 1 {
+					return fmt.Errorf("--go-type must have format <pgType>=<goType>; got %s", typeAssoc)
+				}
+				ss := strings.SplitN(typeAssoc, "=", 2)
+				typeOverrides[ss[0]] = ss[1]
+			}
+
 			// Codegen.
 			err = pggen.Generate(pggen.GenerateOptions{
 				Language:          pggen.LangGo,
@@ -130,6 +142,7 @@ func newGenCmd() *ffcli.Command {
 				QueryFiles:        queries,
 				OutputDir:         outDir,
 				Acronyms:          acros,
+				TypeOverrides:     typeOverrides,
 			})
 			fmt.Printf("gen go: out_dir=%s files=%s\n", outDir, strings.Join(queries, ","))
 			return err
