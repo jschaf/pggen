@@ -59,6 +59,16 @@ func TestTypeResolver_Resolve(t *testing.T) {
 				Name:    "Point",
 			},
 		},
+		{
+			name:      "bigint - int8",
+			overrides: map[string]string{"bigint": "example.com/custom.Type"},
+			pgType:    pg.BaseType{Name: "int8", ID: pgtype.Int8OID},
+			want: GoType{
+				PkgPath: "example.com/custom",
+				Pkg:     "custom",
+				Name:    "Type",
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
