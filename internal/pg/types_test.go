@@ -35,6 +35,17 @@ func TestFetchOIDTypes(t *testing.T) {
 				ChildOIDs: nil, // ignored
 			},
 		},
+		{
+			name:     "composite table",
+			schema:   `CREATE TABLE qux (id text, foo int8);`,
+			fetchOID: "qux",
+			want: CompositeType{
+				ID:          0, // set in test
+				Name:        "qux",
+				ColumnNames: []string{"id", "foo"},
+				ColumnTypes: []Type{Text, Int8},
+			},
+		},
 	}
 
 	for _, tt := range tests {

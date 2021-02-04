@@ -23,12 +23,29 @@ type Querier interface {
 	// FindEnumTypesScan scans the result of an executed FindEnumTypesBatch query.
 	FindEnumTypesScan(results pgx.BatchResults) ([]FindEnumTypesRow, error)
 
+	// A composite type represents a row or record, defined implicitly for each
+	// table, or explicitly with CREATE TYPE.
+	// https://www.postgresql.org/docs/13/rowtypes.html
+	FindCompositeTypes(ctx context.Context, oIDs []uint32) ([]FindCompositeTypesRow, error)
+	// FindCompositeTypesBatch enqueues a FindCompositeTypes query into batch to be executed
+	// later by the batch.
+	FindCompositeTypesBatch(batch *pgx.Batch, oIDs []uint32)
+	// FindCompositeTypesScan scans the result of an executed FindCompositeTypesBatch query.
+	FindCompositeTypesScan(results pgx.BatchResults) ([]FindCompositeTypesRow, error)
+
 	FindOIDByName(ctx context.Context, name string) (pgtype.OID, error)
 	// FindOIDByNameBatch enqueues a FindOIDByName query into batch to be executed
 	// later by the batch.
 	FindOIDByNameBatch(batch *pgx.Batch, name string)
 	// FindOIDByNameScan scans the result of an executed FindOIDByNameBatch query.
 	FindOIDByNameScan(results pgx.BatchResults) (pgtype.OID, error)
+
+	FindOIDName(ctx context.Context, oID pgtype.OID) (pgtype.Name, error)
+	// FindOIDNameBatch enqueues a FindOIDName query into batch to be executed
+	// later by the batch.
+	FindOIDNameBatch(batch *pgx.Batch, oID pgtype.OID)
+	// FindOIDNameScan scans the result of an executed FindOIDNameBatch query.
+	FindOIDNameScan(results pgx.BatchResults) (pgtype.Name, error)
 }
 
 type DBQuerier struct {
@@ -173,6 +190,100 @@ func (q *DBQuerier) FindEnumTypesScan(results pgx.BatchResults) ([]FindEnumTypes
 	return items, err
 }
 
+const findCompositeTypesSQL = `WITH table_cols AS (
+  SELECT
+    cls.relname                                         AS table_name,
+    cls.oid                                             AS table_oid,
+    array_agg(attr.attname::text ORDER BY attr.attnum)  AS col_names,
+    array_agg(attr.atttypid::int8 ORDER BY attr.attnum) AS col_oids,
+    array_agg(attr.attnum::int8 ORDER BY attr.attnum)   AS col_orders,
+    array_agg(attr.attnotnull ORDER BY attr.attnum)     AS col_not_nulls,
+    array_agg(typ.typname::text ORDER BY attr.attnum)   AS col_type_names
+  FROM pg_attribute attr
+    JOIN pg_class cls ON attr.attrelid = cls.oid
+    JOIN pg_type typ ON typ.oid = attr.atttypid
+  WHERE attr.attnum > 0 -- Postgres represents system columns with attnum <= 0
+    AND NOT attr.attisdropped
+  GROUP BY cls.relname, cls.oid
+)
+SELECT
+  typ.typname::text AS table_type_name,
+  typ.oid           AS table_type_oid,
+  table_name,
+  table_oid,
+  col_names,
+  col_oids,
+  col_orders,
+  col_not_nulls,
+  col_type_names
+FROM pg_type typ
+  JOIN table_cols cols ON typ.typrelid = cols.table_oid
+WHERE typ.oid = ANY ($1::oid[])
+  AND typ.typtype = 'c';`
+
+type FindCompositeTypesRow struct {
+	TableTypeName pgtype.Text      `json:"table_type_name"`
+	TableTypeOID  pgtype.OID       `json:"table_type_oid"`
+	TableName     pgtype.Name      `json:"table_name"`
+	TableOID      pgtype.OID       `json:"table_oid"`
+	ColNames      pgtype.TextArray `json:"col_names"`
+	ColOIDs       pgtype.Int8Array `json:"col_oids"`
+	ColOrders     pgtype.Int8Array `json:"col_orders"`
+	ColNotNulls   pgtype.BoolArray `json:"col_not_nulls"`
+	ColTypeNames  pgtype.TextArray `json:"col_type_names"`
+}
+
+// FindCompositeTypes implements Querier.FindCompositeTypes.
+func (q *DBQuerier) FindCompositeTypes(ctx context.Context, oIDs []uint32) ([]FindCompositeTypesRow, error) {
+	rows, err := q.conn.Query(ctx, findCompositeTypesSQL, oIDs)
+	if rows != nil {
+		defer rows.Close()
+	}
+	if err != nil {
+		return nil, fmt.Errorf("query FindCompositeTypes: %w", err)
+	}
+	items := []FindCompositeTypesRow{}
+	for rows.Next() {
+		var item FindCompositeTypesRow
+		if err := rows.Scan(&item.TableTypeName, &item.TableTypeOID, &item.TableName, &item.TableOID, &item.ColNames, &item.ColOIDs, &item.ColOrders, &item.ColNotNulls, &item.ColTypeNames); err != nil {
+			return nil, fmt.Errorf("scan FindCompositeTypes row: %w", err)
+		}
+		items = append(items, item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, err
+}
+
+// FindCompositeTypesBatch implements Querier.FindCompositeTypesBatch.
+func (q *DBQuerier) FindCompositeTypesBatch(batch *pgx.Batch, oIDs []uint32) {
+	batch.Queue(findCompositeTypesSQL, oIDs)
+}
+
+// FindCompositeTypesScan implements Querier.FindCompositeTypesScan.
+func (q *DBQuerier) FindCompositeTypesScan(results pgx.BatchResults) ([]FindCompositeTypesRow, error) {
+	rows, err := results.Query()
+	if rows != nil {
+		defer rows.Close()
+	}
+	if err != nil {
+		return nil, err
+	}
+	items := []FindCompositeTypesRow{}
+	for rows.Next() {
+		var item FindCompositeTypesRow
+		if err := rows.Scan(&item.TableTypeName, &item.TableTypeOID, &item.TableName, &item.TableOID, &item.ColNames, &item.ColOIDs, &item.ColOrders, &item.ColNotNulls, &item.ColTypeNames); err != nil {
+			return nil, fmt.Errorf("scan FindCompositeTypesBatch row: %w", err)
+		}
+		items = append(items, item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, err
+}
+
 const findOIDByNameSQL = `SELECT oid
 FROM pg_type
 WHERE typname::text = $1;`
@@ -198,6 +309,35 @@ func (q *DBQuerier) FindOIDByNameScan(results pgx.BatchResults) (pgtype.OID, err
 	var item pgtype.OID
 	if err := row.Scan(&item); err != nil {
 		return item, fmt.Errorf("scan FindOIDByNameBatch row: %w", err)
+	}
+	return item, nil
+}
+
+const findOIDNameSQL = `SELECT typname as name
+FROM pg_type
+WHERE oid = $1;`
+
+// FindOIDName implements Querier.FindOIDName.
+func (q *DBQuerier) FindOIDName(ctx context.Context, oID pgtype.OID) (pgtype.Name, error) {
+	row := q.conn.QueryRow(ctx, findOIDNameSQL, oID)
+	var item pgtype.Name
+	if err := row.Scan(&item); err != nil {
+		return item, fmt.Errorf("query FindOIDName: %w", err)
+	}
+	return item, nil
+}
+
+// FindOIDNameBatch implements Querier.FindOIDNameBatch.
+func (q *DBQuerier) FindOIDNameBatch(batch *pgx.Batch, oID pgtype.OID) {
+	batch.Queue(findOIDNameSQL, oID)
+}
+
+// FindOIDNameScan implements Querier.FindOIDNameScan.
+func (q *DBQuerier) FindOIDNameScan(results pgx.BatchResults) (pgtype.Name, error) {
+	row := results.QueryRow()
+	var item pgtype.Name
+	if err := row.Scan(&item); err != nil {
+		return item, fmt.Errorf("scan FindOIDNameBatch row: %w", err)
 	}
 	return item, nil
 }

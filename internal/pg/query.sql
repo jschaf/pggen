@@ -42,7 +42,46 @@ WHERE typ.typisdefined
   AND typ.typtype = 'e'
   AND typ.oid = ANY (pggen.arg('OIDs')::oid[]);
 
+-- A composite type represents a row or record, defined implicitly for each
+-- table, or explicitly with CREATE TYPE.
+-- https://www.postgresql.org/docs/13/rowtypes.html
+-- name: FindCompositeTypes :many
+WITH table_cols AS (
+  SELECT
+    cls.relname                                         AS table_name,
+    cls.oid                                             AS table_oid,
+    array_agg(attr.attname::text ORDER BY attr.attnum)  AS col_names,
+    array_agg(attr.atttypid::int8 ORDER BY attr.attnum) AS col_oids,
+    array_agg(attr.attnum::int8 ORDER BY attr.attnum)   AS col_orders,
+    array_agg(attr.attnotnull ORDER BY attr.attnum)     AS col_not_nulls,
+    array_agg(typ.typname::text ORDER BY attr.attnum)   AS col_type_names
+  FROM pg_attribute attr
+    JOIN pg_class cls ON attr.attrelid = cls.oid
+    JOIN pg_type typ ON typ.oid = attr.atttypid
+  WHERE attr.attnum > 0 -- Postgres represents system columns with attnum <= 0
+    AND NOT attr.attisdropped
+  GROUP BY cls.relname, cls.oid
+)
+SELECT
+  typ.typname::text AS table_type_name,
+  typ.oid           AS table_type_oid,
+  table_name,
+  col_names,
+  col_oids,
+  col_orders,
+  col_not_nulls,
+  col_type_names
+FROM pg_type typ
+  JOIN table_cols cols ON typ.typrelid = cols.table_oid
+WHERE typ.oid = ANY (pggen.arg('OIDs')::oid[])
+  AND typ.typtype = 'c';
+
 -- name: FindOIDByName :one
 SELECT oid
 FROM pg_type
 WHERE typname::text = pggen.arg('Name');
+
+-- name: FindOIDName :one
+SELECT typname as name
+FROM pg_type
+WHERE oid = pggen.arg('OID');

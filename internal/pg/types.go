@@ -97,10 +97,10 @@ type (
 	// CompositeType is a type containing multiple columns and is represented as
 	// a class. https://www.postgresql.org/docs/13/catalog-pg-class.html
 	CompositeType struct {
-		ID      pgtype.OID // pg_class.oid: row identifier
-		Name    string     // pg_class.relname: name of the composite type
-		Columns []Type     // pg_attribute: information about columns of the composite type
-		RelID   pgtype.OID // pg_type.typrelid: composite type only, the pg_class for the type
+		ID          pgtype.OID // pg_class.oid: row identifier
+		Name        string     // pg_class.relname: name of the composite type
+		ColumnNames []string   // pg_attribute.attname: names of the column, in order
+		ColumnTypes []Type     // pg_attribute JOIN pg_type: information about columns of the composite type
 	}
 )
 
@@ -322,10 +322,41 @@ func FetchOIDTypes(conn *pgx.Conn, oids ...uint32) (map[pgtype.OID]Type, error) 
 		}
 	}
 
+	// Get composite types.
+	composites, err := querier.FindCompositeTypes(ctx, oidsToFetch)
+	if err != nil {
+		return nil, fmt.Errorf("find composite types: %w", err)
+	}
+	for _, c := range composites {
+		colTypes := make([]Type, len(c.ColOIDs.Elements))
+		colNames := make([]string, len(c.ColOIDs.Elements))
+		// Build each column of the composite type.
+		for i, colOID := range c.ColOIDs.Elements {
+			typeMapLock.Lock()
+			colType, ok := typeMap[pgtype.OID(colOID.Int)]
+			typeMapLock.Unlock()
+			if !ok {
+				// TODO: recursively resolve child types.
+				return nil, fmt.Errorf("find type for composite column %s oid=%d",
+					c.ColNames.Elements[i].String, c.ColOIDs.Elements[i].Int)
+			}
+			colTypes[i] = colType
+			colNames[i] = c.ColNames.Elements[i].String
+		}
+		// Add overall composite type.
+		types[c.TableTypeOID] = CompositeType{
+			ID:          c.TableTypeOID,
+			Name:        c.TableName.String,
+			ColumnNames: colNames,
+			ColumnTypes: colTypes,
+		}
+	}
+
 	// Check that we found all OIDs.
 	for _, oid := range oids {
 		if _, ok := types[pgtype.OID(oid)]; !ok {
-			return nil, fmt.Errorf("did not find all OIDs; missing OID %d", oid)
+			name, _ := querier.FindOIDName(ctx, pgtype.OID(oid))
+			return nil, fmt.Errorf("did not find all OIDs; missing OID %d, name: %q", oid, name.String)
 		}
 	}
 
