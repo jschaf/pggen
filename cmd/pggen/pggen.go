@@ -84,11 +84,6 @@ func newGenCmd() *ffcli.Command {
 			if len(*queryGlobs) == 0 {
 				return fmt.Errorf("pggen gen go: at least one file in --query-glob must match")
 			}
-			if *schemaGlobs != nil && *postgresConn != "" {
-				return fmt.Errorf("cannot use both --schema-glob and --postgres-connection together\n" +
-					"    use --schema-glob to run dockerized postgres automatically\n" +
-					"    use --postgres-connection to connect to an existing database")
-			}
 			queries, err := expandSortGlobs(*queryGlobs)
 			if err != nil {
 				return err

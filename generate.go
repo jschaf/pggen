@@ -15,6 +15,8 @@ import (
 	_ "github.com/jschaf/pggen/internal/statik" // bundled template files
 	"go.uber.org/zap"
 	gotok "go/token"
+	"io/ioutil"
+	"path/filepath"
 	"time"
 )
 
@@ -74,9 +76,6 @@ func Generate(opts GenerateOptions) (mErr error) {
 	}
 	if opts.OutputDir == "" {
 		return fmt.Errorf("output dir must be set")
-	}
-	if opts.ConnString != "" && len(opts.DockerInitScripts) > 0 {
-		return fmt.Errorf("cannot use both DockerInitScripts and ConnString together")
 	}
 
 	// Logger.
@@ -154,6 +153,22 @@ func connectPostgres(ctx context.Context, opts GenerateOptions, l *zap.SugaredLo
 	if err != nil {
 		return nil, nil, fmt.Errorf("connect to pggen postgres database: %w", err)
 	}
+
+	// Run SQL init scripts.
+	for _, script := range opts.DockerInitScripts {
+		if filepath.Ext(script) != ".sql" {
+			return nil, cleanup, fmt.Errorf("cannot run non-sql schema file on Postgres "+
+				"(*.sh and *.sql.gz files only supported without --postgres-connection): %s", script)
+		}
+		bs, err := ioutil.ReadFile(script)
+		if err != nil {
+			return nil, cleanup, fmt.Errorf("read schema file: %w", err)
+		}
+		if _, err := pgConn.Exec(ctx, string(bs)); err != nil {
+			return nil, cleanup, fmt.Errorf("load schema file into Postgres: %w", err)
+		}
+	}
+
 	return pgConn, cleanup, nil
 }
 
