@@ -35,6 +35,7 @@ type Client struct {
 
 // Start builds a Docker image and runs the image in a container.
 func Start(ctx context.Context, initScripts []string, l *zap.SugaredLogger) (client *Client, mErr error) {
+	now := time.Now()
 	dockerCl, err := dockerClient.NewClientWithOpts(dockerClient.FromEnv)
 	if err != nil {
 		return nil, fmt.Errorf("create client: %w", err)
@@ -64,6 +65,7 @@ func Start(ctx context.Context, initScripts []string, l *zap.SugaredLogger) (cli
 	if err := c.waitIsReady(ctx); err != nil {
 		return nil, fmt.Errorf("wait for postgres to be ready: %w", err)
 	}
+	c.l.Debugf("started docker postgres in %d ms", time.Since(now).Milliseconds())
 	return c, nil
 }
 
@@ -164,19 +166,21 @@ func tarInitScript(tarW *tar.Writer, script string, tarName string) (mErr error)
 // runContainer creates and starts a new Postgres container using imageID.
 // The postgres port is mapped to an available port on the host system.
 func (c *Client) runContainer(ctx context.Context, imageID string) (string, ports.Port, error) {
+	port, err := ports.FindAvailable()
+	if err != nil {
+		return "", 0, fmt.Errorf("find available port: %w", err)
+	}
 	containerCfg := &container.Config{
 		Image:        imageID,
 		Env:          []string{"POSTGRES_HOST_AUTH_METHOD=trust"},
 		ExposedPorts: nat.PortSet{"5432/tcp": struct{}{}},
-	}
-	port, err := ports.FindAvailable()
-	if err != nil {
-		return "", 0, fmt.Errorf("find available port: %w", err)
+		Cmd:          []string{"postgres", "-c", "fsync=off"},
 	}
 	hostCfg := &container.HostConfig{
 		PortBindings: nat.PortMap{
 			"5432/tcp": []nat.PortBinding{{HostIP: "0.0.0.0", HostPort: strconv.Itoa(port)}},
 		},
+		Tmpfs: map[string]string{"/var/lib/postgresql/data": ""},
 	}
 	resp, err := c.docker.ContainerCreate(ctx, containerCfg, hostCfg, nil, nil, "")
 	if err != nil {
