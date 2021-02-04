@@ -3,6 +3,7 @@ package errs
 import (
 	"fmt"
 	"go.uber.org/multierr"
+	"testing"
 )
 
 // Capture runs errF and assigns the error, if any, to *err. Preserves the
@@ -30,4 +31,16 @@ func Capture(err *error, errF func() error, msg string) {
 	}
 
 	multierr.AppendInto(err, wErr)
+}
+
+// CaptureT call t.Error if errF returns an error with an optional message.
+func CaptureT(t *testing.T, errF func() error, msg string) {
+	t.Helper()
+	if err := errF(); err != nil {
+		if msg == "" {
+			t.Error(err)
+		} else {
+			t.Errorf(msg+": %s", err)
+		}
+	}
 }
