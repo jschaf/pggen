@@ -174,7 +174,7 @@ func (c *Client) runContainer(ctx context.Context, imageID string) (string, port
 		Image:        imageID,
 		Env:          []string{"POSTGRES_HOST_AUTH_METHOD=trust"},
 		ExposedPorts: nat.PortSet{"5432/tcp": struct{}{}},
-		Cmd:          []string{"postgres", "-c", "fsync=off"},
+		Cmd:          []string{"postgres", "-c", "fsync=off", "-c", "full_page_writes=off"},
 	}
 	hostCfg := &container.HostConfig{
 		PortBindings: nat.PortMap{
