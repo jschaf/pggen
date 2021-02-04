@@ -122,7 +122,7 @@ var majorVersionRegexp = regexp.MustCompile(`^v[0-9]+$`)
 var knownTypesByOID = map[pgtype.OID]knownGoType{
 	pgtype.BoolOID:             {"github.com/jackc/pgtype.Bool", "bool"},
 	pgtype.QCharOID:            {"github.com/jackc/pgtype.QChar", ""},
-	pgtype.NameOID:             {"github.com/jackc/pgtype.UpperName", ""},
+	pgtype.NameOID:             {"github.com/jackc/pgtype.Name", ""},
 	pgtype.Int8OID:             {"github.com/jackc/pgtype.Int8", "int"},
 	pgtype.Int2OID:             {"github.com/jackc/pgtype.Int2", "int16"},
 	pgtype.Int4OID:             {"github.com/jackc/pgtype.Int4", "int32"},
