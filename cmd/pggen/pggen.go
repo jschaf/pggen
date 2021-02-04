@@ -105,7 +105,7 @@ func newGenCmd() *ffcli.Command {
 				}
 			}
 
-			// Parse two acronym formats "--acronym api" and "--acronym oids=OIDs"
+			// Parse two acronym formats: "--acronym api" and "--acronym oids=OIDs"
 			acros := make(map[string]string)
 			for _, acro := range *acronyms {
 				ss := strings.SplitN(acro, "=", 2)
