@@ -4,13 +4,21 @@ package example
 
 import (
 	"bytes"
+	"context"
 	"flag"
 	"fmt"
+	"github.com/jackc/pgx/v4"
+	"github.com/jschaf/pggen/internal/errs"
+	"github.com/jschaf/pggen/internal/pgdocker"
+	"go.uber.org/zap/zaptest"
+	"math/rand"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"sync"
 	"testing"
+	"time"
 )
 
 var update = flag.Bool("update", false, "update integration tests if true")
@@ -86,15 +94,40 @@ func TestExamples(t *testing.T) {
 			},
 		},
 	}
-	pggen := compilePggen(t)
 	if *update {
 		// update only disables the assertions. Running the tests causes pggen
 		// to overwrite generated code.
 		fmt.Println("updating integration test generated files")
 	}
+	pggen := compilePggen(t)
+	// Start a single Docker container to use for all tests. Each test will create
+	// a new database in the Postgres cluster.
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	docker, err := pgdocker.Start(ctx, nil, zaptest.NewLogger(t).Sugar())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer errs.CaptureT(t, func() error { return docker.Stop(ctx) }, "stop docker")
+	mainConnStr, err := docker.ConnString()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log("started dockerized postgres: " + mainConnStr)
+	conn, err := pgx.Connect(ctx, mainConnStr)
+	defer errs.CaptureT(t, func() error { return conn.Close(ctx) }, "close conn")
+	if err != nil {
+		t.Fatal(err)
+	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			runPggen(t, pggen, tt.args...)
+			dbName := "pggen_example_" + strconv.FormatInt(int64(rand.Int31()), 36)
+			if _, err = conn.Exec(ctx, `CREATE DATABASE `+dbName); err != nil {
+				t.Fatal(err)
+			}
+			connStr := mainConnStr + " dbname=" + dbName
+			args := append(tt.args, "--postgres-connection", connStr)
+			runPggen(t, pggen, args...)
 			if !*update {
 				assertNoDiff(t)
 			}
