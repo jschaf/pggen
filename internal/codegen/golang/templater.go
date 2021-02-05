@@ -130,7 +130,7 @@ func (tm Templater) TemplateAll(files []codegen.QueryFile) ([]TemplatedFile, err
 	}
 	// Remove self imports.
 	for i, file := range goQueryFiles {
-		selfPkg, err := gomod.ResolvePackage(file.Path)
+		selfPkg, err := gomod.GuessPackage(file.Path)
 		if err != nil || selfPkg == "" {
 			continue // ignore error, assume it's not a self import
 		}
@@ -166,7 +166,7 @@ func (tm Templater) templateFile(file codegen.QueryFile) (TemplatedFile, []Decla
 	// Attempt to guess package path. Ignore error if it doesn't work because
 	// resolving the package isn't perfect. We'll fallback to an unqualified
 	// type which will likely work since the enum is declared in this package.
-	if pkg, err := gomod.ResolvePackage(file.Path); err == nil {
+	if pkg, err := gomod.GuessPackage(file.Path); err == nil {
 		pkgPath = pkg
 	}
 

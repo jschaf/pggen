@@ -55,10 +55,10 @@ func ParsePath() (string, error) {
 	return goModPath, goModPathErr
 }
 
-// ResolvePackage infers the full Go package path for a file name, relative to
+// GuessPackage guesses the full Go package path for a file name, relative to
 // current working directory.
 // Imperfect. Assumes package names always match directory names.
-func ResolvePackage(fileName string) (string, error) {
+func GuessPackage(fileName string) (string, error) {
 	goModDir, err := FindDir()
 	if err != nil {
 		return "", fmt.Errorf("find go.mod dir: %w", err)

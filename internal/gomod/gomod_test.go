@@ -29,7 +29,7 @@ func TestResolvePackage(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.path, func(t *testing.T) {
-			got, err := ResolvePackage(tt.path)
+			got, err := GuessPackage(tt.path)
 			assert.NoError(t, err)
 			assert.Equal(t, tt.want, got)
 		})

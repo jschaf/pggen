@@ -178,7 +178,7 @@ func (t GoType) PackageQualified(fileName string) string {
 	// names don't have to match the dir name. Some dirs might be symlinked.
 	// It's good enough as a heuristic.
 	qualName := t.Pkg + "." + t.Name
-	pkgPath, err := gomod.ResolvePackage(fileName)
+	pkgPath, err := gomod.GuessPackage(fileName)
 	if err != nil {
 		return qualName
 	}
