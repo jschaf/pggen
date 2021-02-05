@@ -3,6 +3,7 @@ package golang
 import (
 	"github.com/jackc/pgtype"
 	"github.com/jschaf/pggen/internal/casing"
+	"github.com/jschaf/pggen/internal/codegen/golang/gotype"
 	"github.com/jschaf/pggen/internal/pg"
 	"github.com/stretchr/testify/assert"
 	"testing"
@@ -17,12 +18,12 @@ func TestTypeResolver_Resolve(t *testing.T) {
 		overrides map[string]string
 		pgType    pg.Type
 		nullable  bool
-		want      Type
+		want      gotype.Type
 	}{
 		{
 			name:   "enum",
 			pgType: pg.EnumType{Name: "device_type", Labels: []string{"macos", "ios", "web"}},
-			want: NewEnumType(
+			want: gotype.NewEnumType(
 				testPkgPath,
 				pg.EnumType{Name: "device_type", Labels: []string{"macos", "ios", "web"}},
 				caser,
@@ -32,25 +33,25 @@ func TestTypeResolver_Resolve(t *testing.T) {
 			name:      "override",
 			overrides: map[string]string{"custom_type": "example.com/custom.Type"},
 			pgType:    pg.BaseType{Name: "custom_type"},
-			want:      NewOpaqueType("example.com/custom.Type"),
+			want:      gotype.NewOpaqueType("example.com/custom.Type"),
 		},
 		{
 			name:     "known nonNullable empty",
 			pgType:   pg.BaseType{Name: "text", ID: pgtype.PointOID},
 			nullable: false,
-			want:     NewOpaqueType("github.com/jackc/pgtype.Point"),
+			want:     gotype.NewOpaqueType("github.com/jackc/pgtype.Point"),
 		},
 		{
 			name:     "known nullable",
 			pgType:   pg.BaseType{Name: "text", ID: pgtype.PointOID},
 			nullable: true,
-			want:     NewOpaqueType("github.com/jackc/pgtype.Point"),
+			want:     gotype.NewOpaqueType("github.com/jackc/pgtype.Point"),
 		},
 		{
 			name:      "bigint - int8",
 			overrides: map[string]string{"bigint": "example.com/custom.Type"},
 			pgType:    pg.BaseType{Name: "int8", ID: pgtype.Int8OID},
-			want:      NewOpaqueType("example.com/custom.Type"),
+			want:      gotype.NewOpaqueType("example.com/custom.Type"),
 		},
 	}
 	for _, tt := range tests {

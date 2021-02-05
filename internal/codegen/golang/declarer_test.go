@@ -2,6 +2,7 @@ package golang
 
 import (
 	"github.com/jschaf/pggen/internal/casing"
+	"github.com/jschaf/pggen/internal/codegen/golang/gotype"
 	"github.com/jschaf/pggen/internal/pg"
 	"github.com/jschaf/pggen/internal/texts"
 	"github.com/stretchr/testify/assert"
@@ -20,7 +21,7 @@ func TestEnumDeclarer_Declare(t *testing.T) {
 		{
 			"simple",
 			EnumDeclarer{
-				enum: NewEnumType(
+				enum: gotype.NewEnumType(
 					emptyPkgPath,
 					pg.EnumType{Name: "device_type", Labels: []string{"ios", "mobile"}},
 					caser,
@@ -41,7 +42,7 @@ func TestEnumDeclarer_Declare(t *testing.T) {
 		{
 			"escaping",
 			EnumDeclarer{
-				enum: NewEnumType(
+				enum: gotype.NewEnumType(
 					emptyPkgPath,
 					pg.EnumType{
 						Name:   "quoting",

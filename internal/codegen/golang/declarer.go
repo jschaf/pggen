@@ -1,9 +1,9 @@
 package golang
 
 import (
+	"github.com/jschaf/pggen/internal/codegen/golang/gotype"
 	"strconv"
 	"strings"
-	"unicode"
 )
 
 // Declarer is implemented by any value that needs to declare types or data
@@ -20,9 +20,9 @@ type Declarer interface {
 
 // FindDeclarer finds the appropriate Declarer for a type or nil if no declare
 // is needed.
-func FindDeclarer(typ Type) Declarer {
+func FindDeclarer(typ gotype.Type) Declarer {
 	switch typ := typ.(type) {
-	case EnumType:
+	case gotype.EnumType:
 		return NewEnumDeclarer(typ)
 	default:
 		return nil
@@ -32,10 +32,10 @@ func FindDeclarer(typ Type) Declarer {
 // EnumDeclarer declares a new string type and the const values to map to a
 // Postgres enum.
 type EnumDeclarer struct {
-	enum EnumType
+	enum gotype.EnumType
 }
 
-func NewEnumDeclarer(enum EnumType) EnumDeclarer {
+func NewEnumDeclarer(enum gotype.EnumType) EnumDeclarer {
 	return EnumDeclarer{enum: enum}
 }
 
@@ -85,15 +85,4 @@ func (e EnumDeclarer) Declare() (string, error) {
 	sb.WriteByte(dispatcher)
 	sb.WriteString(") }")
 	return sb.String(), nil
-}
-
-func chooseFallbackName(pgName string, prefix string) string {
-	sb := strings.Builder{}
-	sb.WriteString(prefix)
-	for _, ch := range pgName {
-		if unicode.IsLetter(ch) || ch == '_' || unicode.IsDigit(ch) {
-			sb.WriteRune(ch)
-		}
-	}
-	return sb.String()
 }
