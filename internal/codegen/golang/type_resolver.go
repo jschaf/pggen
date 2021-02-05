@@ -94,6 +94,12 @@ func (tr TypeResolver) Resolve(pgt pg.Type, nullable bool, pkgPath string) (goty
 	case pg.EnumType:
 		enum := gotype.NewEnumType(pkgPath, pgt, tr.caser)
 		return enum, nil
+	case pg.CompositeType:
+		comp, err := CreateCompositeType(pkgPath, pgt, tr, tr.caser)
+		if err != nil {
+			return nil, fmt.Errorf("create composite type: %w", err)
+		}
+		return comp, nil
 	}
 
 	return nil, fmt.Errorf("no go type found for Postgres type %s oid=%d", pgt.String(), pgt.OID())

@@ -72,6 +72,11 @@ func (o OpaqueType) Import() string                   { return o.PkgPath }
 func (o OpaqueType) Package() string                  { return o.Pkg }
 func (o OpaqueType) BaseName() string                 { return o.Name }
 
+func (c CompositeType) QualifyRel(pkgPath string) string { return qualifyRel(c, pkgPath) }
+func (c CompositeType) Import() string                   { return c.PkgPath }
+func (c CompositeType) Package() string                  { return c.Pkg }
+func (c CompositeType) BaseName() string                 { return c.Name }
+
 func qualifyRel(typ Type, otherPkgPath string) string {
 	if typ.Import() == otherPkgPath || typ.Import() == "" || typ.Package() == "" {
 		return typ.BaseName()

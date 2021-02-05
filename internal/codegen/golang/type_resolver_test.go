@@ -13,6 +13,7 @@ func TestTypeResolver_Resolve(t *testing.T) {
 	testPkgPath := "github.com/jschaf/pggen/internal/codegen/golang/test_resolve"
 	caser := casing.NewCaser()
 	caser.AddAcronym("ios", "IOS")
+	caser.AddAcronym("id", "ID")
 	tests := []struct {
 		name      string
 		overrides map[string]string
@@ -52,6 +53,22 @@ func TestTypeResolver_Resolve(t *testing.T) {
 			overrides: map[string]string{"bigint": "example.com/custom.Type"},
 			pgType:    pg.BaseType{Name: "int8", ID: pgtype.Int8OID},
 			want:      gotype.NewOpaqueType("example.com/custom.Type"),
+		},
+		{
+			name: "composite",
+			pgType: pg.CompositeType{
+				Name:        "qux",
+				ColumnNames: []string{"id", "foo"},
+				ColumnTypes: []pg.Type{pg.Text, pg.Int8},
+			},
+			nullable: true,
+			want: gotype.CompositeType{
+				PkgPath:    testPkgPath,
+				Pkg:        "test_resolve",
+				Name:       "Qux",
+				FieldNames: []string{"ID", "Foo"},
+				FieldTypes: []gotype.Type{gotype.PgText, gotype.PgInt8},
+			},
 		},
 	}
 	for _, tt := range tests {
