@@ -9,6 +9,8 @@ import (
 )
 
 func TestEnumDeclarer_Declare(t *testing.T) {
+	caser := casing.NewCaser()
+	caser.AddAcronym("ios", "IOS")
 	tests := []struct {
 		name string
 		decl EnumDeclarer
@@ -19,7 +21,7 @@ func TestEnumDeclarer_Declare(t *testing.T) {
 			EnumDeclarer{
 				enum: NewEnumType(
 					pg.EnumType{Name: "device_type", Labels: []string{"ios", "mobile"}},
-					casing.NewCaser(),
+					caser,
 				),
 			},
 			texts.Dedent(`
@@ -47,8 +49,8 @@ func TestEnumDeclarer_Declare(t *testing.T) {
 				type Quoting string
 
 				const (
-					QuotingQuoteNewlineTab       Quoting = "\"\n\t"
-					QuotingBacktickQuoteBacktick Quoting = "` + "`" + `\"` + "`" + `"
+					QuotingUnnamedLabel0 Quoting = "\"\n\t"
+					QuotingUnnamedLabel1 Quoting = "` + "`" + `\"` + "`" + `"
 				)
 
 				func (q Quoting) String() string { return string(q) }
