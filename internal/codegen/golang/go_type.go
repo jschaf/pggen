@@ -13,7 +13,8 @@ import (
 
 // Type is a Go type.
 type Type interface {
-	// Stringer should return the fully qualified name of the type.
+	// Stringer should return the fully qualified name of the type, like:
+	// "github.com/jschaf/pggen.GenerateOptions".
 	fmt.Stringer
 	// Fully qualified package path, like "github.com/jschaf/pggen/foo". Empty
 	// for builtin types.
@@ -34,12 +35,19 @@ type (
 		PkgPath string
 		Pkg     string
 		Name    string
-		// Ordered labels of the Postgres enum formatted as Go identifiers.
+		// Labels of the Postgres enum formatted as Go identifiers ordered in the
+		// same order as in Postgres.
 		Labels []string
-		// The string constant associated with a label.
+		// The string constant associated with a label. Labels[i] represents
+		// Values[i].
 		Values []string
 	}
 )
+
+func (e EnumType) String() string      { return qualifyType(e.PkgPath, e.Name) }
+func (e EnumType) PackagePath() string { return e.PkgPath }
+func (e EnumType) Package() string     { return e.Pkg }
+func (e EnumType) BaseName() string    { return e.Name }
 
 func qualifyType(pkgPath, baseName string) string {
 	sb := strings.Builder{}
@@ -51,11 +59,6 @@ func qualifyType(pkgPath, baseName string) string {
 	sb.WriteString(baseName)
 	return sb.String()
 }
-
-func (e EnumType) String() string      { return qualifyType(e.PkgPath, e.Name) }
-func (e EnumType) PackagePath() string { return e.PkgPath }
-func (e EnumType) Package() string     { return e.Pkg }
-func (e EnumType) BaseName() string    { return e.Name }
 
 func NewEnumType(pgEnum pg.EnumType, caser casing.Caser) EnumType {
 	name := caser.ToUpperGoIdent(pgEnum.Name)
