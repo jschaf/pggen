@@ -2,7 +2,6 @@ package golang
 
 import (
 	"bytes"
-	"fmt"
 	"github.com/jschaf/pggen/internal/casing"
 	"github.com/jschaf/pggen/internal/gomod"
 	"github.com/jschaf/pggen/internal/pg"
@@ -13,9 +12,9 @@ import (
 
 // Type is a Go type.
 type Type interface {
-	// Stringer should return the fully qualified name of the type, like:
-	// "github.com/jschaf/pggen.GenerateOptions".
-	fmt.Stringer
+	// String should return the fully qualified name of the type, like:
+	// "github.com/jschaf/pggen.GenerateOptions". Implements fmt.Stringer.
+	String() string
 	// Fully qualified package path, like "github.com/jschaf/pggen/foo". Empty
 	// for builtin types.
 	PackagePath() string
@@ -42,12 +41,25 @@ type (
 		// Values[i].
 		Values []string
 	}
+
+	// Opaque is a type where only the name is known, as with a user-provided
+	// custom type.
+	OpaqueType struct {
+		PkgPath string
+		Pkg     string
+		Name    string
+	}
 )
 
 func (e EnumType) String() string      { return qualifyType(e.PkgPath, e.Name) }
 func (e EnumType) PackagePath() string { return e.PkgPath }
 func (e EnumType) Package() string     { return e.Pkg }
 func (e EnumType) BaseName() string    { return e.Name }
+
+func (o OpaqueType) String() string      { return qualifyType(o.PkgPath, o.Name) }
+func (o OpaqueType) PackagePath() string { return o.PkgPath }
+func (o OpaqueType) Package() string     { return o.Pkg }
+func (o OpaqueType) BaseName() string    { return o.Name }
 
 func qualifyType(pkgPath, baseName string) string {
 	sb := strings.Builder{}
@@ -60,7 +72,7 @@ func qualifyType(pkgPath, baseName string) string {
 	return sb.String()
 }
 
-func NewEnumType(pgEnum pg.EnumType, caser casing.Caser) EnumType {
+func NewEnumType(pkgPath string, pgEnum pg.EnumType, caser casing.Caser) EnumType {
 	name := caser.ToUpperGoIdent(pgEnum.Name)
 	if name == "" {
 		name = chooseFallbackName(pgEnum.Name, "UnnamedEnum")
@@ -77,12 +89,42 @@ func NewEnumType(pgEnum pg.EnumType, caser casing.Caser) EnumType {
 	}
 	return EnumType{
 		PgEnum:  pgEnum,
-		PkgPath: "", // declared in same package for now so ignore
-		Pkg:     "",
+		PkgPath: pkgPath,
+		Pkg:     extractShortPackage([]byte(pkgPath)),
 		Name:    name,
 		Labels:  labels,
 		Values:  values,
 	}
+}
+
+// NewOpaqueType creates a Opaque by parsing the fully qualified Go type like:
+// "github.com/jschaf/pggen.GenerateOpts", or a builtin type like "string".
+func NewOpaqueType(qualType string) OpaqueType {
+	if !strings.ContainsRune(qualType, '.') {
+		return OpaqueType{Name: qualType} // builtin type like "string"
+	}
+	bs := []byte(qualType)
+	idx := bytes.LastIndexByte(bs, '.')
+	name := string(bs[idx+1:])
+	pkgPath := bs[:idx]
+	shortPkg := extractShortPackage(pkgPath)
+	return OpaqueType{
+		PkgPath: string(pkgPath),
+		Pkg:     shortPkg,
+		Name:    name,
+	}
+}
+
+// extractShortPackage gets the last part of a package path like "generate" in
+// "github.com/jschaf/pggen/generate".
+func extractShortPackage(pkgPath []byte) string {
+	parts := bytes.Split(pkgPath, []byte{'/'})
+	shortPkg := parts[len(parts)-1]
+	// Skip major version suffixes got get package name.
+	if bytes.HasPrefix(shortPkg, []byte{'v'}) && majorVersionRegexp.Match(shortPkg) {
+		shortPkg = parts[len(parts)-2]
+	}
+	return string(shortPkg)
 }
 
 // GoType represents Go type including how to import it and how to reference the

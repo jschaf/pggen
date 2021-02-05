@@ -79,38 +79,35 @@ func NewTypeResolver(c casing.Caser, overrides map[string]string) TypeResolver {
 }
 
 // Resolve maps a Postgres type to a Go type.
-func (tr TypeResolver) Resolve(pgt pg.Type, nullable bool, path string) (GoType, error) {
+func (tr TypeResolver) Resolve(pgt pg.Type, nullable bool, path string) (Type, Declarer, error) {
 	// Custom user override.
 	if goType, ok := tr.overrides[pgt.String()]; ok {
-		return NewGoType(goType), nil
+		return NewOpaqueType(goType), nil, nil
 	}
 
 	// Known type.
 	if knownType, ok := knownTypesByOID[pgt.OID()]; ok {
 		if nullable || knownType.nonNullable == "" {
-			return NewGoType(knownType.nullable), nil
+			return NewOpaqueType(knownType.nullable), nil, nil
 		}
-		return NewGoType(knownType.nonNullable), nil
+		return NewOpaqueType(knownType.nonNullable), nil, nil
 	}
 
 	// New type that pggen will define in generated source code.
 	switch pgt := pgt.(type) {
 	case pg.EnumType:
-		enum := NewEnumType(pgt, tr.caser)
-		decl := NewEnumDeclarer(enum)
-		pkg, err := gomod.ResolvePackage(path)
-		if err != nil {
-			// Ignore error. Resolving the package isn't perfect. Create an
-			// unqualified type which will likely work since the enum is declared in
-			// this package.
-			return NewGoType(enum.Name), nil
+		// Attempt to guess package path. Ignore error if it doesn't work because
+		// resolving the package isn't perfect. We'll fallback to an unqualified
+		// type which will likely work since the enum is declared in this package.
+		if pkg, err := gomod.ResolvePackage(path); err == nil {
+			return NewEnumType(pkg, pgt, tr.caser), nil, nil
 		}
-		typ := NewGoType(pkg + "." + enum.Name)
-		typ.Decl = decl
-		return typ, nil
+		enum := NewEnumType("", pgt, tr.caser)
+		decl := NewEnumDeclarer(enum)
+		return enum, decl, nil
 	}
 
-	return GoType{}, fmt.Errorf("no go type found for Postgres type %s oid=%d", pgt.String(), pgt.OID())
+	return nil, nil, fmt.Errorf("no go type found for Postgres type %s oid=%d", pgt.String(), pgt.OID())
 }
 
 // knownGoType is the nullable and non-nullable types for a Postgres type.

@@ -180,36 +180,36 @@ func (tm Templater) templateFile(file codegen.QueryFile) (TemplatedFile, []Decla
 		// Build inputs.
 		inputs := make([]TemplatedParam, len(query.Inputs))
 		for i, input := range query.Inputs {
-			goType, err := tm.resolver.Resolve(input.PgType /*nullable*/, false, file.Path)
+			goType, decl, err := tm.resolver.Resolve(input.PgType /*nullable*/, false, file.Path)
 			if err != nil {
 				return TemplatedFile{}, nil, err
 			}
-			imports[goType.PkgPath] = struct{}{}
+			imports[goType.PackagePath()] = struct{}{}
 			inputs[i] = TemplatedParam{
 				UpperName: tm.chooseUpperName(input.PgName, "UnnamedParam", i, len(query.Inputs)),
 				LowerName: tm.chooseLowerName(input.PgName, "unnamedParam", i, len(query.Inputs)),
-				Type:      goType.PackageQualified(file.Path),
+				Type:      goType.BaseName(),
 			}
-			if goType.Decl != nil {
-				declarers = append(declarers, goType.Decl)
+			if decl != nil {
+				declarers = append(declarers, decl)
 			}
 		}
 
 		// Build outputs.
 		outputs := make([]TemplatedColumn, len(query.Outputs))
 		for i, out := range query.Outputs {
-			goType, err := tm.resolver.Resolve(out.PgType, out.Nullable, file.Path)
+			goType, decl, err := tm.resolver.Resolve(out.PgType, out.Nullable, file.Path)
 			if err != nil {
 				return TemplatedFile{}, nil, err
 			}
-			imports[goType.PkgPath] = struct{}{}
+			imports[goType.PackagePath()] = struct{}{}
 			outputs[i] = TemplatedColumn{
 				PgName: out.PgName,
 				Name:   tm.chooseUpperName(out.PgName, "UnnamedColumn", i, len(query.Outputs)),
-				Type:   goType.PackageQualified(file.Path),
+				Type:   goType.BaseName(),
 			}
-			if goType.Decl != nil {
-				declarers = append(declarers, goType.Decl)
+			if decl != nil {
+				declarers = append(declarers, decl)
 			}
 		}
 

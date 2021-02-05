@@ -11,6 +11,7 @@ import (
 func TestEnumDeclarer_Declare(t *testing.T) {
 	caser := casing.NewCaser()
 	caser.AddAcronym("ios", "IOS")
+	emptyPkgPath := ""
 	tests := []struct {
 		name string
 		decl EnumDeclarer
@@ -20,6 +21,7 @@ func TestEnumDeclarer_Declare(t *testing.T) {
 			"simple",
 			EnumDeclarer{
 				enum: NewEnumType(
+					emptyPkgPath,
 					pg.EnumType{Name: "device_type", Labels: []string{"ios", "mobile"}},
 					caser,
 				),
@@ -39,10 +41,14 @@ func TestEnumDeclarer_Declare(t *testing.T) {
 		{
 			"escaping",
 			EnumDeclarer{
-				enum: NewEnumType(pg.EnumType{
-					Name:   "quoting",
-					Labels: []string{"\"\n\t", "`\"`"},
-				}, casing.NewCaser()),
+				enum: NewEnumType(
+					emptyPkgPath,
+					pg.EnumType{
+						Name:   "quoting",
+						Labels: []string{"\"\n\t", "`\"`"},
+					},
+					casing.NewCaser(),
+				),
 			},
 			texts.Dedent(`
 				// Quoting represents the Postgres enum "quoting".
