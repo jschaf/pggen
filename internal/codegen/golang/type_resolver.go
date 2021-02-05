@@ -7,7 +7,6 @@ import (
 	"github.com/jschaf/pggen/internal/gomod"
 	"github.com/jschaf/pggen/internal/pg"
 	"github.com/jschaf/pggen/internal/pg/pgoid"
-	"regexp"
 )
 
 // TypeResolver handles the mapping between Postgres and Go types.
@@ -118,8 +117,6 @@ func (tr TypeResolver) Resolve(pgt pg.Type, nullable bool, path string) (GoType,
 // It's nicer to get a string as an output column rather than pgtype.Text which
 // requires checking for a null value.
 type knownGoType struct{ nullable, nonNullable string }
-
-var majorVersionRegexp = regexp.MustCompile(`^v[0-9]+$`)
 
 var knownTypesByOID = map[pgtype.OID]knownGoType{
 	pgtype.BoolOID:             {"github.com/jackc/pgtype.Bool", "bool"},

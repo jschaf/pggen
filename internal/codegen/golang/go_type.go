@@ -3,6 +3,7 @@ package golang
 import (
 	"bytes"
 	"github.com/jschaf/pggen/internal/gomod"
+	"regexp"
 	"strings"
 )
 
@@ -14,6 +15,8 @@ type GoType struct {
 	Name    string   // name of the type, like Foo in "type Foo int"
 	Decl    Declarer // optional Declarer for the type
 }
+
+var majorVersionRegexp = regexp.MustCompile(`^v[0-9]+$`)
 
 // NewGoType creates a GoType by parsing the fully qualified Go type like:
 // "github.com/jschaf/pggen.GenerateOpts", or a builtin type like "string".
