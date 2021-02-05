@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"github.com/jackc/pgtype"
 	"github.com/jschaf/pggen/internal/casing"
-	"github.com/jschaf/pggen/internal/gomod"
 	"github.com/jschaf/pggen/internal/pg"
 	"github.com/jschaf/pggen/internal/pg/pgoid"
 )
@@ -79,7 +78,7 @@ func NewTypeResolver(c casing.Caser, overrides map[string]string) TypeResolver {
 }
 
 // Resolve maps a Postgres type to a Go type.
-func (tr TypeResolver) Resolve(pgt pg.Type, nullable bool, path string) (Type, Declarer, error) {
+func (tr TypeResolver) Resolve(pgt pg.Type, nullable bool, pkgPath string) (Type, Declarer, error) {
 	// Custom user override.
 	if goType, ok := tr.overrides[pgt.String()]; ok {
 		return NewOpaqueType(goType), nil, nil
@@ -96,13 +95,7 @@ func (tr TypeResolver) Resolve(pgt pg.Type, nullable bool, path string) (Type, D
 	// New type that pggen will define in generated source code.
 	switch pgt := pgt.(type) {
 	case pg.EnumType:
-		// Attempt to guess package path. Ignore error if it doesn't work because
-		// resolving the package isn't perfect. We'll fallback to an unqualified
-		// type which will likely work since the enum is declared in this package.
-		if pkg, err := gomod.ResolvePackage(path); err == nil {
-			return NewEnumType(pkg, pgt, tr.caser), nil, nil
-		}
-		enum := NewEnumType("", pgt, tr.caser)
+		enum := NewEnumType(pkgPath, pgt, tr.caser)
 		decl := NewEnumDeclarer(enum)
 		return enum, decl, nil
 	}

@@ -161,6 +161,15 @@ func (tm Templater) templateFile(file codegen.QueryFile) (TemplatedFile, []Decla
 		"github.com/jackc/pgx/v4": {},
 	}
 
+	pkgPath := ""
+	// NOTE: err == nil check
+	// Attempt to guess package path. Ignore error if it doesn't work because
+	// resolving the package isn't perfect. We'll fallback to an unqualified
+	// type which will likely work since the enum is declared in this package.
+	if pkg, err := gomod.ResolvePackage(file.Path); err == nil {
+		pkgPath = pkg
+	}
+
 	queries := make([]TemplatedQuery, 0, len(file.Queries))
 	declarers := make([]Declarer, 0, 8)
 	for _, query := range file.Queries {
@@ -180,15 +189,15 @@ func (tm Templater) templateFile(file codegen.QueryFile) (TemplatedFile, []Decla
 		// Build inputs.
 		inputs := make([]TemplatedParam, len(query.Inputs))
 		for i, input := range query.Inputs {
-			goType, decl, err := tm.resolver.Resolve(input.PgType /*nullable*/, false, file.Path)
+			goType, decl, err := tm.resolver.Resolve(input.PgType /*nullable*/, false, pkgPath)
 			if err != nil {
 				return TemplatedFile{}, nil, err
 			}
-			imports[goType.PackagePath()] = struct{}{}
+			imports[goType.Import()] = struct{}{}
 			inputs[i] = TemplatedParam{
 				UpperName: tm.chooseUpperName(input.PgName, "UnnamedParam", i, len(query.Inputs)),
 				LowerName: tm.chooseLowerName(input.PgName, "unnamedParam", i, len(query.Inputs)),
-				Type:      goType.BaseName(),
+				Type:      goType.QualifyRel(pkgPath),
 			}
 			if decl != nil {
 				declarers = append(declarers, decl)
@@ -202,11 +211,11 @@ func (tm Templater) templateFile(file codegen.QueryFile) (TemplatedFile, []Decla
 			if err != nil {
 				return TemplatedFile{}, nil, err
 			}
-			imports[goType.PackagePath()] = struct{}{}
+			imports[goType.Import()] = struct{}{}
 			outputs[i] = TemplatedColumn{
 				PgName: out.PgName,
 				Name:   tm.chooseUpperName(out.PgName, "UnnamedColumn", i, len(query.Outputs)),
-				Type:   goType.BaseName(),
+				Type:   goType.QualifyRel(pkgPath),
 			}
 			if decl != nil {
 				declarers = append(declarers, decl)

@@ -12,12 +12,13 @@ import (
 
 // Type is a Go type.
 type Type interface {
-	// String should return the fully qualified name of the type, like:
-	// "github.com/jschaf/pggen.GenerateOptions". Implements fmt.Stringer.
-	String() string
-	// Fully qualified package path, like "github.com/jschaf/pggen/foo". Empty
-	// for builtin types.
-	PackagePath() string
+	// QualifyRel qualifies the type relative to another pkgPath. If this type's
+	// package path is the same, return the BaseName. Otherwise, qualify the type
+	// with Package.
+	QualifyRel(pkgPath string) string
+	// Import returns the full package path, like "github.com/jschaf/pggen/foo".
+	// Empty for builtin types.
+	Import() string
 	// Last part of the package path, used to qualify type names, like "foo" in
 	// "github.com/jschaf/pggen/foo". Empty for builtin types.
 	Package() string
@@ -51,24 +52,29 @@ type (
 	}
 )
 
-func (e EnumType) String() string      { return qualifyType(e.PkgPath, e.Name) }
-func (e EnumType) PackagePath() string { return e.PkgPath }
-func (e EnumType) Package() string     { return e.Pkg }
-func (e EnumType) BaseName() string    { return e.Name }
+func (e EnumType) QualifyRel(pkgPath string) string { return qualifyRel(e, pkgPath) }
+func (e EnumType) Import() string                   { return e.PkgPath }
+func (e EnumType) Package() string                  { return e.Pkg }
+func (e EnumType) BaseName() string                 { return e.Name }
 
-func (o OpaqueType) String() string      { return qualifyType(o.PkgPath, o.Name) }
-func (o OpaqueType) PackagePath() string { return o.PkgPath }
-func (o OpaqueType) Package() string     { return o.Pkg }
-func (o OpaqueType) BaseName() string    { return o.Name }
+func (o OpaqueType) QualifyRel(pkgPath string) string { return qualifyRel(o, pkgPath) }
+func (o OpaqueType) Import() string                   { return o.PkgPath }
+func (o OpaqueType) Package() string                  { return o.Pkg }
+func (o OpaqueType) BaseName() string                 { return o.Name }
 
-func qualifyType(pkgPath, baseName string) string {
+func qualifyRel(typ Type, otherPkgPath string) string {
+	if typ.Import() == otherPkgPath {
+		return typ.BaseName()
+	}
 	sb := strings.Builder{}
-	sb.Grow(len(pkgPath) + 1 + len(baseName))
-	sb.WriteString(pkgPath)
-	if pkgPath != "" {
+	sb.Grow(len(typ.BaseName()))
+	if typ.Import() != "" {
+		shortPkg := typ.Package()
+		sb.Grow(len(shortPkg) + 1)
+		sb.WriteString(shortPkg)
 		sb.WriteRune('.')
 	}
-	sb.WriteString(baseName)
+	sb.WriteString(typ.BaseName())
 	return sb.String()
 }
 
