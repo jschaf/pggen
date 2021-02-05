@@ -210,7 +210,6 @@ SELECT
   typ.typname::text AS table_type_name,
   typ.oid           AS table_type_oid,
   table_name,
-  table_oid,
   col_names,
   col_oids,
   col_orders,
@@ -225,7 +224,6 @@ type FindCompositeTypesRow struct {
 	TableTypeName pgtype.Text      `json:"table_type_name"`
 	TableTypeOID  pgtype.OID       `json:"table_type_oid"`
 	TableName     pgtype.Name      `json:"table_name"`
-	TableOID      pgtype.OID       `json:"table_oid"`
 	ColNames      pgtype.TextArray `json:"col_names"`
 	ColOIDs       pgtype.Int8Array `json:"col_oids"`
 	ColOrders     pgtype.Int8Array `json:"col_orders"`
@@ -245,7 +243,7 @@ func (q *DBQuerier) FindCompositeTypes(ctx context.Context, oIDs []uint32) ([]Fi
 	items := []FindCompositeTypesRow{}
 	for rows.Next() {
 		var item FindCompositeTypesRow
-		if err := rows.Scan(&item.TableTypeName, &item.TableTypeOID, &item.TableName, &item.TableOID, &item.ColNames, &item.ColOIDs, &item.ColOrders, &item.ColNotNulls, &item.ColTypeNames); err != nil {
+		if err := rows.Scan(&item.TableTypeName, &item.TableTypeOID, &item.TableName, &item.ColNames, &item.ColOIDs, &item.ColOrders, &item.ColNotNulls, &item.ColTypeNames); err != nil {
 			return nil, fmt.Errorf("scan FindCompositeTypes row: %w", err)
 		}
 		items = append(items, item)
@@ -273,7 +271,7 @@ func (q *DBQuerier) FindCompositeTypesScan(results pgx.BatchResults) ([]FindComp
 	items := []FindCompositeTypesRow{}
 	for rows.Next() {
 		var item FindCompositeTypesRow
-		if err := rows.Scan(&item.TableTypeName, &item.TableTypeOID, &item.TableName, &item.TableOID, &item.ColNames, &item.ColOIDs, &item.ColOrders, &item.ColNotNulls, &item.ColTypeNames); err != nil {
+		if err := rows.Scan(&item.TableTypeName, &item.TableTypeOID, &item.TableName, &item.ColNames, &item.ColOIDs, &item.ColOrders, &item.ColNotNulls, &item.ColTypeNames); err != nil {
 			return nil, fmt.Errorf("scan FindCompositeTypesBatch row: %w", err)
 		}
 		items = append(items, item)
