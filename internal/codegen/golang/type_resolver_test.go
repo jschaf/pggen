@@ -56,7 +56,7 @@ func TestTypeResolver_Resolve(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			resolver := NewTypeResolver(caser, tt.overrides)
-			got, _, err := resolver.Resolve(tt.pgType, tt.nullable, "./test_resolve/foo.go")
+			got, _, err := resolver.Resolve(tt.pgType, tt.nullable, testPkgPath)
 			if err != nil {
 				t.Fatal(err)
 			}
