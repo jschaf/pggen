@@ -189,7 +189,7 @@ func (tm Templater) templateFile(file codegen.QueryFile) (TemplatedFile, []Decla
 		// Build inputs.
 		inputs := make([]TemplatedParam, len(query.Inputs))
 		for i, input := range query.Inputs {
-			goType, decl, err := tm.resolver.Resolve(input.PgType /*nullable*/, false, pkgPath)
+			goType, err := tm.resolver.Resolve(input.PgType /*nullable*/, false, pkgPath)
 			if err != nil {
 				return TemplatedFile{}, nil, err
 			}
@@ -199,7 +199,7 @@ func (tm Templater) templateFile(file codegen.QueryFile) (TemplatedFile, []Decla
 				LowerName: tm.chooseLowerName(input.PgName, "unnamedParam", i, len(query.Inputs)),
 				Type:      goType.QualifyRel(pkgPath),
 			}
-			if decl != nil {
+			if decl := FindDeclarer(goType); decl != nil {
 				declarers = append(declarers, decl)
 			}
 		}
@@ -207,7 +207,7 @@ func (tm Templater) templateFile(file codegen.QueryFile) (TemplatedFile, []Decla
 		// Build outputs.
 		outputs := make([]TemplatedColumn, len(query.Outputs))
 		for i, out := range query.Outputs {
-			goType, decl, err := tm.resolver.Resolve(out.PgType, out.Nullable, pkgPath)
+			goType, err := tm.resolver.Resolve(out.PgType, out.Nullable, pkgPath)
 			if err != nil {
 				return TemplatedFile{}, nil, err
 			}
@@ -217,7 +217,7 @@ func (tm Templater) templateFile(file codegen.QueryFile) (TemplatedFile, []Decla
 				Name:   tm.chooseUpperName(out.PgName, "UnnamedColumn", i, len(query.Outputs)),
 				Type:   goType.QualifyRel(pkgPath),
 			}
-			if decl != nil {
+			if decl := FindDeclarer(goType); decl != nil {
 				declarers = append(declarers, decl)
 			}
 		}

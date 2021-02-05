@@ -18,6 +18,17 @@ type Declarer interface {
 	Declare() (string, error)
 }
 
+// FindDeclarer finds the appropriate Declarer for a type or nil if no declare
+// is needed.
+func FindDeclarer(typ Type) Declarer {
+	switch typ := typ.(type) {
+	case EnumType:
+		return NewEnumDeclarer(typ)
+	default:
+		return nil
+	}
+}
+
 // EnumDeclarer declares a new string type and the const values to map to a
 // Postgres enum.
 type EnumDeclarer struct {

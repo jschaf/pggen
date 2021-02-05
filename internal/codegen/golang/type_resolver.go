@@ -78,29 +78,28 @@ func NewTypeResolver(c casing.Caser, overrides map[string]string) TypeResolver {
 }
 
 // Resolve maps a Postgres type to a Go type.
-func (tr TypeResolver) Resolve(pgt pg.Type, nullable bool, pkgPath string) (Type, Declarer, error) {
+func (tr TypeResolver) Resolve(pgt pg.Type, nullable bool, pkgPath string) (Type, error) {
 	// Custom user override.
 	if goType, ok := tr.overrides[pgt.String()]; ok {
-		return NewOpaqueType(goType), nil, nil
+		return NewOpaqueType(goType), nil
 	}
 
 	// Known type.
 	if knownType, ok := knownTypesByOID[pgt.OID()]; ok {
 		if nullable || knownType.nonNullable == "" {
-			return NewOpaqueType(knownType.nullable), nil, nil
+			return NewOpaqueType(knownType.nullable), nil
 		}
-		return NewOpaqueType(knownType.nonNullable), nil, nil
+		return NewOpaqueType(knownType.nonNullable), nil
 	}
 
 	// New type that pggen will define in generated source code.
 	switch pgt := pgt.(type) {
 	case pg.EnumType:
 		enum := NewEnumType(pkgPath, pgt, tr.caser)
-		decl := NewEnumDeclarer(enum)
-		return enum, decl, nil
+		return enum, nil
 	}
 
-	return nil, nil, fmt.Errorf("no go type found for Postgres type %s oid=%d", pgt.String(), pgt.OID())
+	return nil, fmt.Errorf("no go type found for Postgres type %s oid=%d", pgt.String(), pgt.OID())
 }
 
 // knownGoType is the nullable and non-nullable types for a Postgres type.
