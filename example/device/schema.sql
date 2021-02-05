@@ -14,6 +14,6 @@ CREATE TABLE "user" (
 
 CREATE TABLE device (
   mac   MACADDR PRIMARY KEY,
-  owner bigint REFERENCES "user",
+  owner bigint REFERENCES "user" (id),
   type  device_type NOT NULL DEFAULT 'undefined'
 );
