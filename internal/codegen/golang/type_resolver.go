@@ -79,20 +79,25 @@ func NewTypeResolver(c casing.Caser, overrides map[string]string) TypeResolver {
 	return TypeResolver{caser: c, overrides: overs}
 }
 
-// Resolve maps a Postgres type to a Go type and its containing package.
+// Resolve maps a Postgres type to a Go type.
 func (tr TypeResolver) Resolve(pgt pg.Type, nullable bool, path string) (GoType, error) {
 	// Custom user override.
 	if goType, ok := tr.overrides[pgt.String()]; ok {
 		return NewGoType(goType), nil
 	}
 
-	knownType, ok := knownTypesByOID[pgt.OID()]
-	if !ok && pgt.Kind() != pg.KindEnumType {
-		return GoType{}, fmt.Errorf("no go type found for Postgres type %s oid=%d", pgt.String(), pgt.OID())
+	// Known type.
+	if knownType, ok := knownTypesByOID[pgt.OID()]; ok {
+		if nullable || knownType.nonNullable == "" {
+			return NewGoType(knownType.nullable), nil
+		}
+		return NewGoType(knownType.nonNullable), nil
 	}
 
-	if enumType, ok := pgt.(pg.EnumType); ok {
-		decl := NewEnumDeclarer(enumType.Name, enumType.Labels, tr.caser)
+	// New type that pggen will define in generated source code.
+	switch pgt := pgt.(type) {
+	case pg.EnumType:
+		decl := NewEnumDeclarer(pgt.Name, pgt.Labels, tr.caser)
 		pkg, err := gomod.ResolvePackage(path)
 		if err != nil {
 			// Ignore error. Resolving the package isn't perfect. Create an
@@ -105,10 +110,7 @@ func (tr TypeResolver) Resolve(pgt pg.Type, nullable bool, path string) (GoType,
 		return typ, nil
 	}
 
-	if nullable || knownType.nonNullable == "" {
-		return NewGoType(knownType.nullable), nil
-	}
-	return NewGoType(knownType.nonNullable), nil
+	return GoType{}, fmt.Errorf("no go type found for Postgres type %s oid=%d", pgt.String(), pgt.OID())
 }
 
 // knownGoType is the nullable and non-nullable types for a Postgres type.
