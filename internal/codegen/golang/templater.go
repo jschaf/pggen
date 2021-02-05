@@ -15,6 +15,7 @@ import (
 // TemplatedFile is the Go version of a SQL query file with all information
 // needed to execute the codegen template.
 type TemplatedFile struct {
+	PkgPath string           // full package path, like "github.com/foo/bar"
 	GoPkg   string           // the name of the Go package to use for the generated file
 	Path    string           // the path to source SQL file
 	Queries []TemplatedQuery // the queries with all template information
@@ -243,6 +244,7 @@ func (tm Templater) templateFile(file codegen.QueryFile) (TemplatedFile, []Decla
 	sort.Strings(sortedImports)
 
 	return TemplatedFile{
+		PkgPath: pkgPath,
 		GoPkg:   tm.pkg,
 		Path:    file.Path,
 		Queries: queries,

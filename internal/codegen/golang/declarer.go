@@ -15,7 +15,7 @@ type Declarer interface {
 	// declarations once. Should be namespaced like enum::some_enum.
 	DedupeKey() string
 	// Declare returns the string of the Go declaration.
-	Declare() (string, error)
+	Declare(pkgPath string) (string, error)
 }
 
 // FindDeclarer finds the appropriate Declarer for a type or nil if no declare
@@ -24,9 +24,62 @@ func FindDeclarer(typ gotype.Type) Declarer {
 	switch typ := typ.(type) {
 	case gotype.EnumType:
 		return NewEnumDeclarer(typ)
+	case gotype.CompositeType:
+		return NewCompositeDeclarer(typ)
 	default:
 		return nil
 	}
+}
+
+// CompositeDeclarer declare a new struct to represent a Postgres composite
+// type.
+type CompositeDeclarer struct {
+	comp gotype.CompositeType
+}
+
+func NewCompositeDeclarer(comp gotype.CompositeType) CompositeDeclarer {
+	return CompositeDeclarer{comp: comp}
+}
+
+func (c CompositeDeclarer) DedupeKey() string {
+	return "composite::" + c.comp.Name
+}
+
+func (c CompositeDeclarer) Declare(pkgPath string) (string, error) {
+	sb := &strings.Builder{}
+	// Doc string
+	if c.comp.PgComposite.Name != "" {
+		sb.WriteString("// ")
+		sb.WriteString(c.comp.Name)
+		sb.WriteString(" represents the Postgres composite type ")
+		sb.WriteString(strconv.Quote(c.comp.PgComposite.Name))
+		sb.WriteString(".\n")
+	}
+	// Struct declaration.
+	sb.WriteString("type ")
+	sb.WriteString(c.comp.Name)
+	sb.WriteString(" struct")
+	if len(c.comp.FieldNames) == 0 {
+		sb.WriteString("{") // type Foo struct{}
+	} else {
+		sb.WriteString(" {\n") // type Foo struct {\n
+	}
+	nameLen := 0
+	for _, name := range c.comp.FieldNames {
+		if len(name) > nameLen {
+			nameLen = len(name)
+		}
+	}
+	// Struct fields.
+	for i, name := range c.comp.FieldNames {
+		sb.WriteRune('\t')
+		sb.WriteString(name)
+		sb.WriteString(strings.Repeat(" ", nameLen+1-len(name)))
+		sb.WriteString(c.comp.FieldTypes[i].QualifyRel(pkgPath))
+		sb.WriteRune('\n')
+	}
+	sb.WriteString("}")
+	return sb.String(), nil
 }
 
 // EnumDeclarer declares a new string type and the const values to map to a
@@ -43,7 +96,7 @@ func (e EnumDeclarer) DedupeKey() string {
 	return "enum::" + e.enum.Name
 }
 
-func (e EnumDeclarer) Declare() (string, error) {
+func (e EnumDeclarer) Declare(string) (string, error) {
 	sb := &strings.Builder{}
 	// Doc string.
 	if e.enum.PgEnum.Name != "" {

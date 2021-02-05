@@ -63,6 +63,11 @@ func TestTypeResolver_Resolve(t *testing.T) {
 			},
 			nullable: true,
 			want: gotype.CompositeType{
+				PgComposite: pg.CompositeType{
+					Name:        "qux",
+					ColumnNames: []string{"id", "foo"},
+					ColumnTypes: []pg.Type{pg.Text, pg.Int8},
+				},
 				PkgPath:    testPkgPath,
 				Pkg:        "test_resolve",
 				Name:       "Qux",
@@ -148,6 +153,11 @@ func TestCreateCompositeType(t *testing.T) {
 				ColumnTypes: []pg.Type{pg.Text, pg.Int8},
 			},
 			want: gotype.CompositeType{
+				PgComposite: pg.CompositeType{
+					Name:        "qux",
+					ColumnNames: []string{"one", "two_a"},
+					ColumnTypes: []pg.Type{pg.Text, pg.Int8},
+				},
 				PkgPath:    "example.com/foo",
 				Pkg:        "foo",
 				Name:       "Qux",

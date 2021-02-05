@@ -132,11 +132,12 @@ func CreateCompositeType(
 		fieldTypes[i] = fieldType
 	}
 	ct := gotype.CompositeType{
-		PkgPath:    pkgPath,
-		Pkg:        gotype.ExtractShortPackage([]byte(pkgPath)),
-		Name:       name,
-		FieldNames: fieldNames,
-		FieldTypes: fieldTypes,
+		PgComposite: pgt,
+		PkgPath:     pkgPath,
+		Pkg:         gotype.ExtractShortPackage([]byte(pkgPath)),
+		Name:        name,
+		FieldNames:  fieldNames,
+		FieldTypes:  fieldTypes,
 	}
 	return ct, nil
 }

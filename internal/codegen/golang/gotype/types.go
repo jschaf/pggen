@@ -54,11 +54,12 @@ type (
 	// CompositeType is a struct type that represents a Postgres composite type,
 	// typically from a table.
 	CompositeType struct {
-		PkgPath    string
-		Pkg        string
-		Name       string
-		FieldNames []string
-		FieldTypes []Type
+		PgComposite pg.CompositeType // original Postgres composite type
+		PkgPath     string
+		Pkg         string
+		Name        string
+		FieldNames  []string
+		FieldTypes  []Type
 	}
 )
 

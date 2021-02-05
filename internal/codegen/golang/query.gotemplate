@@ -68,7 +68,7 @@ func NewQuerier(conn genericConn) *DBQuerier {
 func (q *DBQuerier) WithTx(tx pgx.Tx) (*DBQuerier, error) {
 	return &DBQuerier{conn: tx}, nil
 }
-{{- range .Declarers}}{{- "\n\n" -}}{{ .Declare }}{{ end -}}
+{{- range .Declarers}}{{- "\n\n" -}}{{ .Declare $.GoPkg }}{{ end -}}
 {{- end -}}
 
 {{- range $i, $q := .Queries -}}
