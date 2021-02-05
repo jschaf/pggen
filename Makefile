@@ -28,11 +28,11 @@ test:
 
 .PHONY: integration-test
 integration-test:
-	go test --tags=integration_test ./...
+	go test ./example/integration_test.go
 
 .PHONY: update-integration-test
 update-integration-test:
-	go test --tags=integration_test ./... -args -update
+	go test ./example/integration_test.go -update
 
 .PHONY: lint
 lint:

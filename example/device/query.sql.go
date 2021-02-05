@@ -22,6 +22,13 @@ type Querier interface {
 	FindDevicesByUserBatch(batch *pgx.Batch, iD int)
 	// FindDevicesByUserScan scans the result of an executed FindDevicesByUserBatch query.
 	FindDevicesByUserScan(results pgx.BatchResults) ([]FindDevicesByUserRow, error)
+
+	CompositeUser(ctx context.Context) ([]CompositeUserRow, error)
+	// CompositeUserBatch enqueues a CompositeUser query into batch to be executed
+	// later by the batch.
+	CompositeUserBatch(batch *pgx.Batch)
+	// CompositeUserScan scans the result of an executed CompositeUserBatch query.
+	CompositeUserScan(results pgx.BatchResults) ([]CompositeUserRow, error)
 }
 
 type DBQuerier struct {
@@ -61,6 +68,26 @@ func NewQuerier(conn genericConn) *DBQuerier {
 func (q *DBQuerier) WithTx(tx pgx.Tx) (*DBQuerier, error) {
 	return &DBQuerier{conn: tx}, nil
 }
+
+// User represents the Postgres composite type "user".
+type User struct {
+	ID   pgtype.Int8
+	Name pgtype.Text
+}
+
+// DeviceType represents the Postgres enum "device_type".
+type DeviceType string
+
+const (
+	DeviceTypeUndefined DeviceType = "undefined"
+	DeviceTypePhone     DeviceType = "phone"
+	DeviceTypeLaptop    DeviceType = "laptop"
+	DeviceTypeIpad      DeviceType = "ipad"
+	DeviceTypeDesktop   DeviceType = "desktop"
+	DeviceTypeIot       DeviceType = "iot"
+)
+
+func (d DeviceType) String() string { return string(d) }
 
 const findDevicesByUserSQL = `SELECT
   id,
@@ -117,6 +144,70 @@ func (q *DBQuerier) FindDevicesByUserScan(results pgx.BatchResults) ([]FindDevic
 		var item FindDevicesByUserRow
 		if err := rows.Scan(&item.ID, &item.Name, &item.ArrayAgg); err != nil {
 			return nil, fmt.Errorf("scan FindDevicesByUserBatch row: %w", err)
+		}
+		items = append(items, item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, err
+}
+
+const compositeUserSQL = `SELECT
+  d.mac,
+  d.type,
+  ROW (u.id, u.name)::"user"
+FROM device d
+  LEFT JOIN "user" u ON u.id = d.owner;`
+
+type CompositeUserRow struct {
+	Mac  pgtype.Macaddr `json:"mac"`
+	Type DeviceType     `json:"type"`
+	Row  User           `json:"row"`
+}
+
+// CompositeUser implements Querier.CompositeUser.
+func (q *DBQuerier) CompositeUser(ctx context.Context) ([]CompositeUserRow, error) {
+	rows, err := q.conn.Query(ctx, compositeUserSQL)
+	if rows != nil {
+		defer rows.Close()
+	}
+	if err != nil {
+		return nil, fmt.Errorf("query CompositeUser: %w", err)
+	}
+	items := []CompositeUserRow{}
+	for rows.Next() {
+		var item CompositeUserRow
+		if err := rows.Scan(&item.Mac, &item.Type, &item.Row); err != nil {
+			return nil, fmt.Errorf("scan CompositeUser row: %w", err)
+		}
+		items = append(items, item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, err
+}
+
+// CompositeUserBatch implements Querier.CompositeUserBatch.
+func (q *DBQuerier) CompositeUserBatch(batch *pgx.Batch) {
+	batch.Queue(compositeUserSQL)
+}
+
+// CompositeUserScan implements Querier.CompositeUserScan.
+func (q *DBQuerier) CompositeUserScan(results pgx.BatchResults) ([]CompositeUserRow, error) {
+	rows, err := results.Query()
+	if rows != nil {
+		defer rows.Close()
+	}
+	if err != nil {
+		return nil, err
+	}
+	items := []CompositeUserRow{}
+	for rows.Next() {
+		var item CompositeUserRow
+		if err := rows.Scan(&item.Mac, &item.Type, &item.Row); err != nil {
+			return nil, fmt.Errorf("scan CompositeUserBatch row: %w", err)
 		}
 		items = append(items, item)
 	}
