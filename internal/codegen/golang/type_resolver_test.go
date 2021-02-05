@@ -26,7 +26,10 @@ func TestTypeResolver_Resolve(t *testing.T) {
 				PkgPath: "github.com/jschaf/pggen/internal/codegen",
 				Pkg:     "codegen",
 				Name:    "DeviceType",
-				Decl:    NewEnumDeclarer("device_type", []string{"macos", "ios", "web"}, casing.NewCaser()),
+				Decl: NewEnumDeclarer(pg.EnumType{
+					Name:   "device_type",
+					Labels: []string{"macos", "ios", "web"},
+				}, casing.NewCaser()),
 			},
 		},
 		{

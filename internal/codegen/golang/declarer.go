@@ -2,6 +2,7 @@ package golang
 
 import (
 	"github.com/jschaf/pggen/internal/casing"
+	"github.com/jschaf/pggen/internal/pg"
 	"strconv"
 	"strings"
 	"unicode"
@@ -22,19 +23,18 @@ type Declarer interface {
 // EnumDeclarer declares a new string type and the const values to map to a
 // Postgres enum.
 type EnumDeclarer struct {
-	PgName   string   // original Postgres name of the enum
+	PgType   pg.EnumType
 	GoName   string   // name of the enum formatted as a Go identifier
 	GoLabels []string // the ordered labels of the enum formatted as Go identifiers
-	PgLabels []string // original labels in Postgres
 }
 
-func NewEnumDeclarer(pgName string, pgLabels []string, caser casing.Caser) EnumDeclarer {
-	goName := caser.ToUpperGoIdent(pgName)
+func NewEnumDeclarer(pgEnum pg.EnumType, caser casing.Caser) EnumDeclarer {
+	goName := caser.ToUpperGoIdent(pgEnum.Name)
 	if goName == "" {
-		goName = chooseFallbackName(pgName, "UnnamedEnum")
+		goName = chooseFallbackName(pgEnum.Name, "UnnamedEnum")
 	}
-	goLabels := make([]string, len(pgLabels))
-	for i, label := range pgLabels {
+	goLabels := make([]string, len(pgEnum.Labels))
+	for i, label := range pgEnum.Labels {
 		ident := caser.ToUpperGoIdent(label)
 		if ident == "" {
 			ident = chooseFallbackName(label, "UnnamedLabel"+strconv.Itoa(i))
@@ -42,15 +42,14 @@ func NewEnumDeclarer(pgName string, pgLabels []string, caser casing.Caser) EnumD
 		goLabels[i] = goName + ident
 	}
 	return EnumDeclarer{
-		PgName:   pgName,
+		PgType:   pgEnum,
 		GoName:   goName,
 		GoLabels: goLabels,
-		PgLabels: pgLabels,
 	}
 }
 
 func (e EnumDeclarer) DedupeKey() string {
-	return "enum::" + e.PgName
+	return "enum::" + e.PgType.Name
 }
 
 func (e EnumDeclarer) Declare() (string, error) {
@@ -59,7 +58,7 @@ func (e EnumDeclarer) Declare() (string, error) {
 	sb.WriteString("// ")
 	sb.WriteString(e.GoName)
 	sb.WriteString(" represents the Postgres enum ")
-	sb.WriteString(strconv.Quote(e.PgName))
+	sb.WriteString(strconv.Quote(e.PgType.Name))
 	sb.WriteString(".\n")
 	// Type declaration.
 	sb.WriteString("type ")
@@ -79,7 +78,7 @@ func (e EnumDeclarer) Declare() (string, error) {
 		sb.WriteString(strings.Repeat(" ", nameLen+1-len(goLabel)))
 		sb.WriteString(e.GoName)
 		sb.WriteString(` = `)
-		sb.WriteString(strconv.Quote(e.PgLabels[i]))
+		sb.WriteString(strconv.Quote(e.PgType.Labels[i]))
 		sb.WriteByte('\n')
 	}
 	sb.WriteString(")\n\n")
