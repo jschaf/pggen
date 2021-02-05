@@ -18,10 +18,10 @@ type Type interface {
 	// Import returns the full package path, like "github.com/jschaf/pggen/foo".
 	// Empty for builtin types.
 	Import() string
-	// Last part of the package path, used to qualify type names, like "foo" in
-	// "github.com/jschaf/pggen/foo". Empty for builtin types.
+	// Last part of the package path like "qux" for the package
+	// "github.com/jschaf/pggen/qux". Empty for builtin types.
 	Package() string
-	// The name of the type, like the "Foo" in:
+	// The base name of the type, like the "Foo" in:
 	//   type Foo int
 	BaseName() string
 }
