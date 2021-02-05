@@ -2,10 +2,65 @@ package golang
 
 import (
 	"bytes"
+	"fmt"
+	"github.com/jschaf/pggen/internal/casing"
 	"github.com/jschaf/pggen/internal/gomod"
+	"github.com/jschaf/pggen/internal/pg"
 	"regexp"
+	"strconv"
 	"strings"
 )
+
+// Type is a Go type.
+type Type interface {
+	// Stringer should return the name of the type.
+	fmt.Stringer
+	// Fully qualified package path, like "github.com/jschaf/pggen/foo". Empty
+	// for builtin types.
+	PackagePath() string
+	// Last part of the package path, used to qualify type names, like "foo" in
+	// "github.com/jschaf/pggen/foo".
+	Package() string
+}
+
+type (
+	// EnumType is a string type with constant values that maps to the labels of
+	// a Postgres enum.
+	EnumType struct {
+		PgEnum  pg.EnumType // the original Postgres enum
+		PkgPath string
+		Pkg     string
+		Name    string
+		// Ordered labels of the Postgres enum formatted as Go identifiers.
+		Labels []string
+		// The string constant associated with a label.
+		Values []string
+	}
+)
+
+func NewEnumType(pgEnum pg.EnumType, caser casing.Caser) EnumType {
+	name := caser.ToUpperGoIdent(pgEnum.Name)
+	if name == "" {
+		name = chooseFallbackName(pgEnum.Name, "UnnamedEnum")
+	}
+	labels := make([]string, len(pgEnum.Labels))
+	values := make([]string, len(pgEnum.Labels))
+	for i, label := range pgEnum.Labels {
+		ident := caser.ToUpperGoIdent(label)
+		if ident == "" {
+			ident = chooseFallbackName(label, "UnnamedLabel"+strconv.Itoa(i))
+		}
+		labels[i] = name + ident
+		values[i] = pgEnum.Labels[i]
+	}
+	return EnumType{
+		PkgPath: "", // declared in same package for now so ignore
+		Pkg:     "",
+		Name:    name,
+		Labels:  labels,
+		Values:  values,
+	}
+}
 
 // GoType represents Go type including how to import it and how to reference the
 // type.

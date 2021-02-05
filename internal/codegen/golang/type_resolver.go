@@ -96,15 +96,16 @@ func (tr TypeResolver) Resolve(pgt pg.Type, nullable bool, path string) (GoType,
 	// New type that pggen will define in generated source code.
 	switch pgt := pgt.(type) {
 	case pg.EnumType:
-		decl := NewEnumDeclarer(pgt, tr.caser)
+		enum := NewEnumType(pgt, tr.caser)
+		decl := NewEnumDeclarer(enum)
 		pkg, err := gomod.ResolvePackage(path)
 		if err != nil {
 			// Ignore error. Resolving the package isn't perfect. Create an
 			// unqualified type which will likely work since the enum is declared in
 			// this package.
-			return NewGoType(decl.GoName), nil
+			return NewGoType(enum.Name), nil
 		}
-		typ := NewGoType(pkg + "." + decl.GoName)
+		typ := NewGoType(pkg + "." + enum.Name)
 		typ.Decl = decl
 		return typ, nil
 	}

@@ -1,6 +1,7 @@
 package golang
 
 import (
+	"github.com/jschaf/pggen/internal/casing"
 	"github.com/jschaf/pggen/internal/pg"
 	"github.com/jschaf/pggen/internal/texts"
 	"github.com/stretchr/testify/assert"
@@ -16,12 +17,10 @@ func TestEnumDeclarer_Declare(t *testing.T) {
 		{
 			"simple",
 			EnumDeclarer{
-				PgType: pg.EnumType{
-					Name:   "device_type",
-					Labels: []string{"ios", "mobile"},
-				},
-				GoName:   "DeviceType",
-				GoLabels: []string{"DeviceTypeIOS", "DeviceTypeMobile"},
+				enum: NewEnumType(
+					pg.EnumType{Name: "device_type", Labels: []string{"ios", "mobile"}},
+					casing.NewCaser(),
+				),
 			},
 			texts.Dedent(`
 				// DeviceType represents the Postgres enum "device_type".
@@ -38,12 +37,10 @@ func TestEnumDeclarer_Declare(t *testing.T) {
 		{
 			"escaping",
 			EnumDeclarer{
-				PgType: pg.EnumType{
+				enum: NewEnumType(pg.EnumType{
 					Name:   "quoting",
 					Labels: []string{"\"\n\t", "`\"`"},
-				},
-				GoName:   "Quoting",
-				GoLabels: []string{"QuotingQuoteNewlineTab", "QuotingBacktickQuoteBacktick"},
+				}, casing.NewCaser()),
 			},
 			texts.Dedent(`
 				// Quoting represents the Postgres enum "quoting".

@@ -1,8 +1,6 @@
 package golang
 
 import (
-	"github.com/jschaf/pggen/internal/casing"
-	"github.com/jschaf/pggen/internal/pg"
 	"strconv"
 	"strings"
 	"unicode"
@@ -23,71 +21,55 @@ type Declarer interface {
 // EnumDeclarer declares a new string type and the const values to map to a
 // Postgres enum.
 type EnumDeclarer struct {
-	PgType   pg.EnumType
-	GoName   string   // name of the enum formatted as a Go identifier
-	GoLabels []string // the ordered labels of the enum formatted as Go identifiers
+	enum EnumType
 }
 
-func NewEnumDeclarer(pgEnum pg.EnumType, caser casing.Caser) EnumDeclarer {
-	goName := caser.ToUpperGoIdent(pgEnum.Name)
-	if goName == "" {
-		goName = chooseFallbackName(pgEnum.Name, "UnnamedEnum")
-	}
-	goLabels := make([]string, len(pgEnum.Labels))
-	for i, label := range pgEnum.Labels {
-		ident := caser.ToUpperGoIdent(label)
-		if ident == "" {
-			ident = chooseFallbackName(label, "UnnamedLabel"+strconv.Itoa(i))
-		}
-		goLabels[i] = goName + ident
-	}
-	return EnumDeclarer{
-		PgType:   pgEnum,
-		GoName:   goName,
-		GoLabels: goLabels,
-	}
+func NewEnumDeclarer(enum EnumType) EnumDeclarer {
+	return EnumDeclarer{enum: enum}
 }
 
 func (e EnumDeclarer) DedupeKey() string {
-	return "enum::" + e.PgType.Name
+	return "enum::" + e.enum.Name
 }
 
 func (e EnumDeclarer) Declare() (string, error) {
 	sb := &strings.Builder{}
 	// Doc string.
-	sb.WriteString("// ")
-	sb.WriteString(e.GoName)
-	sb.WriteString(" represents the Postgres enum ")
-	sb.WriteString(strconv.Quote(e.PgType.Name))
-	sb.WriteString(".\n")
+	if e.enum.PgEnum.Name != "" {
+		sb.WriteString("// ")
+		sb.WriteString(e.enum.Name)
+		sb.WriteString(" represents the Postgres enum ")
+		sb.WriteString(strconv.Quote(e.enum.PgEnum.Name))
+		sb.WriteString(".\n")
+	}
 	// Type declaration.
 	sb.WriteString("type ")
-	sb.WriteString(e.GoName)
+	sb.WriteString(e.enum.Name)
 	sb.WriteString(" string\n\n")
 	// Const enum values.
 	sb.WriteString("const (\n")
 	nameLen := 0
-	for _, label := range e.GoLabels {
+	for _, label := range e.enum.Labels {
 		if len(label) > nameLen {
 			nameLen = len(label)
 		}
 	}
-	for i, goLabel := range e.GoLabels {
+	for i, label := range e.enum.Labels {
 		sb.WriteString("\t")
-		sb.WriteString(goLabel)
-		sb.WriteString(strings.Repeat(" ", nameLen+1-len(goLabel)))
-		sb.WriteString(e.GoName)
+		sb.WriteString(label)
+		sb.WriteString(strings.Repeat(" ", nameLen+1-len(label)))
+		sb.WriteString(e.enum.Name)
 		sb.WriteString(` = `)
-		sb.WriteString(strconv.Quote(e.PgType.Labels[i]))
+		sb.WriteString(strconv.Quote(e.enum.Values[i]))
 		sb.WriteByte('\n')
 	}
 	sb.WriteString(")\n\n")
 	// Stringer
-	dispatcher := strings.ToLower(e.GoName)[0]
+	dispatcher := strings.ToLower(e.enum.Name)[0]
 	sb.WriteString("func (")
 	sb.WriteByte(dispatcher)
 	sb.WriteByte(' ')
-	sb.WriteString(e.GoName)
+	sb.WriteString(e.enum.Name)
 	sb.WriteString(") String() string { return string(")
 	sb.WriteByte(dispatcher)
 	sb.WriteString(") }")
