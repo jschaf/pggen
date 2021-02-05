@@ -62,7 +62,7 @@ func (o OpaqueType) Package() string                  { return o.Pkg }
 func (o OpaqueType) BaseName() string                 { return o.Name }
 
 func qualifyRel(typ Type, otherPkgPath string) string {
-	if typ.Import() == otherPkgPath {
+	if typ.Import() == otherPkgPath || typ.Import() == "" || typ.Package() == "" {
 		return typ.BaseName()
 	}
 	sb := strings.Builder{}
