@@ -105,8 +105,8 @@ func (tm Templater) TemplateAll(files []codegen.QueryFile) ([]TemplatedFile, err
 			if declarers[i].DedupeKey() == declarers[dedupeLen-1].DedupeKey() {
 				continue
 			}
-			dedupeLen++
 			declarers[dedupeLen] = declarers[i]
+			dedupeLen++
 		}
 		goQueryFiles[firstIndex].Declarers = declarers[:dedupeLen]
 	}
