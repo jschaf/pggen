@@ -7,6 +7,7 @@ import (
 	"github.com/bmatcuk/doublestar"
 	"github.com/jschaf/pggen"
 	"github.com/jschaf/pggen/internal/flags"
+	"github.com/jschaf/pggen/internal/texts"
 	"github.com/peterbourgon/ff/v3/ffcli"
 	"os"
 	"path/filepath"
@@ -61,12 +62,12 @@ func newGenCmd() *ffcli.Command {
 	outputDir := fset.String("output-dir", "",
 		"where to write generated code; defaults to same directory as query files")
 	postgresConn := fset.String("postgres-connection", "",
-		`connection string to a postgres database, like: `+
+		`optional connection string to a postgres database, like: `+
 			`"user=postgres host=localhost dbname=pggen"`)
 	queryGlobs := flags.Strings(fset, "query-glob", nil,
 		"generate code for all SQL files that match glob, like 'queries/**/*.sql'")
 	schemaGlobs := flags.Strings(fset, "schema-glob", nil,
-		"create schema in Dockerized Postgres from all sql, sql.gz, or shell "+
+		"create schema in Postgres from all sql, sql.gz, or shell "+
 			"scripts (*.sh) that match a glob, like 'migrations/*.sql'")
 	acronyms := flags.Strings(fset, "acronym", nil,
 		"lowercase acronym that should convert to all caps like 'api', "+
@@ -76,9 +77,13 @@ func newGenCmd() *ffcli.Command {
 			"like 'device_type=github.com/jschaf/pggen.DeviceType'")
 	goSubCmd := &ffcli.Command{
 		Name:       "go",
-		ShortUsage: "pggen gen go [options...]",
+		ShortUsage: "pggen gen go --query-glob glob [--schema-glob <glob>]... [flags]",
 		ShortHelp:  "generates go code for Postgres query files",
 		FlagSet:    fset,
+		LongHelp: flagHelp + "\n" + texts.Dedent(`
+			pggen uses the provided --postgres-connection to query the database. If not 
+			present, pggen creates a Docker container to query the database.
+		`),
 		Exec: func(ctx context.Context, args []string) error {
 			// Preconditions.
 			if len(*queryGlobs) == 0 {
