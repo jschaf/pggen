@@ -129,47 +129,47 @@ func Generate(opts GenerateOptions) (mErr error) {
 
 // connectPostgres connects to postgres using connString if given or by
 // running a Docker postgres container and connecting to that.
-func connectPostgres(ctx context.Context, opts GenerateOptions, l *zap.SugaredLogger) (conn *pgx.Conn, cleanup func() error, mErr error) {
-	cleanup = func() error { return nil }
-	connString := opts.ConnString
-	if connString == "" {
-		// Create connection by starting dockerized Postgres.
+func connectPostgres(ctx context.Context, opts GenerateOptions, l *zap.SugaredLogger) (*pgx.Conn, func() error, error) {
+	// Create connection by starting dockerized Postgres.
+	if opts.ConnString == "" {
 		client, err := pgdocker.Start(ctx, opts.DockerInitScripts, l)
 		if err != nil {
 			return nil, nil, fmt.Errorf("start dockerized postgres: %w", err)
 		}
-		cleanup = func() error { return client.Stop(ctx) }
-		conn, err := client.ConnString()
+		stopDocker := func() error { return client.Stop(ctx) }
+		connStr, err := client.ConnString()
 		if err != nil {
 			return nil, nil, fmt.Errorf("get dockerized postgres conn string: %w", err)
 		}
-		connString = conn
+		pgConn, err := pgx.Connect(ctx, connStr)
+		if err != nil {
+			return nil, nil, fmt.Errorf("connect to pggen dockerized postgres database: %w", err)
+		}
+		return pgConn, stopDocker, nil
 	}
-	pgConnConfig, err := pgx.ParseConfig(connString)
-	if err != nil {
-		return nil, nil, fmt.Errorf("parse postgres conn string: %w", err)
-	}
-	pgConn, err := pgx.ConnectConfig(ctx, pgConnConfig)
+	// Use existing Postgres.
+	nopCleanup := func() error { return nil }
+	pgConn, err := pgx.Connect(ctx, opts.ConnString)
 	if err != nil {
 		return nil, nil, fmt.Errorf("connect to pggen postgres database: %w", err)
 	}
-
-	// Run SQL init scripts.
+	// Run SQL init scripts. pgdocker runs these in the other case by copying
+	// the files into the entrypoint folder. Emulate the behavior for a subset of
+	// supported files.
 	for _, script := range opts.DockerInitScripts {
 		if filepath.Ext(script) != ".sql" {
-			return nil, cleanup, fmt.Errorf("cannot run non-sql schema file on Postgres "+
+			return nil, nopCleanup, fmt.Errorf("cannot run non-sql schema file on Postgres "+
 				"(*.sh and *.sql.gz files only supported without --postgres-connection): %s", script)
 		}
 		bs, err := ioutil.ReadFile(script)
 		if err != nil {
-			return nil, cleanup, fmt.Errorf("read schema file: %w", err)
+			return nil, nopCleanup, fmt.Errorf("read schema file: %w", err)
 		}
 		if _, err := pgConn.Exec(ctx, string(bs)); err != nil {
-			return nil, cleanup, fmt.Errorf("load schema file into Postgres: %w", err)
+			return nil, nopCleanup, fmt.Errorf("load schema file into Postgres: %w", err)
 		}
 	}
-
-	return pgConn, cleanup, nil
+	return pgConn, nopCleanup, nil
 }
 
 func parseQueryFiles(queryFiles []string, inferrer *pginfer.Inferrer) ([]codegen.QueryFile, error) {
