@@ -32,8 +32,22 @@ func TestType_QualifyRel(t *testing.T) {
 			otherPkgPath: "example.com/bar",
 			want:         "Device",
 		},
+		{
+			typ:          NewOpaqueType("example.com/bar.Baz"),
+			otherPkgPath: "example.com/bar",
+			want:         "Baz",
+		},
+		{
+			typ:          NewOpaqueType("string"),
+			otherPkgPath: "example.com/bar",
+			want:         "string",
+		},
+		{
+			typ:          NewOpaqueType("string"),
+			otherPkgPath: "",
+			want:         "string",
+		},
 	}
-
 	for _, tt := range tests {
 		t.Run(tt.typ.Import()+"."+tt.typ.BaseName(), func(t *testing.T) {
 			got := tt.typ.QualifyRel(tt.otherPkgPath)

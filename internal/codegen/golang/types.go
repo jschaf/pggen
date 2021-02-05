@@ -42,7 +42,7 @@ type (
 		Values []string
 	}
 
-	// Opaque is a type where only the name is known, as with a user-provided
+	// OpaqueType is a type where only the name is known, as with a user-provided
 	// custom type.
 	OpaqueType struct {
 		PkgPath string
