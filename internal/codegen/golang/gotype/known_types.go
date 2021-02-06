@@ -44,6 +44,7 @@ var (
 	Float32Slice = NewOpaqueType("[]float32")
 	Float64      = NewOpaqueType("float64")
 	Float64Slice = NewOpaqueType("[]float64")
+	ByteSlice    = NewOpaqueType("[]byte")
 
 	// pgtype types prefixed with "pg".
 	PgBool             = NewOpaqueType("github.com/jackc/pgtype.Bool")
@@ -53,6 +54,7 @@ var (
 	PgInt2             = NewOpaqueType("github.com/jackc/pgtype.Int2")
 	PgInt4             = NewOpaqueType("github.com/jackc/pgtype.Int4")
 	PgText             = NewOpaqueType("github.com/jackc/pgtype.Text")
+	PgBytea            = NewOpaqueType("github.com/jackc/pgtype.Bytea")
 	PgOID              = NewOpaqueType("github.com/jackc/pgtype.OID")
 	PgTID              = NewOpaqueType("github.com/jackc/pgtype.TID")
 	PgXID              = NewOpaqueType("github.com/jackc/pgtype.XID")
@@ -127,6 +129,7 @@ var knownTypesByOID = map[pgtype.OID]knownGoType{
 	pgtype.Int2OID:             {PgInt2, Int16},
 	pgtype.Int4OID:             {PgInt4, Int32},
 	pgtype.TextOID:             {PgText, String},
+	pgtype.ByteaOID:            {PgBytea, ByteSlice},
 	pgtype.OIDOID:              {PgOID, nil},
 	pgtype.TIDOID:              {PgTID, nil},
 	pgtype.XIDOID:              {PgXID, nil},

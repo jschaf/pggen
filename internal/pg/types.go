@@ -201,6 +201,7 @@ var (
 
 	typeMap = map[pgtype.OID]Type{
 		pgtype.BoolOID:             Bool,
+		pgtype.ByteaOID:            Bytea,
 		pgtype.QCharOID:            QChar,
 		pgtype.NameOID:             Name,
 		pgtype.Int8OID:             Int8,
