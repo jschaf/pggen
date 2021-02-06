@@ -158,13 +158,13 @@ pggen gen go \
 
 Examples embedded in the repo:
 
-- [./script/integration-test.sh] - End-to-end examples of how to call pggen.
+- [./example/integration_test.go] - End-to-end examples of how to call pggen.
 - [./example/author] - A single table schema with simple queries.
 - [./example/enums] - Postgres and Go enums.
 - [./example/erp] - A few tables with mildly complex queries.
 - [./example/syntax] - A smoke test of interesting SQL syntax.
 
-[./script/integration-test.sh]: ./script/integration-test.sh
+[./example/integration_test.go]: ./example/integration_test.go
 [./example/author]: ./example/author
 [./example/enums]: ./example/enums
 [./example/erp]: ./example/erp
@@ -395,7 +395,7 @@ We'll walk through the generated file `author/query.sql.go`:
     query results, Postgres also sends the column types as a header for the 
     results. pggen looks up the types in the header using the `pg_type` catalog 
     table and chooses an appropriate Go type in 
-    [internal/codegen/golang/types.go].
+    [internal/codegen/golang/gotype/types.go].
     
     Choosing an appropriate type is more difficult than might seem at first 
     glance due to `null`. When Postgres reports that a column has a type `text`,
@@ -446,7 +446,7 @@ We'll walk through the generated file `author/query.sql.go`:
 [`pgx.Tx`]: https://pkg.go.dev/github.com/jackc/pgx#Tx
 [`*pgxpool.Pool`]: https://pkg.go.dev/github.com/jackc/pgx/v4/pgxpool#Pool
 [internal/casing/casing.go]: ./internal/casing/casing.go
-[internal/codegen/golang/types.go]: ./internal/codegen/golang/types.go
+[internal/codegen/golang/gotype/types.go]: ./internal/codegen/golang/gotype/types.go
 [`pgtype`]: https://pkg.go.dev/github.com/jackc/pgtype
 [internal/pginfer/nullability.go]: ./internal/pginfer/nullability.go
 
