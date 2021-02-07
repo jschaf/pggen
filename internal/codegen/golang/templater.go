@@ -391,9 +391,12 @@ func (tq TemplatedQuery) EmitRowScanArgs() (string, error) {
 		case 0:
 			return "", nil
 		case 1:
-			// If there's only 1 output column, we return it directly, without
-			// wrapping in a struct.
-			return "&item", nil
+			out := tq.Outputs[0]
+			if _, ok := out.Type.(gotype.CompositeType); ok {
+				return out.LowerName + "Row", nil
+			} else {
+				return "&item", nil
+			}
 		default:
 			sb := strings.Builder{}
 			sb.Grow(15 * len(tq.Outputs))
@@ -523,8 +526,11 @@ func (tq TemplatedQuery) EmitResultCompositeAssigns(pkgPath string) (string, err
 			//    item.Row.ID = *userRow[0].(*pgtype.Int8)
 			sb.WriteString(indent)
 			sb.WriteString("item.")
-			sb.WriteString(typ.Name)
-			sb.WriteRune('.')
+			if len(tq.Outputs) > 1 {
+				// Queries with more than 1 output use a struct to group output columns.
+				sb.WriteString(typ.Name)
+				sb.WriteRune('.')
+			}
 			sb.WriteString(fieldName)
 			sb.WriteString(" = *")
 			sb.WriteString(out.LowerName)

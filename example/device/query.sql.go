@@ -30,6 +30,27 @@ type Querier interface {
 	// CompositeUserScan scans the result of an executed CompositeUserBatch query.
 	CompositeUserScan(results pgx.BatchResults) ([]CompositeUserRow, error)
 
+	CompositeUserOne(ctx context.Context) (User, error)
+	// CompositeUserOneBatch enqueues a CompositeUserOne query into batch to be executed
+	// later by the batch.
+	CompositeUserOneBatch(batch *pgx.Batch)
+	// CompositeUserOneScan scans the result of an executed CompositeUserOneBatch query.
+	CompositeUserOneScan(results pgx.BatchResults) (User, error)
+
+	CompositeUserOneTwoCols(ctx context.Context) (CompositeUserOneTwoColsRow, error)
+	// CompositeUserOneTwoColsBatch enqueues a CompositeUserOneTwoCols query into batch to be executed
+	// later by the batch.
+	CompositeUserOneTwoColsBatch(batch *pgx.Batch)
+	// CompositeUserOneTwoColsScan scans the result of an executed CompositeUserOneTwoColsBatch query.
+	CompositeUserOneTwoColsScan(results pgx.BatchResults) (CompositeUserOneTwoColsRow, error)
+
+	CompositeUserMany(ctx context.Context) ([]User, error)
+	// CompositeUserManyBatch enqueues a CompositeUserMany query into batch to be executed
+	// later by the batch.
+	CompositeUserManyBatch(batch *pgx.Batch)
+	// CompositeUserManyScan scans the result of an executed CompositeUserManyBatch query.
+	CompositeUserManyScan(results pgx.BatchResults) ([]User, error)
+
 	InsertUser(ctx context.Context, userID int, name string) (pgconn.CommandTag, error)
 	// InsertUserBatch enqueues a InsertUser query into batch to be executed
 	// later by the batch.
@@ -235,6 +256,154 @@ func (q *DBQuerier) CompositeUserScan(results pgx.BatchResults) ([]CompositeUser
 		}
 		item.User.ID = *userRow[0].(*pgtype.Int8)
 		item.User.Name = *userRow[1].(*pgtype.Text)
+		items = append(items, item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, err
+}
+
+const compositeUserOneSQL = `SELECT ROW (15, 'qux')::"user" AS "user";`
+
+// CompositeUserOne implements Querier.CompositeUserOne.
+func (q *DBQuerier) CompositeUserOne(ctx context.Context) (User, error) {
+	row := q.conn.QueryRow(ctx, compositeUserOneSQL)
+	var item User
+	userRow := pgtype.CompositeFields([]interface{}{
+		&pgtype.Int8{},
+		&pgtype.Text{},
+	})
+	if err := row.Scan(userRow); err != nil {
+		return item, fmt.Errorf("query CompositeUserOne: %w", err)
+	}
+	item.ID = *userRow[0].(*pgtype.Int8)
+	item.Name = *userRow[1].(*pgtype.Text)
+	return item, nil
+}
+
+// CompositeUserOneBatch implements Querier.CompositeUserOneBatch.
+func (q *DBQuerier) CompositeUserOneBatch(batch *pgx.Batch) {
+	batch.Queue(compositeUserOneSQL)
+}
+
+// CompositeUserOneScan implements Querier.CompositeUserOneScan.
+func (q *DBQuerier) CompositeUserOneScan(results pgx.BatchResults) (User, error) {
+	row := results.QueryRow()
+	var item User
+	userRow := pgtype.CompositeFields([]interface{}{
+		&pgtype.Int8{},
+		&pgtype.Text{},
+	})
+	if err := row.Scan(userRow); err != nil {
+		return item, fmt.Errorf("scan CompositeUserOneBatch row: %w", err)
+	}
+	item.ID = *userRow[0].(*pgtype.Int8)
+	item.Name = *userRow[1].(*pgtype.Text)
+	return item, nil
+}
+
+const compositeUserOneTwoColsSQL = `SELECT 1 AS num, ROW (15, 'qux')::"user" AS "user";`
+
+type CompositeUserOneTwoColsRow struct {
+	Num  int32 `json:"num"`
+	User User  `json:"user"`
+}
+
+// CompositeUserOneTwoCols implements Querier.CompositeUserOneTwoCols.
+func (q *DBQuerier) CompositeUserOneTwoCols(ctx context.Context) (CompositeUserOneTwoColsRow, error) {
+	row := q.conn.QueryRow(ctx, compositeUserOneTwoColsSQL)
+	var item CompositeUserOneTwoColsRow
+	userRow := pgtype.CompositeFields([]interface{}{
+		&pgtype.Int8{},
+		&pgtype.Text{},
+	})
+	if err := row.Scan(&item.Num, userRow); err != nil {
+		return item, fmt.Errorf("query CompositeUserOneTwoCols: %w", err)
+	}
+	item.User.ID = *userRow[0].(*pgtype.Int8)
+	item.User.Name = *userRow[1].(*pgtype.Text)
+	return item, nil
+}
+
+// CompositeUserOneTwoColsBatch implements Querier.CompositeUserOneTwoColsBatch.
+func (q *DBQuerier) CompositeUserOneTwoColsBatch(batch *pgx.Batch) {
+	batch.Queue(compositeUserOneTwoColsSQL)
+}
+
+// CompositeUserOneTwoColsScan implements Querier.CompositeUserOneTwoColsScan.
+func (q *DBQuerier) CompositeUserOneTwoColsScan(results pgx.BatchResults) (CompositeUserOneTwoColsRow, error) {
+	row := results.QueryRow()
+	var item CompositeUserOneTwoColsRow
+	userRow := pgtype.CompositeFields([]interface{}{
+		&pgtype.Int8{},
+		&pgtype.Text{},
+	})
+	if err := row.Scan(&item.Num, userRow); err != nil {
+		return item, fmt.Errorf("scan CompositeUserOneTwoColsBatch row: %w", err)
+	}
+	item.User.ID = *userRow[0].(*pgtype.Int8)
+	item.User.Name = *userRow[1].(*pgtype.Text)
+	return item, nil
+}
+
+const compositeUserManySQL = `SELECT ROW (15, 'qux')::"user" AS "user";`
+
+// CompositeUserMany implements Querier.CompositeUserMany.
+func (q *DBQuerier) CompositeUserMany(ctx context.Context) ([]User, error) {
+	rows, err := q.conn.Query(ctx, compositeUserManySQL)
+	if rows != nil {
+		defer rows.Close()
+	}
+	if err != nil {
+		return nil, fmt.Errorf("query CompositeUserMany: %w", err)
+	}
+	items := []User{}
+	userRow := pgtype.CompositeFields([]interface{}{
+		&pgtype.Int8{},
+		&pgtype.Text{},
+	})
+	for rows.Next() {
+		var item User
+		if err := rows.Scan(userRow); err != nil {
+			return nil, fmt.Errorf("scan CompositeUserMany row: %w", err)
+		}
+		item.ID = *userRow[0].(*pgtype.Int8)
+		item.Name = *userRow[1].(*pgtype.Text)
+		items = append(items, item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, err
+}
+
+// CompositeUserManyBatch implements Querier.CompositeUserManyBatch.
+func (q *DBQuerier) CompositeUserManyBatch(batch *pgx.Batch) {
+	batch.Queue(compositeUserManySQL)
+}
+
+// CompositeUserManyScan implements Querier.CompositeUserManyScan.
+func (q *DBQuerier) CompositeUserManyScan(results pgx.BatchResults) ([]User, error) {
+	rows, err := results.Query()
+	if rows != nil {
+		defer rows.Close()
+	}
+	if err != nil {
+		return nil, err
+	}
+	items := []User{}
+	userRow := pgtype.CompositeFields([]interface{}{
+		&pgtype.Int8{},
+		&pgtype.Text{},
+	})
+	for rows.Next() {
+		var item User
+		if err := rows.Scan(userRow); err != nil {
+			return nil, fmt.Errorf("scan CompositeUserManyBatch row: %w", err)
+		}
+		item.ID = *userRow[0].(*pgtype.Int8)
+		item.Name = *userRow[1].(*pgtype.Text)
 		items = append(items, item)
 	}
 	if err := rows.Err(); err != nil {

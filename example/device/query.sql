@@ -14,6 +14,15 @@ SELECT
 FROM device d
   LEFT JOIN "user" u ON u.id = d.owner;
 
+-- name: CompositeUserOne :one
+SELECT ROW (15, 'qux')::"user" AS "user";
+
+-- name: CompositeUserOneTwoCols :one
+SELECT 1 AS num, ROW (15, 'qux')::"user" AS "user";
+
+-- name: CompositeUserMany :many
+SELECT ROW (15, 'qux')::"user" AS "user";
+
 -- name: InsertUser :exec
 INSERT INTO "user" (id, name) VALUES (pggen.arg('user_id'), pggen.arg('name'));
 
