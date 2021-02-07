@@ -36,12 +36,17 @@ Postgres queries. If Postgres can run the query, pggen can generate code for it.
 
 Why should you use `pggen` instead of the [myriad] of Go SQL bindings?
 
-- pggen is narrowly tailored to only generate code for queries you write in SQL.
+- pggen generates code using the database as a source of truth so  you can 
+  unleash the full power of SQL.
 
-- pggen works with any Postgres database. Under the hood, pggen runs each query
-  and uses the Postgres catalog tables, `pg_type`, `pg_class`, and 
-  `pg_attribute`, to get perfect type information for both the query parameters 
-  and result columns.
+- pggen is narrowly tailored to only generate code for queries you write in SQL.
+  pggen will not create a model for every database object. Instead, pggen only
+  generates structs necessary to run the queries you specify.
+
+- pggen works with any Postgres database with any extensions. Under the hood, 
+  pggen runs each query uses the Postgres catalog tables, `pg_type`, `pg_class`,
+  and `pg_attribute`, to get **perfect type information** for both the query 
+  parameters and result columns.
   
 - pggen works with all Postgres queries. If Postgres can run the query, pggen
   can generate Go code for the query.
