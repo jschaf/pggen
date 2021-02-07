@@ -32,9 +32,9 @@ func TestTypeResolver_Resolve(t *testing.T) {
 		},
 		{
 			name:      "override",
-			overrides: map[string]string{"custom_type": "example.com/custom.Type"},
+			overrides: map[string]string{"custom_type": "example.com/custom.QualType"},
 			pgType:    pg.BaseType{Name: "custom_type"},
-			want:      gotype.NewOpaqueType("example.com/custom.Type"),
+			want:      gotype.NewOpaqueType("example.com/custom.QualType"),
 		},
 		{
 			name:     "known nonNullable empty",
@@ -50,9 +50,9 @@ func TestTypeResolver_Resolve(t *testing.T) {
 		},
 		{
 			name:      "bigint - int8",
-			overrides: map[string]string{"bigint": "example.com/custom.Type"},
+			overrides: map[string]string{"bigint": "example.com/custom.QualType"},
 			pgType:    pg.BaseType{Name: "int8", ID: pgtype.Int8OID},
-			want:      gotype.NewOpaqueType("example.com/custom.Type"),
+			want:      gotype.NewOpaqueType("example.com/custom.QualType"),
 		},
 		{
 			name: "composite",

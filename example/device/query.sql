@@ -13,3 +13,9 @@ SELECT
   ROW (u.id, u.name)::"user"
 FROM device d
   LEFT JOIN "user" u ON u.id = d.owner;
+
+-- name: InsertUser :exec
+INSERT INTO "user" (id, name) VALUES (pggen.arg('user_id'), pggen.arg('name'));
+
+-- name: InsertDevice :exec
+INSERT INTO device (mac, owner) VALUES (pggen.arg('mac'), pggen.arg('owner'));

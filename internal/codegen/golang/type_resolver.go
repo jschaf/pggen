@@ -18,7 +18,7 @@ func NewTypeResolver(c casing.Caser, overrides map[string]string) TypeResolver {
 	overs := make(map[string]string, len(overrides))
 	for k, v := range overrides {
 		overs[k] = v
-		// Type aliases.
+		// QualType aliases.
 		// https://www.postgresql.org/docs/13/datatype.html#DATATYPE-TABLE
 		switch k {
 		case "bigint":

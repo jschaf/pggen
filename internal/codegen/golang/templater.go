@@ -5,6 +5,7 @@ import (
 	"github.com/jschaf/pggen/internal/ast"
 	"github.com/jschaf/pggen/internal/casing"
 	"github.com/jschaf/pggen/internal/codegen"
+	"github.com/jschaf/pggen/internal/codegen/golang/gotype"
 	"github.com/jschaf/pggen/internal/gomod"
 	"sort"
 	"strconv"
@@ -42,13 +43,15 @@ type TemplatedQuery struct {
 type TemplatedParam struct {
 	UpperName string // name of the param in UpperCamelCase, like 'FirstName' from pggen.arg('FirstName')
 	LowerName string // name of the param in lowerCamelCase, like 'firstName' from pggen.arg('FirstName')
-	Type      string // package-qualified Go type to use for this param
+	QualType  string // package-qualified Go type to use for this param
 }
 
 type TemplatedColumn struct {
-	PgName string // original name of the Postgres column
-	Name   string // name in Go-style (UpperCamelCase) to use for the column
-	Type   string // Go type to use for the column
+	PgName    string // original name of the Postgres column
+	UpperName string // name in Go-style (UpperCamelCase) to use for the column
+	LowerName string // name in Go-style (lowerCamelCase)
+	Type      gotype.Type
+	QualType  string // package qualified Go type to use for the column, like "pgtype.Text"
 }
 
 // TemplaterOpts is options to control the template logic.
@@ -198,7 +201,7 @@ func (tm Templater) templateFile(file codegen.QueryFile) (TemplatedFile, []Decla
 			inputs[i] = TemplatedParam{
 				UpperName: tm.chooseUpperName(input.PgName, "UnnamedParam", i, len(query.Inputs)),
 				LowerName: tm.chooseLowerName(input.PgName, "unnamedParam", i, len(query.Inputs)),
-				Type:      goType.QualifyRel(pkgPath),
+				QualType:  goType.QualifyRel(pkgPath),
 			}
 			if decl := FindDeclarer(goType); decl != nil {
 				declarers = append(declarers, decl)
@@ -214,9 +217,11 @@ func (tm Templater) templateFile(file codegen.QueryFile) (TemplatedFile, []Decla
 			}
 			imports[goType.Import()] = struct{}{}
 			outputs[i] = TemplatedColumn{
-				PgName: out.PgName,
-				Name:   tm.chooseUpperName(out.PgName, "UnnamedColumn", i, len(query.Outputs)),
-				Type:   goType.QualifyRel(pkgPath),
+				PgName:    out.PgName,
+				UpperName: tm.chooseUpperName(out.PgName, "UnnamedColumn", i, len(query.Outputs)),
+				LowerName: tm.chooseLowerName(out.PgName, "UnnamedColumn", i, len(query.Outputs)),
+				Type:      goType,
+				QualType:  goType.QualifyRel(pkgPath),
 			}
 			if decl := FindDeclarer(goType); decl != nil {
 				declarers = append(declarers, decl)
@@ -293,7 +298,7 @@ func (tq TemplatedQuery) EmitParams() string {
 			sb.WriteString(", ")
 			sb.WriteString(input.LowerName)
 			sb.WriteRune(' ')
-			sb.WriteString(input.Type)
+			sb.WriteString(input.QualType)
 		}
 		return sb.String()
 	default:
@@ -345,7 +350,7 @@ func (tq TemplatedQuery) EmitParamStruct() string {
 		sb.WriteString("\t")
 		sb.WriteString(out.UpperName)
 		sb.WriteString(strings.Repeat(" ", typeCol-len(out.UpperName)))
-		sb.WriteString(out.Type)
+		sb.WriteString(out.QualType)
 		sb.WriteRune('\n')
 	}
 	sb.WriteString("}")
@@ -394,7 +399,7 @@ func (tq TemplatedQuery) EmitRowScanArgs() (string, error) {
 			sb.Grow(15 * len(tq.Outputs))
 			for i, out := range tq.Outputs {
 				sb.WriteString("&item.")
-				sb.WriteString(out.Name)
+				sb.WriteString(out.UpperName)
 				if i < len(tq.Outputs)-1 {
 					sb.WriteString(", ")
 				}
@@ -417,7 +422,7 @@ func (tq TemplatedQuery) EmitResultType() (string, error) {
 		case 0:
 			return "pgconn.CommandTag", nil
 		case 1:
-			return "[]" + tq.Outputs[0].Type, nil
+			return "[]" + tq.Outputs[0].QualType, nil
 		default:
 			return "[]" + tq.Name + "Row", nil
 		}
@@ -426,7 +431,7 @@ func (tq TemplatedQuery) EmitResultType() (string, error) {
 		case 0:
 			return "pgconn.CommandTag", nil
 		case 1:
-			return tq.Outputs[0].Type, nil
+			return tq.Outputs[0].QualType, nil
 		default:
 			return tq.Name + "Row", nil
 		}
@@ -436,7 +441,7 @@ func (tq TemplatedQuery) EmitResultType() (string, error) {
 }
 
 // EmitResultTypeInit returns the initialization code for the result type with
-// name, typically "item" or "items". For array type, we take care to not use a
+// name, typically "item" or "items". For array types, we take care to not use a
 // var declaration so that JSON serialization returns an empty array instead of
 // null.
 func (tq TemplatedQuery) EmitResultTypeInit(name string) (string, error) {
@@ -462,6 +467,67 @@ func (tq TemplatedQuery) EmitResultTypeInit(name string) (string, error) {
 	}
 }
 
+// EmitResultCompositeInits declares all pgtype.CompositeFields for composite
+// types in the output columns. pggen uses pgtype.CompositeFields as args to the
+// row scan methods.
+func (tq TemplatedQuery) EmitResultCompositeInits(pkgPath string) (string, error) {
+	sb := &strings.Builder{}
+	for _, out := range tq.Outputs {
+		typ, ok := out.Type.(gotype.CompositeType)
+		if !ok {
+			continue
+		}
+		sb.WriteString("\n\t") // 1 level indent inside querier method
+		sb.WriteString(out.LowerName)
+		sb.WriteString("Row := pgtype.CompositeFields([]interface{}{")
+		for _, fieldType := range typ.FieldTypes {
+			sb.WriteString("\n\t\t") // 2nd level indent inside slice literal
+			sb.WriteString("&")      // pgx needs pointers to types
+			// TODO: support builtin types and builtin wrappers that use a different
+			// initialization syntax.
+			sb.WriteString(fieldType.QualifyRel(pkgPath))
+			sb.WriteString("{},")
+		}
+		sb.WriteString("\n\t})\n") // close CompositeFields and slice literal
+	}
+	return sb.String(), nil
+}
+
+// EmitResultCompositeAssigns writes all the assign statements for the
+// pgtype.CompositeFields representing a Postgres composite type into the output
+// struct.
+func (tq TemplatedQuery) EmitResultCompositeAssigns(pkgPath string) (string, error) {
+	sb := &strings.Builder{}
+	for _, out := range tq.Outputs {
+		typ, ok := out.Type.(gotype.CompositeType)
+		if !ok {
+			continue
+		}
+		indent := "\n\t"
+		if tq.ResultKind == ast.ResultKindMany {
+			indent += "\t" // :many query processes items in a for loop
+		}
+		for i, fieldName := range typ.FieldNames {
+			// Write string like:
+			//    item.Row.ID = *userRow[0].(*pgtype.Int8)
+			sb.WriteString(indent)
+			sb.WriteString("item.")
+			sb.WriteString(out.LowerName)
+			sb.WriteString("Row.")
+			sb.WriteString(fieldName)
+			sb.WriteString(" = *")
+			sb.WriteString(out.LowerName)
+			sb.WriteString("Row[")
+			sb.WriteString(strconv.Itoa(i))
+			sb.WriteString("].")
+			sb.WriteString("(*")
+			sb.WriteString(typ.FieldTypes[i].QualifyRel(pkgPath))
+			sb.WriteString(")")
+		}
+	}
+	return sb.String(), nil
+}
+
 // EmitResultElem returns the string representing a single item in the overall
 // query result type. For :one and :exec queries, this is the same as
 // EmitResultType. For :many queries, this is the element type of the slice
@@ -479,16 +545,16 @@ func (tq TemplatedQuery) EmitResultElem() (string, error) {
 func getLongestOutput(outs []TemplatedColumn) (int, int) {
 	nameLen := 0
 	for _, out := range outs {
-		if len(out.Name) > nameLen {
-			nameLen = len(out.Name)
+		if len(out.UpperName) > nameLen {
+			nameLen = len(out.UpperName)
 		}
 	}
 	nameLen++ // 1 space to separate name from type
 
 	typeLen := 0
 	for _, out := range outs {
-		if len(out.Type) > typeLen {
-			typeLen = len(out.Type)
+		if len(out.QualType) > typeLen {
+			typeLen = len(out.QualType)
 		}
 	}
 	typeLen++ // 1 space to separate type from struct tags.
@@ -514,12 +580,12 @@ func (tq TemplatedQuery) EmitRowStruct() string {
 		for _, out := range tq.Outputs {
 			// Name
 			sb.WriteString("\t")
-			sb.WriteString(out.Name)
+			sb.WriteString(out.UpperName)
 			// Type
-			sb.WriteString(strings.Repeat(" ", typeCol-len(out.Name)))
-			sb.WriteString(out.Type)
+			sb.WriteString(strings.Repeat(" ", typeCol-len(out.UpperName)))
+			sb.WriteString(out.QualType)
 			// JSON struct tag
-			sb.WriteString(strings.Repeat(" ", structCol-len(out.Type)))
+			sb.WriteString(strings.Repeat(" ", structCol-len(out.QualType)))
 			sb.WriteString("`json:")
 			sb.WriteString(strconv.Quote(out.PgName))
 			sb.WriteString("`")
