@@ -102,6 +102,15 @@ type (
 		ColumnNames []string   // pg_attribute.attname: names of the column, in order
 		ColumnTypes []Type     // pg_attribute JOIN pg_type: information about columns of the composite type
 	}
+
+	// UnknownType is a Postgres type that's not a well-known type in typeMap, and
+	// not an enum, domain, or composite type. The code generator might be able to
+	// resolve this type from a user-provided mapping like --go-type my_int=int.
+	UnknownType struct {
+		ID     pgtype.OID // pg_type.oid: row identifier
+		Name   string     // pg_type.typname: data type name
+		PgKind TypeKind
+	}
 )
 
 func (b BaseType) OID() pgtype.OID { return b.ID }
@@ -124,7 +133,11 @@ func (e CompositeType) OID() pgtype.OID { return e.ID }
 func (e CompositeType) String() string  { return e.Name }
 func (e CompositeType) Kind() TypeKind  { return KindCompositeType }
 
-//goland:noinspection GoUnusedGlobalVariable
+func (e UnknownType) OID() pgtype.OID { return e.ID }
+func (e UnknownType) String() string  { return e.Name }
+func (e UnknownType) Kind() TypeKind  { return e.PgKind }
+
+//goland:noinspection GoUnusedGlobalVariable,GoNameStartsWithPackageName
 var (
 	Bool             = BaseType{ID: pgtype.BoolOID, Name: "bool"}
 	Bytea            = BaseType{ID: pgtype.ByteaOID, Name: "bytea"}
@@ -353,11 +366,23 @@ func FetchOIDTypes(conn *pgx.Conn, oids ...uint32) (map[pgtype.OID]Type, error) 
 		}
 	}
 
-	// Check that we found all OIDs.
+	// Mark all remaining types as unknown. Let the code generator try to figure
+	// a mapping.
+	unknownOIDs := make([]uint32, 0, len(oidsToFetch))
 	for _, oid := range oids {
 		if _, ok := types[pgtype.OID(oid)]; !ok {
-			name, _ := querier.FindOIDName(ctx, pgtype.OID(oid))
-			return nil, fmt.Errorf("did not find all OIDs; missing OID %d, name: %q", oid, name.String)
+			unknownOIDs = append(unknownOIDs, oid)
+		}
+	}
+	unknownOIDRows, err := querier.FindOIDNames(ctx, unknownOIDs)
+	if err != nil {
+		return nil, fmt.Errorf("find OID names for unknown OIDs: %w", err)
+	}
+	for _, row := range unknownOIDRows {
+		types[row.OID] = UnknownType{
+			ID:     row.OID,
+			Name:   row.Name.String,
+			PgKind: TypeKind(row.Kind.Int),
 		}
 	}
 

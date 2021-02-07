@@ -46,6 +46,13 @@ type Querier interface {
 	FindOIDNameBatch(batch *pgx.Batch, oID pgtype.OID)
 	// FindOIDNameScan scans the result of an executed FindOIDNameBatch query.
 	FindOIDNameScan(results pgx.BatchResults) (pgtype.Name, error)
+
+	FindOIDNames(ctx context.Context, oID []uint32) ([]FindOIDNamesRow, error)
+	// FindOIDNamesBatch enqueues a FindOIDNames query into batch to be executed
+	// later by the batch.
+	FindOIDNamesBatch(batch *pgx.Batch, oID []uint32)
+	// FindOIDNamesScan scans the result of an executed FindOIDNamesBatch query.
+	FindOIDNamesScan(results pgx.BatchResults) ([]FindOIDNamesRow, error)
 }
 
 type DBQuerier struct {
@@ -311,7 +318,7 @@ func (q *DBQuerier) FindOIDByNameScan(results pgx.BatchResults) (pgtype.OID, err
 	return item, nil
 }
 
-const findOIDNameSQL = `SELECT typname as name
+const findOIDNameSQL = `SELECT typname AS name
 FROM pg_type
 WHERE oid = $1;`
 
@@ -338,4 +345,65 @@ func (q *DBQuerier) FindOIDNameScan(results pgx.BatchResults) (pgtype.Name, erro
 		return item, fmt.Errorf("scan FindOIDNameBatch row: %w", err)
 	}
 	return item, nil
+}
+
+const findOIDNamesSQL = `SELECT oid, typname AS name, typtype AS kind
+FROM pg_type
+WHERE oid = ANY ($1::oid[]);`
+
+type FindOIDNamesRow struct {
+	OID  pgtype.OID   `json:"oid"`
+	Name pgtype.Name  `json:"name"`
+	Kind pgtype.QChar `json:"kind"`
+}
+
+// FindOIDNames implements Querier.FindOIDNames.
+func (q *DBQuerier) FindOIDNames(ctx context.Context, oID []uint32) ([]FindOIDNamesRow, error) {
+	rows, err := q.conn.Query(ctx, findOIDNamesSQL, oID)
+	if rows != nil {
+		defer rows.Close()
+	}
+	if err != nil {
+		return nil, fmt.Errorf("query FindOIDNames: %w", err)
+	}
+	items := []FindOIDNamesRow{}
+	for rows.Next() {
+		var item FindOIDNamesRow
+		if err := rows.Scan(&item.OID, &item.Name, &item.Kind); err != nil {
+			return nil, fmt.Errorf("scan FindOIDNames row: %w", err)
+		}
+		items = append(items, item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, err
+}
+
+// FindOIDNamesBatch implements Querier.FindOIDNamesBatch.
+func (q *DBQuerier) FindOIDNamesBatch(batch *pgx.Batch, oID []uint32) {
+	batch.Queue(findOIDNamesSQL, oID)
+}
+
+// FindOIDNamesScan implements Querier.FindOIDNamesScan.
+func (q *DBQuerier) FindOIDNamesScan(results pgx.BatchResults) ([]FindOIDNamesRow, error) {
+	rows, err := results.Query()
+	if rows != nil {
+		defer rows.Close()
+	}
+	if err != nil {
+		return nil, err
+	}
+	items := []FindOIDNamesRow{}
+	for rows.Next() {
+		var item FindOIDNamesRow
+		if err := rows.Scan(&item.OID, &item.Name, &item.Kind); err != nil {
+			return nil, fmt.Errorf("scan FindOIDNamesBatch row: %w", err)
+		}
+		items = append(items, item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, err
 }

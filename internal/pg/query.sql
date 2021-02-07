@@ -82,6 +82,11 @@ FROM pg_type
 WHERE typname::text = pggen.arg('Name');
 
 -- name: FindOIDName :one
-SELECT typname as name
+SELECT typname AS name
 FROM pg_type
 WHERE oid = pggen.arg('OID');
+
+-- name: FindOIDNames :many
+SELECT oid, typname AS name, typtype AS kind
+FROM pg_type
+WHERE oid = ANY (pggen.arg('OID')::oid[]);

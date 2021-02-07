@@ -6,6 +6,7 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/jackc/pgtype"
 	"github.com/jschaf/pggen/internal/pgtest"
+	"github.com/jschaf/pggen/internal/texts"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
@@ -44,6 +45,38 @@ func TestFetchOIDTypes(t *testing.T) {
 				Name:        "qux",
 				ColumnNames: []string{"id", "foo"},
 				ColumnTypes: []Type{Text, Int8},
+			},
+		},
+		{
+			name: "custom base type",
+			schema: texts.Dedent(`
+				-- New base type my_int.
+				-- https://stackoverflow.com/a/45190420/30900
+				CREATE TYPE my_int;
+
+				CREATE FUNCTION my_int_in(cstring) RETURNS my_int
+					LANGUAGE internal
+					IMMUTABLE STRICT PARALLEL SAFE AS 'int2in';
+
+				CREATE FUNCTION my_int_out(my_int) RETURNS cstring
+					LANGUAGE internal
+					IMMUTABLE STRICT PARALLEL SAFE AS 'int2out';
+
+				CREATE TYPE my_int (
+					INPUT = my_int_in,
+					OUTPUT = my_int_out,
+					LIKE = smallint,
+					CATEGORY = 'N',
+					PREFERRED = FALSE,
+					DELIMITER = ',',
+					COLLATABLE = FALSE
+				);
+			`),
+			fetchOID: "my_int",
+			want: UnknownType{
+				ID:     0, // set in test
+				Name:   "my_int",
+				PgKind: KindBaseType,
 			},
 		},
 	}
@@ -97,6 +130,9 @@ func TestFetchOIDTypes(t *testing.T) {
 				typ.ID = oid
 				wantType = typ
 			case CompositeType:
+				typ.ID = oid
+				wantType = typ
+			case UnknownType:
 				typ.ID = oid
 				wantType = typ
 			default:

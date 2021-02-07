@@ -91,13 +91,14 @@ func TestExamples(t *testing.T) {
 				"--query-glob", "example/custom_types/query.sql",
 				"--go-type", "text=github.com/jschaf/pggen/example/custom_types/mytype.String",
 				"--go-type", "int8=github.com/jschaf/pggen/example/custom_types.CustomInt",
+				"--go-type", "my_int=int",
 			},
 		},
 	}
 	if *update {
 		// update only disables the assertions. Running the tests causes pggen
 		// to overwrite generated code.
-		fmt.Println("updating integration test generated files")
+		t.Log("updating integration test generated files")
 	}
 	pggen := compilePggen(t)
 	// Start a single Docker container to use for all tests. Each test will create

@@ -22,6 +22,13 @@ type Querier interface {
 	CustomTypesBatch(batch *pgx.Batch)
 	// CustomTypesScan scans the result of an executed CustomTypesBatch query.
 	CustomTypesScan(results pgx.BatchResults) (CustomTypesRow, error)
+
+	CustomMyInt(ctx context.Context) (int, error)
+	// CustomMyIntBatch enqueues a CustomMyInt query into batch to be executed
+	// later by the batch.
+	CustomMyIntBatch(batch *pgx.Batch)
+	// CustomMyIntScan scans the result of an executed CustomMyIntBatch query.
+	CustomMyIntScan(results pgx.BatchResults) (int, error)
 }
 
 type DBQuerier struct {
@@ -90,6 +97,33 @@ func (q *DBQuerier) CustomTypesScan(results pgx.BatchResults) (CustomTypesRow, e
 	var item CustomTypesRow
 	if err := row.Scan(&item.Column, &item.Int8); err != nil {
 		return item, fmt.Errorf("scan CustomTypesBatch row: %w", err)
+	}
+	return item, nil
+}
+
+const customMyIntSQL = `SELECT '5'::my_int as int5;`
+
+// CustomMyInt implements Querier.CustomMyInt.
+func (q *DBQuerier) CustomMyInt(ctx context.Context) (int, error) {
+	row := q.conn.QueryRow(ctx, customMyIntSQL)
+	var item int
+	if err := row.Scan(&item); err != nil {
+		return item, fmt.Errorf("query CustomMyInt: %w", err)
+	}
+	return item, nil
+}
+
+// CustomMyIntBatch implements Querier.CustomMyIntBatch.
+func (q *DBQuerier) CustomMyIntBatch(batch *pgx.Batch) {
+	batch.Queue(customMyIntSQL)
+}
+
+// CustomMyIntScan implements Querier.CustomMyIntScan.
+func (q *DBQuerier) CustomMyIntScan(results pgx.BatchResults) (int, error) {
+	row := results.QueryRow()
+	var item int
+	if err := row.Scan(&item); err != nil {
+		return item, fmt.Errorf("scan CustomMyIntBatch row: %w", err)
 	}
 	return item, nil
 }
