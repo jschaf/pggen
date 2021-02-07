@@ -31,7 +31,7 @@ integration-test:
 	go test ./example/integration_test.go
 
 .PHONY: update-integration-test
-update-integration-test:
+update-integration-test: statik
 	go test ./example/integration_test.go -update
 
 .PHONY: lint
