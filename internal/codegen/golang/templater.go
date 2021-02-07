@@ -398,8 +398,14 @@ func (tq TemplatedQuery) EmitRowScanArgs() (string, error) {
 			sb := strings.Builder{}
 			sb.Grow(15 * len(tq.Outputs))
 			for i, out := range tq.Outputs {
-				sb.WriteString("&item.")
-				sb.WriteString(out.UpperName)
+				if _, ok := out.Type.(gotype.CompositeType); ok {
+					sb.WriteString(out.LowerName)
+					sb.WriteString("Row")
+
+				} else {
+					sb.WriteString("&item.")
+					sb.WriteString(out.UpperName)
+				}
 				if i < len(tq.Outputs)-1 {
 					sb.WriteString(", ")
 				}
@@ -477,6 +483,11 @@ func (tq TemplatedQuery) EmitResultCompositeInits(pkgPath string) (string, error
 		if !ok {
 			continue
 		}
+		// Emit definition like:
+		//   userRow := pgtype.CompositeFields([]interface{}{
+		//      &pgtype.Int8{},
+		//      &pgtype.Text{},
+		//   })
 		sb.WriteString("\n\t") // 1 level indent inside querier method
 		sb.WriteString(out.LowerName)
 		sb.WriteString("Row := pgtype.CompositeFields([]interface{}{")
@@ -488,7 +499,7 @@ func (tq TemplatedQuery) EmitResultCompositeInits(pkgPath string) (string, error
 			sb.WriteString(fieldType.QualifyRel(pkgPath))
 			sb.WriteString("{},")
 		}
-		sb.WriteString("\n\t})\n") // close CompositeFields and slice literal
+		sb.WriteString("\n\t})") // close CompositeFields and slice literal
 	}
 	return sb.String(), nil
 }
@@ -512,8 +523,8 @@ func (tq TemplatedQuery) EmitResultCompositeAssigns(pkgPath string) (string, err
 			//    item.Row.ID = *userRow[0].(*pgtype.Int8)
 			sb.WriteString(indent)
 			sb.WriteString("item.")
-			sb.WriteString(out.LowerName)
-			sb.WriteString("Row.")
+			sb.WriteString(typ.Name)
+			sb.WriteRune('.')
 			sb.WriteString(fieldName)
 			sb.WriteString(" = *")
 			sb.WriteString(out.LowerName)

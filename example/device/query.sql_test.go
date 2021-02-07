@@ -36,22 +36,44 @@ func TestQuerier_Composite(t *testing.T) {
 	_, err := q.InsertUser(ctx, userID, "foo")
 	assert.NoError(t, err)
 
-	mac, _ := net.ParseMAC("00:00:5e:00:53:01")
-	_, err = q.InsertDevice(ctx, pgtype.Macaddr{Status: pgtype.Present, Addr: mac}, userID)
+	mac1, _ := net.ParseMAC("11:22:33:44:55:66")
+	mac2, _ := net.ParseMAC("aa:bb:cc:dd:ee:ff")
+	_, err = q.InsertDevice(ctx, pgtype.Macaddr{Status: pgtype.Present, Addr: mac1}, userID)
+	assert.NoError(t, err)
+	_, err = q.InsertDevice(ctx, pgtype.Macaddr{Status: pgtype.Present, Addr: mac2}, userID)
 	assert.NoError(t, err)
 
 	users, err := q.CompositeUser(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
-	assert.Equal(t, []CompositeUserRow{
+
+	want := []CompositeUserRow{
 		{
-			Mac:  pgtype.Macaddr{Addr: mac, Status: pgtype.Present},
+			Mac:  pgtype.Macaddr{Addr: mac1, Status: pgtype.Present},
 			Type: DeviceTypeUndefined,
-			Row: User{
+			User: User{
 				ID:   pgtype.Int8{Int: int64(userID), Status: pgtype.Present},
 				Name: pgtype.Text{String: "foo", Status: pgtype.Present},
 			},
 		},
-	}, users)
+		{
+			Mac:  pgtype.Macaddr{Addr: mac2, Status: pgtype.Present},
+			Type: DeviceTypeUndefined,
+			User: User{
+				ID:   pgtype.Int8{Int: int64(userID), Status: pgtype.Present},
+				Name: pgtype.Text{String: "foo", Status: pgtype.Present},
+			},
+		},
+	}
+	assert.Equal(t, want, users, "CompositeUser")
+
+	batch := &pgx.Batch{}
+	q.CompositeUserBatch(batch)
+	results := conn.SendBatch(ctx, batch)
+	gotScan, err := q.CompositeUserScan(results)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, want, gotScan, "CompositeUserScan")
 }

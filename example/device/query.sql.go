@@ -170,14 +170,14 @@ func (q *DBQuerier) FindDevicesByUserScan(results pgx.BatchResults) ([]FindDevic
 const compositeUserSQL = `SELECT
   d.mac,
   d.type,
-  ROW (u.id, u.name)::"user"
+  ROW (u.id, u.name)::"user" AS "user"
 FROM device d
   LEFT JOIN "user" u ON u.id = d.owner;`
 
 type CompositeUserRow struct {
 	Mac  pgtype.Macaddr `json:"mac"`
 	Type DeviceType     `json:"type"`
-	Row  User           `json:"row"`
+	User User           `json:"user"`
 }
 
 // CompositeUser implements Querier.CompositeUser.
@@ -199,8 +199,8 @@ func (q *DBQuerier) CompositeUser(ctx context.Context) ([]CompositeUserRow, erro
 		if err := rows.Scan(&item.Mac, &item.Type, userRow); err != nil {
 			return nil, fmt.Errorf("scan CompositeUser row: %w", err)
 		}
-		item.Row.ID = *userRow[0].(*pgtype.Int8)
-		item.Row.Name = *userRow[1].(*pgtype.Text)
+		item.User.ID = *userRow[0].(*pgtype.Int8)
+		item.User.Name = *userRow[1].(*pgtype.Text)
 		items = append(items, item)
 	}
 	if err := rows.Err(); err != nil {
@@ -224,11 +224,17 @@ func (q *DBQuerier) CompositeUserScan(results pgx.BatchResults) ([]CompositeUser
 		return nil, err
 	}
 	items := []CompositeUserRow{}
+	userRow := pgtype.CompositeFields([]interface{}{
+		&pgtype.Int8{},
+		&pgtype.Text{},
+	})
 	for rows.Next() {
 		var item CompositeUserRow
-		if err := rows.Scan(&item.Mac, &item.Type, &item.Row); err != nil {
+		if err := rows.Scan(&item.Mac, &item.Type, userRow); err != nil {
 			return nil, fmt.Errorf("scan CompositeUserBatch row: %w", err)
 		}
+		item.User.ID = *userRow[0].(*pgtype.Int8)
+		item.User.Name = *userRow[1].(*pgtype.Text)
 		items = append(items, item)
 	}
 	if err := rows.Err(); err != nil {

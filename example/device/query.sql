@@ -10,7 +10,7 @@ WHERE id = pggen.arg('ID');
 SELECT
   d.mac,
   d.type,
-  ROW (u.id, u.name)::"user"
+  ROW (u.id, u.name)::"user" AS "user"
 FROM device d
   LEFT JOIN "user" u ON u.id = d.owner;
 

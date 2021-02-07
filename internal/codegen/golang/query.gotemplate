@@ -140,11 +140,13 @@ func (q *DBQuerier) {{.Name}}Scan(results pgx.BatchResults) ({{ $q.EmitResultTyp
 		return nil, err
 	}
 	{{ $q.EmitResultTypeInit "items" }}
+	{{- $q.EmitResultCompositeInits $.PkgPath }}
 	for rows.Next() {
 		var item {{ $q.EmitResultElem }}
 		if err := rows.Scan({{- $q.EmitRowScanArgs -}}); err != nil {
 			return nil, fmt.Errorf("scan {{ $q.Name }}Batch row: %w", err)
 		}
+		{{- $q.EmitResultCompositeAssigns $.PkgPath }}
 		items = append(items, item)
 	}
 	if err := rows.Err(); err != nil {
