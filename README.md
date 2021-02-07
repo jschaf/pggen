@@ -210,7 +210,7 @@ Examples embedded in the repo:
     CREATE TYPE device_type AS ENUM ('undefined', 'phone', 'ipad');
     ```
     
-    Generates the Go code:
+    Generates the following Go code when used in a query:
     
     ```go
     // DeviceType represents the Postgres enum device_type.
@@ -236,7 +236,7 @@ Examples embedded in the repo:
         --go-type 'text=github.com/jschaf/pggen/example/custom_types/mytype.String'
     ```
     
-    pgx must be able to deserialize the Postgres type using the Go type. That 
+    pgx must be able to decode the Postgres type using the given Go type. That 
     means the Go type must fulfill at least one of following:
     
     - The Go type is a wrapper around primitive type, like `type AuthorID int`.
@@ -263,11 +263,32 @@ Examples embedded in the repo:
     
     - pgx is able to use reflection to build an object to write fields into.
 
+-   **Nested structs (composite types)**: pggen creates child structs to 
+    represent Postgres [composite types] that appear in output columns.
+
+    ```sql
+    -- name: FindCompositeUser :one
+    SELECT ROW (15, 'qux')::"user" AS "user";
+    ```
+    
+    Generates the following Go code:
+    
+    ```go
+    // User represents the Postgres composite type "user".
+    type User struct {
+        ID   pgtype.Int8
+        Name pgtype.Text
+    }
+    
+    func (q *DBQuerier) FindCompositeUser(ctx context.Context) (User, error) {}
+    ```
+
 [pgtype repo]: https://github.com/jackc/pgtype
 [`pgtype.BinaryDecoder`]: https://pkg.go.dev/github.com/jackc/pgtype#BinaryDecoder
 [`pgtype.TextDecoder`]: https://pkg.go.dev/github.com/jackc/pgtype#TextDecoder
 [`ConnInfo.RegisterDataType`]: https://pkg.go.dev/github.com/jackc/pgtype#ConnInfo.RegisterDataType
 [`sql.Scanner`]: https://golang.org/pkg/database/sql/#Scanner
+[composite types]: https://www.postgresql.org/docs/current/rowtypes.html
 
 # Tutorial
 
