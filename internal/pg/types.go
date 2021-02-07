@@ -11,6 +11,7 @@ type Type interface {
 	Kind() TypeKind
 }
 
+// TypeKinds is the pg_type.typtype column, describing the meta type of Type.
 type TypeKind byte
 
 const (
@@ -114,7 +115,7 @@ func (b BaseType) Kind() TypeKind  { return KindBaseType }
 
 func (b ArrayType) OID() pgtype.OID { return b.ID }
 func (b ArrayType) String() string  { return b.Name }
-func (b ArrayType) Kind() TypeKind  { return KindBaseType } // arrays are base types
+func (b ArrayType) Kind() TypeKind  { return KindBaseType }
 
 func (e EnumType) OID() pgtype.OID { return e.ID }
 func (e EnumType) String() string  { return e.Name }
