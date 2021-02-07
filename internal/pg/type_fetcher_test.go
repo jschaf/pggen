@@ -11,7 +11,7 @@ import (
 	"testing"
 )
 
-func TestFetchOIDTypes(t *testing.T) {
+func TestNewTypeFetcher(t *testing.T) {
 	tests := []struct {
 		name     string
 		schema   string
@@ -103,7 +103,8 @@ func TestFetchOIDTypes(t *testing.T) {
 			}
 
 			// Act.
-			types, err := FetchOIDTypes(conn, uint32(oid))
+			fetcher := NewTypeFetcher(conn)
+			types, err := fetcher.FindTypesByOIDs(uint32(oid))
 			if err != nil {
 				t.Fatal(err)
 			}

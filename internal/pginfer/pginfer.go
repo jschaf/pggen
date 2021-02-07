@@ -60,13 +60,17 @@ type OutputColumn struct {
 }
 
 type Inferrer struct {
-	conn *pgx.Conn
+	conn        *pgx.Conn
+	typeFetcher *pg.TypeFetcher
 }
 
 // NewInferrer infers information about a query by running the query on
 // Postgres and extracting information from the catalog tables.
 func NewInferrer(conn *pgx.Conn) *Inferrer {
-	return &Inferrer{conn: conn}
+	return &Inferrer{
+		conn:        conn,
+		typeFetcher: pg.NewTypeFetcher(conn),
+	}
 }
 
 func (inf *Inferrer) InferTypes(query *ast.SourceQuery) (TypedQuery, error) {
@@ -124,7 +128,7 @@ func (inf *Inferrer) inferInputTypes(query *ast.SourceQuery) (ps []InputParam, m
 		return nil, fmt.Errorf("expected %d parameter types for query; got %d",
 			len(query.ParamNames), len(oids))
 	}
-	types, err := pg.FetchOIDTypes(inf.conn, oids...)
+	types, err := inf.typeFetcher.FindTypesByOIDs(oids...)
 	if err != nil {
 		return nil, fmt.Errorf("fetch oid types: %w", err)
 	}
@@ -174,11 +178,11 @@ func (inf *Inferrer) inferOutputTypes(query *ast.SourceQuery) ([]OutputColumn, e
 	rows.Close()
 
 	// Resolve type names of output column data type OIDs.
-	typeOIDs := make([]uint32, len(descriptions))
+	oids := make([]uint32, len(descriptions))
 	for i, desc := range descriptions {
-		typeOIDs[i] = desc.DataTypeOID
+		oids[i] = desc.DataTypeOID
 	}
-	types, err := pg.FetchOIDTypes(inf.conn, typeOIDs...)
+	types, err := inf.typeFetcher.FindTypesByOIDs(oids...)
 	if err != nil {
 		return nil, fmt.Errorf("fetch oid types: %w", err)
 	}
