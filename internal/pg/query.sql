@@ -76,6 +76,24 @@ FROM pg_type typ
 WHERE typ.oid = ANY (pggen.arg('OIDs')::oid[])
   AND typ.typtype = 'c';
 
+-- Recursively expands all given OIDs to all descendants through composite
+-- types.
+-- name: FindDescendantOIDs :many
+WITH RECURSIVE oid_descs(oid) AS (
+  SELECT oid
+  FROM unnest(pggen.arg('OIDs')::oid[]) AS t(oid)
+  UNION
+  SELECT attr.atttypid
+  FROM pg_type typ
+    JOIN pg_class cls ON typ.oid = cls.reltype
+    JOIN pg_attribute attr ON attr.attrelid = cls.oid
+    JOIN oid_descs od ON typ.oid = od.oid
+  WHERE attr.attnum > 0 -- Postgres represents system columns with attnum <= 0
+    AND NOT attr.attisdropped
+)
+SELECT oid
+FROM oid_descs;
+
 -- name: FindOIDByName :one
 SELECT oid
 FROM pg_type

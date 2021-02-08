@@ -25,9 +25,22 @@ func NewTypeFetcher(conn *pgx.Conn) *TypeFetcher {
 // returned map contains every unique OID in oids (oids may contain duplicates)
 // unless there's an error.
 func (tf *TypeFetcher) FindTypesByOIDs(oids ...uint32) (map[pgtype.OID]Type, error) {
-	types, uncached := tf.cache.getOIDs(oids...)
+	if types, uncached := tf.cache.getOIDs(oids...); len(uncached) == 0 {
+		return types, nil
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
+
+	descOIDs, err := tf.querier.FindDescendantOIDs(ctx, oids)
+	if err != nil {
+		return nil, fmt.Errorf("find descendant oids: %w", err)
+	}
+	allOIDs := make([]uint32, len(descOIDs))
+	for i, d := range descOIDs {
+		allOIDs[i] = uint32(d)
+	}
+	types, uncached := tf.cache.getOIDs(allOIDs...)
 
 	enums, err := tf.findEnumTypes(ctx, uncached)
 	if err != nil {

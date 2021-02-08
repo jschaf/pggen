@@ -33,6 +33,15 @@ type Querier interface {
 	// FindCompositeTypesScan scans the result of an executed FindCompositeTypesBatch query.
 	FindCompositeTypesScan(results pgx.BatchResults) ([]FindCompositeTypesRow, error)
 
+	// Recursively expands all given OIDs to all descendants through composite
+	// types.
+	FindDescendantOIDs(ctx context.Context, oIDs []uint32) ([]pgtype.OID, error)
+	// FindDescendantOIDsBatch enqueues a FindDescendantOIDs query into batch to be executed
+	// later by the batch.
+	FindDescendantOIDsBatch(batch *pgx.Batch, oIDs []uint32)
+	// FindDescendantOIDsScan scans the result of an executed FindDescendantOIDsBatch query.
+	FindDescendantOIDsScan(results pgx.BatchResults) ([]pgtype.OID, error)
+
 	FindOIDByName(ctx context.Context, name string) (pgtype.OID, error)
 	// FindOIDByNameBatch enqueues a FindOIDByName query into batch to be executed
 	// later by the batch.
@@ -280,6 +289,72 @@ func (q *DBQuerier) FindCompositeTypesScan(results pgx.BatchResults) ([]FindComp
 		var item FindCompositeTypesRow
 		if err := rows.Scan(&item.TableTypeName, &item.TableTypeOID, &item.TableName, &item.ColNames, &item.ColOIDs, &item.ColOrders, &item.ColNotNulls, &item.ColTypeNames); err != nil {
 			return nil, fmt.Errorf("scan FindCompositeTypesBatch row: %w", err)
+		}
+		items = append(items, item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, err
+}
+
+const findDescendantOIDsSQL = `WITH RECURSIVE oid_descs(oid) AS (
+  SELECT oid
+  FROM unnest($1::oid[]) AS t(oid)
+  UNION
+  SELECT attr.atttypid
+  FROM pg_type typ
+    JOIN pg_class cls ON typ.oid = cls.reltype
+    JOIN pg_attribute attr ON attr.attrelid = cls.oid
+    JOIN oid_descs od ON typ.oid = od.oid
+  WHERE attr.attnum > 0 -- Postgres represents system columns with attnum <= 0
+    AND NOT attr.attisdropped
+)
+SELECT oid
+FROM oid_descs;`
+
+// FindDescendantOIDs implements Querier.FindDescendantOIDs.
+func (q *DBQuerier) FindDescendantOIDs(ctx context.Context, oIDs []uint32) ([]pgtype.OID, error) {
+	rows, err := q.conn.Query(ctx, findDescendantOIDsSQL, oIDs)
+	if rows != nil {
+		defer rows.Close()
+	}
+	if err != nil {
+		return nil, fmt.Errorf("query FindDescendantOIDs: %w", err)
+	}
+	items := []pgtype.OID{}
+	for rows.Next() {
+		var item pgtype.OID
+		if err := rows.Scan(&item); err != nil {
+			return nil, fmt.Errorf("scan FindDescendantOIDs row: %w", err)
+		}
+		items = append(items, item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, err
+}
+
+// FindDescendantOIDsBatch implements Querier.FindDescendantOIDsBatch.
+func (q *DBQuerier) FindDescendantOIDsBatch(batch *pgx.Batch, oIDs []uint32) {
+	batch.Queue(findDescendantOIDsSQL, oIDs)
+}
+
+// FindDescendantOIDsScan implements Querier.FindDescendantOIDsScan.
+func (q *DBQuerier) FindDescendantOIDsScan(results pgx.BatchResults) ([]pgtype.OID, error) {
+	rows, err := results.Query()
+	if rows != nil {
+		defer rows.Close()
+	}
+	if err != nil {
+		return nil, err
+	}
+	items := []pgtype.OID{}
+	for rows.Next() {
+		var item pgtype.OID
+		if err := rows.Scan(&item); err != nil {
+			return nil, fmt.Errorf("scan FindDescendantOIDsBatch row: %w", err)
 		}
 		items = append(items, item)
 	}
