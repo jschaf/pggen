@@ -8,7 +8,7 @@ import (
 	"github.com/jschaf/pggen/internal/pg/pgoid"
 	"github.com/jschaf/pggen/internal/pgtest"
 	"github.com/jschaf/pggen/internal/texts"
-	"github.com/stretchr/testify/assert"
+	"sort"
 	"testing"
 )
 
@@ -17,61 +17,80 @@ func TestNewTypeFetcher(t *testing.T) {
 		name     string
 		schema   string
 		fetchOID interface{} // oid type or string name of an type
-		want     Type
+		wants    []Type
 	}{
 		{
 			name:     "basic int",
 			schema:   "",
 			fetchOID: Int4.ID,
-			want:     Int4,
+			wants:    []Type{Int4},
 		},
 		{
 			name:     "Void",
 			schema:   "",
 			fetchOID: pgoid.Void,
-			want:     Void,
+			wants:    []Type{Void},
 		},
 		{
 			name:     "enum",
 			schema:   `CREATE TYPE device_type AS ENUM ('computer', 'phone');`,
 			fetchOID: "device_type",
-			want: EnumType{
-				ID:        0, // set in test
-				Name:      "device_type",
-				Labels:    []string{"computer", "phone"},
-				Orders:    []float32{1, 2},
-				ChildOIDs: nil, // ignored
+			wants: []Type{
+				EnumType{
+					ID:        0, // set in test
+					Name:      "device_type",
+					Labels:    []string{"computer", "phone"},
+					Orders:    []float32{1, 2},
+					ChildOIDs: nil, // ignored
+				},
 			},
 		},
-		// {
-		// 	name:     "composite table",
-		// 	schema:   `CREATE TABLE qux (id text, foo int8);`,
-		// 	fetchOID: "qux",
-		// 	want: CompositeType{
-		// 		ID:          0, // set in test
-		// 		Name:        "qux",
-		// 		ColumnNames: []string{"id", "foo"},
-		// 		ColumnTypes: []Type{Text, Int8},
-		// 	},
-		// },
-		// {
-		// 	name: "composite types - depth 2",
-		// 	schema: texts.Dedent(`
-		// 		CREATE TYPE inventory_item AS (name text);
-		// 		CREATE TABLE qux (item inventory_item, foo int8);
-		// 	`),
-		// 	fetchOID: "qux",
-		// 	want: CompositeType{
-		// 		ID:          0, // set in test
-		// 		Name:        "qux",
-		// 		ColumnNames: []string{"item", "foo"},
-		// 		ColumnTypes: []Type{CompositeType{
-		// 			Name:        "inventory_item",
-		// 			ColumnNames: []string{"name"},
-		// 			ColumnTypes: []Type{Text},
-		// 		}, Int8},
-		// 	},
-		// },
+		{
+			name:     "composite table",
+			schema:   `CREATE TABLE qux (id text, foo int8);`,
+			fetchOID: "qux",
+			wants: []Type{
+				Int8,
+				CompositeType{
+					ID:          0, // set in test
+					Name:        "qux",
+					ColumnNames: []string{"id", "foo"},
+					ColumnTypes: []Type{Text, Int8},
+				},
+				Text,
+			},
+		},
+		{
+			name: "composite types - depth 2",
+			schema: texts.Dedent(`
+				CREATE TYPE inventory_item AS (name text);
+				CREATE TABLE qux (item inventory_item, foo int8);
+			`),
+			fetchOID: "qux",
+			wants: []Type{
+				CompositeType{
+					ID:          0, // ignored
+					Name:        "inventory_item",
+					ColumnNames: []string{"name"},
+					ColumnTypes: []Type{Text},
+				},
+				CompositeType{
+					ID:          0, // set in test
+					Name:        "qux",
+					ColumnNames: []string{"item", "foo"},
+					ColumnTypes: []Type{
+						CompositeType{
+							Name:        "inventory_item",
+							ColumnNames: []string{"name"},
+							ColumnTypes: []Type{Text},
+						},
+						Int8,
+					},
+				},
+				Int8,
+				Text,
+			},
+		},
 		{
 			name: "custom base type",
 			schema: texts.Dedent(`
@@ -98,10 +117,12 @@ func TestNewTypeFetcher(t *testing.T) {
 				);
 			`),
 			fetchOID: "my_int",
-			want: UnknownType{
-				ID:     0, // set in test
-				Name:   "my_int",
-				PgKind: KindBaseType,
+			wants: []Type{
+				UnknownType{
+					ID:     0, // set in test
+					Name:   "my_int",
+					PgKind: KindBaseType,
+				},
 			},
 		},
 	}
@@ -112,69 +133,81 @@ func TestNewTypeFetcher(t *testing.T) {
 			defer cleanup()
 			querier := NewQuerier(conn)
 
-			// Get the OID by name if fetchOID was a string.
-			var oid pgtype.OID
-			switch rawOID := tt.fetchOID.(type) {
-			case string:
-				var err error
-				oid, err = querier.FindOIDByName(context.Background(), rawOID)
-				if err != nil {
-					t.Fatalf("find oid by name %s: %s", rawOID, err)
-				}
-			case pgtype.OID:
-				oid = rawOID
-			case int:
-				oid = pgtype.OID(rawOID)
-			default:
-				t.Fatalf("unhandled oid test value type %T: %v", rawOID, rawOID)
-			}
-
 			// Act.
 			fetcher := NewTypeFetcher(conn)
-			types, err := fetcher.FindTypesByOIDs(uint32(oid))
+			oid := findOIDVal(t, tt.fetchOID, querier)
+			gotTypeMap, err := fetcher.FindTypesByOIDs(uint32(oid))
 			if err != nil {
 				t.Fatal(err)
 			}
-			// TODO: fix assertion for recursive composite types
-			assert.Len(t, types, 1)
-			var gotType Type
-			for _, typ := range types {
-				gotType = typ
-				break
+			gotTypes := make([]Type, 0, len(gotTypeMap))
+			for _, typ := range gotTypeMap {
+				gotTypes = append(gotTypes, typ)
 			}
 
 			// Set the OID since we don't know it ahead of time.
-			var wantType Type
-			switch typ := tt.want.(type) {
-			case BaseType:
-				typ.ID = oid
-				wantType = typ
-			case VoidType:
-				wantType = VoidType{}
-			case EnumType:
-				typ.ID = oid
-				wantType = typ
-			case ArrayType:
-				typ.ID = oid
-				wantType = typ
-			case DomainType:
-				typ.ID = oid
-				wantType = typ
-			case CompositeType:
-				typ.ID = oid
-				wantType = typ
-			case UnknownType:
-				typ.ID = oid
-				wantType = typ
-			default:
-				t.Fatalf("unhandled type kind: %T", typ)
+			wantTypes := make([]Type, len(tt.wants))
+			for i, want := range tt.wants {
+				switch typ := want.(type) {
+				case BaseType:
+					typ.ID = findOIDVal(t, typ.Name, querier)
+					wantTypes[i] = typ
+				case VoidType:
+					wantTypes[i] = VoidType{}
+				case EnumType:
+					typ.ID = findOIDVal(t, typ.Name, querier)
+					wantTypes[i] = typ
+				case ArrayType:
+					typ.ID = findOIDVal(t, typ.Name, querier)
+					wantTypes[i] = typ
+				case DomainType:
+					typ.ID = findOIDVal(t, typ.Name, querier)
+					wantTypes[i] = typ
+				case CompositeType:
+					typ.ID = findOIDVal(t, typ.Name, querier)
+					wantTypes[i] = typ
+				case UnknownType:
+					typ.ID = findOIDVal(t, typ.Name, querier)
+					wantTypes[i] = typ
+				default:
+					t.Fatalf("unhandled type kind: %T", typ)
+				}
 			}
 
-			ignoreEnumChildren := cmpopts.IgnoreFields(EnumType{}, "ChildOIDs")
-			ignoreCompositeOID := cmpopts.IgnoreFields(CompositeType{}, "ID")
-			if diff := cmp.Diff(wantType, gotType, ignoreEnumChildren, ignoreCompositeOID); diff != "" {
+			opts := cmp.Options{
+				cmpopts.IgnoreFields(EnumType{}, "ChildOIDs"),
+				cmpopts.IgnoreFields(CompositeType{}, "ID"),
+			}
+			sortTypes(wantTypes)
+			sortTypes(gotTypes)
+			if diff := cmp.Diff(wantTypes, gotTypes, opts); diff != "" {
 				t.Errorf("FetchOIDTypes() mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}
+}
+
+// Get the OID by name if fetchOID was a string, or just return the OID.
+func findOIDVal(t *testing.T, fetchOID interface{}, querier *DBQuerier) pgtype.OID {
+	switch rawOID := fetchOID.(type) {
+	case string:
+		oid, err := querier.FindOIDByName(context.Background(), rawOID)
+		if err != nil {
+			t.Fatalf("find oid by name %s: %s", rawOID, err)
+		}
+		return oid
+	case pgtype.OID:
+		return rawOID
+	case int:
+		return pgtype.OID(rawOID)
+	default:
+		t.Fatalf("unhandled oid test value type %T: %v", rawOID, rawOID)
+		return 0
+	}
+}
+
+func sortTypes(types []Type) {
+	sort.Slice(types, func(i, j int) bool {
+		return types[i].String() < types[j].String()
+	})
 }

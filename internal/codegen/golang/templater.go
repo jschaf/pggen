@@ -204,9 +204,7 @@ func (tm Templater) templateFile(file codegen.QueryFile) (TemplatedFile, []Decla
 				LowerName: tm.chooseLowerName(input.PgName, "unnamedParam", i, len(query.Inputs)),
 				QualType:  goType.QualifyRel(pkgPath),
 			}
-			if decl := FindDeclarer(goType); decl != nil {
-				declarers = append(declarers, decl)
-			}
+			declarers = append(declarers, FindDeclarers(goType)...)
 		}
 
 		// Build outputs.
@@ -224,9 +222,7 @@ func (tm Templater) templateFile(file codegen.QueryFile) (TemplatedFile, []Decla
 				Type:      goType,
 				QualType:  goType.QualifyRel(pkgPath),
 			}
-			if decl := FindDeclarer(goType); decl != nil {
-				declarers = append(declarers, decl)
-			}
+			declarers = append(declarers, FindDeclarers(goType)...)
 		}
 
 		queries = append(queries, TemplatedQuery{

@@ -92,6 +92,11 @@ func qualifyRel(typ Type, otherPkgPath string) string {
 	if typ.Import() == otherPkgPath || typ.Import() == "" || typ.Package() == "" {
 		return typ.BaseName()
 	}
+	if !strings.ContainsRune(otherPkgPath, '.') && typ.Package() == otherPkgPath {
+		// If the otherPkgPath is unqualified and matches the package path, assume
+		// the same package.
+		return typ.BaseName()
+	}
 	sb := strings.Builder{}
 	sb.Grow(len(typ.BaseName()))
 	if typ.Import() != "" {

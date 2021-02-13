@@ -32,6 +32,8 @@ func (tf *TypeFetcher) FindTypesByOIDs(oids ...uint32) (map[pgtype.OID]Type, err
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
+	// First, recursively find all OIDs in composite types. Composite types are the
+	// only type that can be nested.
 	descOIDs, err := tf.querier.FindDescendantOIDs(ctx, oids)
 	if err != nil {
 		return nil, fmt.Errorf("find descendant oids: %w", err)
@@ -119,27 +121,53 @@ func (tf *TypeFetcher) findCompositeTypes(ctx context.Context, uncached map[pgty
 	if err != nil {
 		return nil, fmt.Errorf("find composite types: %w", err)
 	}
-	types := make([]CompositeType, len(rows))
-	for i, c := range rows {
-		colTypes := make([]Type, len(c.ColOIDs.Elements))
-		colNames := make([]string, len(c.ColOIDs.Elements))
+	// Record all composite types to fake a topological sort by repeated iteration.
+	allComposites := make(map[pgtype.OID]struct{}, len(rows))
+	for _, row := range rows {
+		allComposites[row.TableTypeOID] = struct{}{}
+	}
+
+	types := make([]CompositeType, 0, len(rows))
+	idx := -1
+outer:
+	for len(types) < len(rows) {
+		idx = (idx + 1) % len(rows)
+		row := rows[idx]
+
+		// Check if we can resolve all columns for the composite type.
+		for i, colOID := range row.ColOIDs.Elements {
+			if _, isInCache := tf.cache.getOID(uint32(colOID.Int)); !isInCache {
+				if _, isInComposite := allComposites[pgtype.OID(colOID.Int)]; !isInComposite {
+					// We won't ever be able resolve this composite type.
+					return nil, fmt.Errorf("find type for composite column %s oid=%d",
+						row.ColNames.Elements[i].String, row.ColOIDs.Elements[i].Int)
+				}
+				// We'll be able to resolve this after one of the for loop iteration
+				// adds another composite to the cache.
+				continue outer
+			}
+		}
+
+		colTypes := make([]Type, len(row.ColOIDs.Elements))
+		colNames := make([]string, len(row.ColOIDs.Elements))
 		// Build each column of the composite type.
-		for i, colOID := range c.ColOIDs.Elements {
+		for i, colOID := range row.ColOIDs.Elements {
 			colType, ok := tf.cache.getOID(uint32(colOID.Int))
 			if !ok {
-				// TODO: recursively resolve child types.
 				return nil, fmt.Errorf("find type for composite column %s oid=%d",
-					c.ColNames.Elements[i].String, c.ColOIDs.Elements[i].Int)
+					row.ColNames.Elements[i].String, row.ColOIDs.Elements[i].Int)
 			}
 			colTypes[i] = colType
-			colNames[i] = c.ColNames.Elements[i].String
+			colNames[i] = row.ColNames.Elements[i].String
 		}
-		types[i] = CompositeType{
-			ID:          c.TableTypeOID,
-			Name:        c.TableName.String,
+		typ := CompositeType{
+			ID:          row.TableTypeOID,
+			Name:        row.TableName.String,
 			ColumnNames: colNames,
 			ColumnTypes: colTypes,
 		}
+		tf.cache.addType(typ)
+		types = append(types, typ)
 	}
 	return types, nil
 }

@@ -17,7 +17,7 @@ func TestFindDeclarer_Declare(t *testing.T) {
 		name    string
 		typ     gotype.Type
 		pkgPath string
-		want    string
+		want    []string
 	}{
 		{
 			name: "enum - simple",
@@ -26,17 +26,19 @@ func TestFindDeclarer_Declare(t *testing.T) {
 				pg.EnumType{Name: "device_type", Labels: []string{"ios", "mobile"}},
 				caser,
 			),
-			want: texts.Dedent(`
+			want: []string{
+				texts.Dedent(`
 				// DeviceType represents the Postgres enum "device_type".
 				type DeviceType string
-
+		
 				const (
 					DeviceTypeIOS    DeviceType = "ios"
 					DeviceTypeMobile DeviceType = "mobile"
 				)
-
+		
 				func (d DeviceType) String() string { return string(d) }
 			`),
+			},
 		},
 		{
 			name: "enum - escaping",
@@ -45,17 +47,19 @@ func TestFindDeclarer_Declare(t *testing.T) {
 				pg.EnumType{Name: "quoting", Labels: []string{"\"\n\t", "`\"`"}},
 				casing.NewCaser(),
 			),
-			want: texts.Dedent(`
+			want: []string{
+				texts.Dedent(`
 				// Quoting represents the Postgres enum "quoting".
 				type Quoting string
-
+		
 				const (
 					QuotingUnnamedLabel0 Quoting = "\"\n\t"
 					QuotingUnnamedLabel1 Quoting = "` + "`" + `\"` + "`" + `"
 				)
-
+		
 				func (q Quoting) String() string { return string(q) }
 			`),
+			},
 		},
 		{
 			name: "composite",
@@ -68,27 +72,66 @@ func TestFindDeclarer_Declare(t *testing.T) {
 				FieldTypes:  []gotype.Type{gotype.Int16, gotype.PgText},
 			},
 			pkgPath: "example.com/foo",
-			want: texts.Dedent(`
+			want: []string{
+				texts.Dedent(`
 				// SomeTable represents the Postgres composite type "some_table".
 				type SomeTable struct {
 					Foo    int16
 					BarBaz pgtype.Text
 				}
 			`),
+			},
+		},
+		{
+			name: "nested composite",
+			typ: gotype.CompositeType{
+				PgComposite: pg.CompositeType{Name: "some_table"},
+				PkgPath:     "example.com/foo",
+				Pkg:         "foo",
+				Name:        "SomeTable",
+				FieldNames:  []string{"Foo", "BarBaz"},
+				FieldTypes: []gotype.Type{
+					gotype.CompositeType{
+						PgComposite: pg.CompositeType{Name: "foo_type"},
+						PkgPath:     "example.com/foo",
+						Pkg:         "foo",
+						Name:        "FooType",
+						FieldNames:  []string{"Alpha"},
+						FieldTypes:  []gotype.Type{gotype.PgText},
+					},
+					gotype.PgText,
+				},
+			},
+			pkgPath: "example.com/foo",
+			want: []string{
+				texts.Dedent(`
+				// SomeTable represents the Postgres composite type "some_table".
+				type SomeTable struct {
+					Foo    FooType
+					BarBaz pgtype.Text
+				}
+			`),
+				texts.Dedent(`
+				// FooType represents the Postgres composite type "foo_type".
+				type FooType struct {
+					Alpha pgtype.Text
+				}
+			`),
+			},
 		},
 	}
-
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			decl := FindDeclarer(tt.typ)
-			if decl == nil {
-				t.Fatal("got nil declarer")
+			decls := FindDeclarers(tt.typ)
+			gotStrings := make([]string, len(decls))
+			for i, decl := range decls {
+				s, err := decl.Declare(tt.pkgPath)
+				if err != nil {
+					t.Fatal(err)
+				}
+				gotStrings[i] = s
 			}
-			got, err := decl.Declare(tt.pkgPath)
-			if err != nil {
-				t.Fatal(err)
-			}
-			assert.Equal(t, tt.want, got)
+			assert.Equal(t, tt.want, gotStrings)
 		})
 	}
 }

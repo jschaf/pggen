@@ -18,14 +18,37 @@ type Declarer interface {
 	Declare(pkgPath string) (string, error)
 }
 
-// FindDeclarer finds the appropriate Declarer for a type or nil if no declare
-// is needed.
-func FindDeclarer(typ gotype.Type) Declarer {
+// FindDeclarers finds all necessary Declarers for a type or nil if no
+// declarers are needed. Composite type might depends on enums or other
+// composite types.
+func FindDeclarers(typ gotype.Type) []Declarer {
+	return findDeclsHelper(typ, make(map[string]struct{}, 4))
+}
+
+func findDeclsHelper(typ gotype.Type, visited map[string]struct{}) []Declarer {
 	switch typ := typ.(type) {
 	case gotype.EnumType:
-		return NewEnumDeclarer(typ)
+		d := NewEnumDeclarer(typ)
+		if _, ok := visited[d.DedupeKey()]; ok {
+			return nil
+		}
+		visited[d.DedupeKey()] = struct{}{}
+		return []Declarer{d}
+
 	case gotype.CompositeType:
-		return NewCompositeDeclarer(typ)
+		d := NewCompositeDeclarer(typ)
+		if _, ok := visited[d.DedupeKey()]; ok {
+			return nil
+		}
+		visited[d.DedupeKey()] = struct{}{}
+		decls := make([]Declarer, 1, 4)
+		decls[0] = d
+		for _, childType := range typ.FieldTypes {
+			childDecls := findDeclsHelper(childType, visited)
+			decls = append(decls, childDecls...)
+		}
+		return decls
+
 	default:
 		return nil
 	}

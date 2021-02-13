@@ -108,6 +108,13 @@ func TestExamples(t *testing.T) {
 				"--query-glob", "example/void/query.sql",
 			},
 		},
+		{
+			name: "example/nested",
+			args: []string{
+				"--schema-glob", "example/nested/schema.sql",
+				"--query-glob", "example/nested/query.sql",
+			},
+		},
 	}
 	if *update {
 		// update only disables the assertions. Running the tests causes pggen
