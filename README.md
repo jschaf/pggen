@@ -168,6 +168,7 @@ Examples embedded in the repo:
 - [./example/enums] - Postgres and Go enums.
 - [./example/erp] - A few tables with mildly complex queries.
 - [./example/syntax] - A smoke test of interesting SQL syntax.
+- [./example/pgcrypto] - pgcrypto Postgres extension.
 
 [./example/integration_test.go]: ./example/integration_test.go
 [./example/author]: ./example/author

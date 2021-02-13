@@ -94,6 +94,13 @@ func TestExamples(t *testing.T) {
 				"--go-type", "my_int=int",
 			},
 		},
+		{
+			name: "example/pgcrypto",
+			args: []string{
+				"--schema-glob", "example/pgcrypto/schema.sql",
+				"--query-glob", "example/pgcrypto/query.sql",
+			},
+		},
 	}
 	if *update {
 		// update only disables the assertions. Running the tests causes pggen
