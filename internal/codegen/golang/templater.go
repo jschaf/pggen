@@ -158,12 +158,11 @@ func (tm Templater) TemplateAll(files []codegen.QueryFile) ([]TemplatedFile, err
 // Also returns any declarations needed by this query file. The caller must
 // dedupe declarations.
 func (tm Templater) templateFile(file codegen.QueryFile) (TemplatedFile, []Declarer, error) {
-	imports := map[string]struct{}{
-		"context":                 {},
-		"fmt":                     {},
-		"github.com/jackc/pgconn": {},
-		"github.com/jackc/pgx/v4": {},
-	}
+	imports := NewImportSet()
+	imports.AddPackage("context")
+	imports.AddPackage("fmt")
+	imports.AddPackage("github.com/jackc/pgconn")
+	imports.AddPackage("github.com/jackc/pgx/v4")
 
 	pkgPath := ""
 	// NOTE: err == nil check
@@ -198,7 +197,7 @@ func (tm Templater) templateFile(file codegen.QueryFile) (TemplatedFile, []Decla
 			if err != nil {
 				return TemplatedFile{}, nil, err
 			}
-			imports[goType.Import()] = struct{}{}
+			imports.AddType(goType)
 			inputs[i] = TemplatedParam{
 				UpperName: tm.chooseUpperName(input.PgName, "UnnamedParam", i, len(query.Inputs)),
 				LowerName: tm.chooseLowerName(input.PgName, "unnamedParam", i, len(query.Inputs)),
@@ -214,7 +213,7 @@ func (tm Templater) templateFile(file codegen.QueryFile) (TemplatedFile, []Decla
 			if err != nil {
 				return TemplatedFile{}, nil, err
 			}
-			imports[goType.Import()] = struct{}{}
+			imports.AddType(goType)
 			outputs[i] = TemplatedColumn{
 				PgName:    out.PgName,
 				UpperName: tm.chooseUpperName(out.PgName, "UnnamedColumn", i, len(query.Outputs)),
@@ -236,21 +235,12 @@ func (tm Templater) templateFile(file codegen.QueryFile) (TemplatedFile, []Decla
 		})
 	}
 
-	// Build imports.
-	sortedImports := make([]string, 0, len(imports))
-	for pkg := range imports {
-		if pkg != "" {
-			sortedImports = append(sortedImports, pkg)
-		}
-	}
-	sort.Strings(sortedImports)
-
 	return TemplatedFile{
 		PkgPath: pkgPath,
 		GoPkg:   tm.pkg,
 		Path:    file.Path,
 		Queries: queries,
-		Imports: sortedImports,
+		Imports: imports.SortedPackages(),
 	}, declarers, nil
 }
 
