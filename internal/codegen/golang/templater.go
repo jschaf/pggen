@@ -388,34 +388,29 @@ func (tq TemplatedQuery) EmitRowScanArgs() (string, error) {
 	case ast.ResultKindExec:
 		return "", fmt.Errorf("cannot EmitRowScanArgs for :exec query %s", tq.Name)
 	case ast.ResultKindMany, ast.ResultKindOne:
-		switch len(tq.Outputs) {
-		case 0:
-			return "", nil
-		default:
-			hasOnlyOneNonVoid := len(removeVoidColumns(tq.Outputs)) == 1
-			sb := strings.Builder{}
-			sb.Grow(15 * len(tq.Outputs))
-			for i, out := range tq.Outputs {
-				switch out.Type.(type) {
-				case gotype.CompositeType:
-					sb.WriteString(out.LowerName)
-					sb.WriteString("Row")
-				case gotype.VoidType:
-					sb.WriteString("nil")
-				default:
-					if hasOnlyOneNonVoid {
-						sb.WriteString("&item")
-					} else {
-						sb.WriteString("&item.")
-						sb.WriteString(out.UpperName)
-					}
-				}
-				if i < len(tq.Outputs)-1 {
-					sb.WriteString(", ")
+		hasOnlyOneNonVoid := len(removeVoidColumns(tq.Outputs)) == 1
+		sb := strings.Builder{}
+		sb.Grow(15 * len(tq.Outputs))
+		for i, out := range tq.Outputs {
+			switch out.Type.(type) {
+			case gotype.CompositeType:
+				sb.WriteString(out.LowerName)
+				sb.WriteString("Row")
+			case gotype.VoidType:
+				sb.WriteString("nil")
+			default:
+				if hasOnlyOneNonVoid {
+					sb.WriteString("&item")
+				} else {
+					sb.WriteString("&item.")
+					sb.WriteString(out.UpperName)
 				}
 			}
-			return sb.String(), nil
+			if i < len(tq.Outputs)-1 {
+				sb.WriteString(", ")
+			}
 		}
+		return sb.String(), nil
 	default:
 		return "", fmt.Errorf("unhandled EmitRowScanArgs type: %s", tq.ResultKind)
 	}
