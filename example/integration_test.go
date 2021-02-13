@@ -101,6 +101,13 @@ func TestExamples(t *testing.T) {
 				"--query-glob", "example/pgcrypto/query.sql",
 			},
 		},
+		{
+			name: "example/void",
+			args: []string{
+				"--schema-glob", "example/void/schema.sql",
+				"--query-glob", "example/void/query.sql",
+			},
+		},
 	}
 	if *update {
 		// update only disables the assertions. Running the tests causes pggen

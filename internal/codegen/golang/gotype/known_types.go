@@ -101,6 +101,7 @@ var (
 	PgNumericArray     = NewOpaqueType("github.com/jackc/pgtype.NumericArray")
 	PgBit              = NewOpaqueType("github.com/jackc/pgtype.Bit")
 	PgVarbit           = NewOpaqueType("github.com/jackc/pgtype.Varbit")
+	PgVoid             = VoidType{}
 	PgNumeric          = NewOpaqueType("github.com/jackc/pgtype.Numeric")
 	PgRecord           = NewOpaqueType("github.com/jackc/pgtype.Record")
 	PgUUID             = NewOpaqueType("github.com/jackc/pgtype.UUID")
@@ -177,6 +178,7 @@ var knownTypesByOID = map[pgtype.OID]knownGoType{
 	pgtype.NumericArrayOID:     {PgNumericArray, nil},
 	pgtype.BitOID:              {PgBit, nil},
 	pgtype.VarbitOID:           {PgVarbit, nil},
+	pgoid.Void:                 {PgVoid, nil},
 	pgtype.NumericOID:          {PgNumeric, nil},
 	pgtype.RecordOID:           {PgRecord, nil},
 	pgtype.UUIDOID:             {PgUUID, nil},

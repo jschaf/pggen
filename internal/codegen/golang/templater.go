@@ -169,7 +169,8 @@ func (tm Templater) templateFile(file codegen.QueryFile) (TemplatedFile, []Decla
 	// NOTE: err == nil check
 	// Attempt to guess package path. Ignore error if it doesn't work because
 	// resolving the package isn't perfect. We'll fallback to an unqualified
-	// type which will likely work since the enum is declared in this package.
+	// type which will likely work since the type is probably declared in this
+	// package.
 	if pkg, err := gomod.GuessPackage(file.Path); err == nil {
 		pkgPath = pkg
 	}
@@ -390,24 +391,24 @@ func (tq TemplatedQuery) EmitRowScanArgs() (string, error) {
 		switch len(tq.Outputs) {
 		case 0:
 			return "", nil
-		case 1:
-			out := tq.Outputs[0]
-			if _, ok := out.Type.(gotype.CompositeType); ok {
-				return out.LowerName + "Row", nil
-			} else {
-				return "&item", nil
-			}
 		default:
+			hasOnlyOneNonVoid := len(removeVoidColumns(tq.Outputs)) == 1
 			sb := strings.Builder{}
 			sb.Grow(15 * len(tq.Outputs))
 			for i, out := range tq.Outputs {
-				if _, ok := out.Type.(gotype.CompositeType); ok {
+				switch out.Type.(type) {
+				case gotype.CompositeType:
 					sb.WriteString(out.LowerName)
 					sb.WriteString("Row")
-
-				} else {
-					sb.WriteString("&item.")
-					sb.WriteString(out.UpperName)
+				case gotype.VoidType:
+					sb.WriteString("nil")
+				default:
+					if hasOnlyOneNonVoid {
+						sb.WriteString("&item")
+					} else {
+						sb.WriteString("&item.")
+						sb.WriteString(out.UpperName)
+					}
 				}
 				if i < len(tq.Outputs)-1 {
 					sb.WriteString(", ")
@@ -423,24 +424,25 @@ func (tq TemplatedQuery) EmitRowScanArgs() (string, error) {
 // EmitResultType returns the string representing the overall query result type,
 // meaning the return result.
 func (tq TemplatedQuery) EmitResultType() (string, error) {
+	outs := removeVoidColumns(tq.Outputs)
 	switch tq.ResultKind {
 	case ast.ResultKindExec:
 		return "pgconn.CommandTag", nil
 	case ast.ResultKindMany:
-		switch len(tq.Outputs) {
+		switch len(outs) {
 		case 0:
 			return "pgconn.CommandTag", nil
 		case 1:
-			return "[]" + tq.Outputs[0].QualType, nil
+			return "[]" + outs[0].QualType, nil
 		default:
 			return "[]" + tq.Name + "Row", nil
 		}
 	case ast.ResultKindOne:
-		switch len(tq.Outputs) {
+		switch len(outs) {
 		case 0:
 			return "pgconn.CommandTag", nil
 		case 1:
-			return tq.Outputs[0].QualType, nil
+			return outs[0].QualType, nil
 		default:
 			return tq.Name + "Row", nil
 		}
@@ -586,15 +588,16 @@ func (tq TemplatedQuery) EmitRowStruct() string {
 	case ast.ResultKindExec:
 		return ""
 	case ast.ResultKindOne, ast.ResultKindMany:
-		if len(tq.Outputs) <= 1 {
+		outs := removeVoidColumns(tq.Outputs)
+		if len(outs) <= 1 {
 			return ""
 		}
 		sb := &strings.Builder{}
 		sb.WriteString("\n\ntype ")
 		sb.WriteString(tq.Name)
 		sb.WriteString("Row struct {\n")
-		typeCol, structCol := getLongestOutput(tq.Outputs)
-		for _, out := range tq.Outputs {
+		typeCol, structCol := getLongestOutput(outs)
+		for _, out := range outs {
 			// Name
 			sb.WriteString("\t")
 			sb.WriteString(out.UpperName)
@@ -613,4 +616,18 @@ func (tq TemplatedQuery) EmitRowStruct() string {
 	default:
 		panic("unhandled result type: " + tq.ResultKind)
 	}
+}
+
+// removeVoidColumns makes a copy of cols with all VoidType columns removed.
+// Useful because return types shouldn't contain the void type but we need
+// to use a nil placeholder for void types when scanning a pgx.Row.
+func removeVoidColumns(cols []TemplatedColumn) []TemplatedColumn {
+	outs := make([]TemplatedColumn, 0, len(cols))
+	for _, col := range cols {
+		if _, ok := col.Type.(gotype.VoidType); ok {
+			continue
+		}
+		outs = append(outs, col)
+	}
+	return outs
 }

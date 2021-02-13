@@ -31,6 +31,11 @@ func TestTypeResolver_Resolve(t *testing.T) {
 			),
 		},
 		{
+			name:   "void",
+			pgType: pg.VoidType{},
+			want:   gotype.VoidType{},
+		},
+		{
 			name:      "override",
 			overrides: map[string]string{"custom_type": "example.com/custom.QualType"},
 			pgType:    pg.BaseType{Name: "custom_type"},

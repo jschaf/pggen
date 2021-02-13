@@ -84,8 +84,14 @@ func (inf *Inferrer) InferTypes(query *ast.SourceQuery) (TypedQuery, error) {
 	}
 	if query.ResultKind != ast.ResultKindExec && len(outputs) == 0 {
 		return TypedQuery{}, fmt.Errorf(
-			"query %s has incompatible result kind %s; the query doesn't return any rows; "+
-				"use :exec if query shouldn't return rows",
+			"query %s has incompatible result kind %s; the query doesn't return any columns; "+
+				"use :exec if query shouldn't return any columns",
+			query.Name, query.ResultKind)
+	}
+	if query.ResultKind != ast.ResultKindExec && countVoids(outputs) == len(outputs) {
+		return TypedQuery{}, fmt.Errorf(
+			"query %s has incompatible result kind %s; the query only has void columns; "+
+				"use :exec if query shouldn't return any columns",
 			query.Name, query.ResultKind)
 	}
 	doc := extractDoc(query)
@@ -292,4 +298,14 @@ func extractDoc(query *ast.SourceQuery) []string {
 		lines[i] = strings.TrimSpace(noDashes)
 	}
 	return lines
+}
+
+func countVoids(outputs []OutputColumn) int {
+	n := 0
+	for _, out := range outputs {
+		if _, ok := out.PgType.(pg.VoidType); ok {
+			n++
+		}
+	}
+	return n
 }

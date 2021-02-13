@@ -5,6 +5,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/jackc/pgtype"
+	"github.com/jschaf/pggen/internal/pg/pgoid"
 	"github.com/jschaf/pggen/internal/pgtest"
 	"github.com/jschaf/pggen/internal/texts"
 	"github.com/stretchr/testify/assert"
@@ -23,6 +24,12 @@ func TestNewTypeFetcher(t *testing.T) {
 			schema:   "",
 			fetchOID: Int4.ID,
 			want:     Int4,
+		},
+		{
+			name:     "Void",
+			schema:   "",
+			fetchOID: pgoid.Void,
+			want:     Void,
 		},
 		{
 			name:     "enum",
@@ -116,6 +123,8 @@ func TestNewTypeFetcher(t *testing.T) {
 				}
 			case pgtype.OID:
 				oid = rawOID
+			case int:
+				oid = pgtype.OID(rawOID)
 			default:
 				t.Fatalf("unhandled oid test value type %T: %v", rawOID, rawOID)
 			}
@@ -140,6 +149,8 @@ func TestNewTypeFetcher(t *testing.T) {
 			case BaseType:
 				typ.ID = oid
 				wantType = typ
+			case VoidType:
+				wantType = VoidType{}
 			case EnumType:
 				typ.ID = oid
 				wantType = typ

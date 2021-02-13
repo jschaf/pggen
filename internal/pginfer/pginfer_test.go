@@ -116,6 +116,41 @@ func TestInferrer_InferTypes(t *testing.T) {
 				},
 			},
 		},
+		{
+			&ast.SourceQuery{
+				Name:        "VoidOne",
+				PreparedSQL: "SELECT ''::void;",
+				ParamNames:  []string{},
+				ResultKind:  ast.ResultKindExec,
+			},
+			TypedQuery{
+				Name:        "VoidOne",
+				ResultKind:  ast.ResultKindExec,
+				PreparedSQL: "SELECT ''::void;",
+				Inputs:      nil,
+				Outputs: []OutputColumn{
+					{PgName: "void", PgType: pg.Void, Nullable: false},
+				},
+			},
+		},
+		{
+			&ast.SourceQuery{
+				Name:        "VoidTwo",
+				PreparedSQL: "SELECT 'foo' as foo, ''::void;",
+				ParamNames:  []string{},
+				ResultKind:  ast.ResultKindOne,
+			},
+			TypedQuery{
+				Name:        "VoidTwo",
+				ResultKind:  ast.ResultKindOne,
+				PreparedSQL: "SELECT 'foo' as foo, ''::void;",
+				Inputs:      nil,
+				Outputs: []OutputColumn{
+					{PgName: "foo", PgType: pg.Text, Nullable: false},
+					{PgName: "void", PgType: pg.Void, Nullable: false},
+				},
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.query.Name, func(t *testing.T) {
@@ -147,8 +182,8 @@ func TestInferrer_InferTypes_Error(t *testing.T) {
 				ResultKind:  ast.ResultKindMany,
 			},
 			errors.New("query DeleteAuthorByIDMany has incompatible result kind :many; " +
-				"the query doesn't return any rows; " +
-				"use :exec if query shouldn't return rows"),
+				"the query doesn't return any columns; " +
+				"use :exec if query shouldn't return any columns"),
 		},
 		{
 			&ast.SourceQuery{
@@ -159,8 +194,20 @@ func TestInferrer_InferTypes_Error(t *testing.T) {
 			},
 			errors.New(
 				"query DeleteAuthorByIDOne has incompatible result kind :one; " +
-					"the query doesn't return any rows; " +
-					"use :exec if query shouldn't return rows"),
+					"the query doesn't return any columns; " +
+					"use :exec if query shouldn't return any columns"),
+		},
+		{
+			&ast.SourceQuery{
+				Name:        "VoidOne",
+				PreparedSQL: "SELECT ''::void;",
+				ParamNames:  nil,
+				ResultKind:  ast.ResultKindMany,
+			},
+			errors.New(
+				"query VoidOne has incompatible result kind :many; " +
+					"the query only has void columns; " +
+					"use :exec if query shouldn't return any columns"),
 		},
 	}
 	for _, tt := range tests {

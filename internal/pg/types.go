@@ -2,6 +2,7 @@ package pg
 
 import (
 	"github.com/jackc/pgtype"
+	"github.com/jschaf/pggen/internal/pg/pgoid"
 )
 
 // Type is a Postgres type.
@@ -49,6 +50,9 @@ type (
 		ID   pgtype.OID // pg_type.oid: row identifier
 		Name string     // pg_type.typname: data type name
 	}
+
+	// Void type is an empty type.
+	VoidType struct{}
 
 	// ArrayType is an array type where pg_type.typelem != 0 and the name begins
 	// with an underscore.
@@ -112,6 +116,10 @@ type (
 func (b BaseType) OID() pgtype.OID { return b.ID }
 func (b BaseType) String() string  { return b.Name }
 func (b BaseType) Kind() TypeKind  { return KindBaseType }
+
+func (b VoidType) OID() pgtype.OID { return pgoid.Void }
+func (b VoidType) String() string  { return "void" }
+func (b VoidType) Kind() TypeKind  { return KindPseudoType }
 
 func (b ArrayType) OID() pgtype.OID { return b.ID }
 func (b ArrayType) String() string  { return b.Name }

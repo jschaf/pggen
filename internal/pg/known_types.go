@@ -66,6 +66,7 @@ var (
 	Varbit           = BaseType{ID: pgtype.VarbitOID, Name: "varbit"}
 	Numeric          = BaseType{ID: pgtype.NumericOID, Name: "numeric"}
 	Record           = BaseType{ID: pgtype.RecordOID, Name: "record"}
+	Void             = VoidType{}
 	UUID             = BaseType{ID: pgtype.UUIDOID, Name: "uuid"}
 	UUIDArray        = BaseType{ID: pgtype.UUIDArrayOID, Name: "_uuid"}
 	JSONB            = BaseType{ID: pgtype.JSONBOID, Name: "jsonb"}
@@ -138,6 +139,7 @@ var defaultKnownTypes = map[pgtype.OID]Type{
 	pgtype.VarbitOID:           Varbit,
 	pgtype.NumericOID:          Numeric,
 	pgtype.RecordOID:           Record,
+	pgoid.Void:                 Void,
 	pgtype.UUIDOID:             UUID,
 	pgtype.UUIDArrayOID:        UUIDArray,
 	pgtype.JSONBOID:            JSONB,

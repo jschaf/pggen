@@ -28,6 +28,11 @@ type Type interface {
 }
 
 type (
+	// VoidType is a placeholder type that should never appear in output. We need
+	// a placeholder to scan pgx rows but we ultimately ignore the results in the
+	// return values.
+	VoidType struct{}
+
 	// EnumType is a string type with constant values that maps to the labels of
 	// a Postgres enum.
 	EnumType struct {
@@ -62,6 +67,11 @@ type (
 		FieldTypes  []Type
 	}
 )
+
+func (e VoidType) QualifyRel(pkgPath string) string { return qualifyRel(e, pkgPath) }
+func (e VoidType) Import() string                   { return "" }
+func (e VoidType) Package() string                  { return "" }
+func (e VoidType) BaseName() string                 { return "" }
 
 func (e EnumType) QualifyRel(pkgPath string) string { return qualifyRel(e, pkgPath) }
 func (e EnumType) Import() string                   { return e.PkgPath }
