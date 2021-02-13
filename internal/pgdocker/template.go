@@ -8,7 +8,7 @@ type pgTemplate struct {
 const dockerfileTemplate = `
 {{- /*gotype: github.com/jschaf/pggen/internal/pgdocker.pgTemplate*/ -}}
 {{- define "dockerfile" -}}
-FROM postgres:13
+FROM postgis/postgis
 {{ range .InitScripts }}
 COPY {{.}} /docker-entrypoint-initdb.d/
 {{ end }}

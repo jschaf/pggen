@@ -1,7 +1,7 @@
 version: "3.6"
 services:
   postgresql:
-    image: "postgres:13"
+    image: "postgis/postgis"
     ports:
       - "5555:5432"
     restart: always

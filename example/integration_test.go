@@ -101,6 +101,14 @@ func TestExamples(t *testing.T) {
 				"--query-glob", "example/pgcrypto/query.sql",
 			},
 		},
+		{
+			name: "example/postgis",
+			args: []string{
+				"--schema-glob", "example/postgis/schema.sql",
+				"--query-glob", "example/postgis/query.sql",
+				"--go-type", "geography=github.com/jackc/pgtype.Point",
+			},
+		},
 	}
 	if *update {
 		// update only disables the assertions. Running the tests causes pggen
