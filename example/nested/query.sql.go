@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/jackc/pgconn"
+	"github.com/jackc/pgtype"
 	"github.com/jackc/pgx/v4"
 )
 
@@ -15,40 +16,12 @@ import (
 // calling SendBatch on pgx.Conn, pgxpool.Pool, or pgx.Tx, use the Scan methods
 // to parse the results.
 type Querier interface {
-	VoidOnly(ctx context.Context) (pgconn.CommandTag, error)
-	// VoidOnlyBatch enqueues a VoidOnly query into batch to be executed
+	Nested3(ctx context.Context) ([]Qux, error)
+	// Nested3Batch enqueues a Nested3 query into batch to be executed
 	// later by the batch.
-	VoidOnlyBatch(batch *pgx.Batch)
-	// VoidOnlyScan scans the result of an executed VoidOnlyBatch query.
-	VoidOnlyScan(results pgx.BatchResults) (pgconn.CommandTag, error)
-
-	VoidOnlyTwoParams(ctx context.Context, id int32) (pgconn.CommandTag, error)
-	// VoidOnlyTwoParamsBatch enqueues a VoidOnlyTwoParams query into batch to be executed
-	// later by the batch.
-	VoidOnlyTwoParamsBatch(batch *pgx.Batch, id int32)
-	// VoidOnlyTwoParamsScan scans the result of an executed VoidOnlyTwoParamsBatch query.
-	VoidOnlyTwoParamsScan(results pgx.BatchResults) (pgconn.CommandTag, error)
-
-	VoidTwo(ctx context.Context) (string, error)
-	// VoidTwoBatch enqueues a VoidTwo query into batch to be executed
-	// later by the batch.
-	VoidTwoBatch(batch *pgx.Batch)
-	// VoidTwoScan scans the result of an executed VoidTwoBatch query.
-	VoidTwoScan(results pgx.BatchResults) (string, error)
-
-	VoidThree(ctx context.Context) (VoidThreeRow, error)
-	// VoidThreeBatch enqueues a VoidThree query into batch to be executed
-	// later by the batch.
-	VoidThreeBatch(batch *pgx.Batch)
-	// VoidThreeScan scans the result of an executed VoidThreeBatch query.
-	VoidThreeScan(results pgx.BatchResults) (VoidThreeRow, error)
-
-	VoidThree2(ctx context.Context) ([]string, error)
-	// VoidThree2Batch enqueues a VoidThree2 query into batch to be executed
-	// later by the batch.
-	VoidThree2Batch(batch *pgx.Batch)
-	// VoidThree2Scan scans the result of an executed VoidThree2Batch query.
-	VoidThree2Scan(results pgx.BatchResults) ([]string, error)
+	Nested3Batch(batch *pgx.Batch)
+	// Nested3Scan scans the result of an executed Nested3Batch query.
+	Nested3Scan(results pgx.BatchResults) ([]Qux, error)
 }
 
 type DBQuerier struct {
@@ -89,132 +62,46 @@ func (q *DBQuerier) WithTx(tx pgx.Tx) (*DBQuerier, error) {
 	return &DBQuerier{conn: tx}, nil
 }
 
-const voidOnlySQL = `SELECT void_fn();`
-
-// VoidOnly implements Querier.VoidOnly.
-func (q *DBQuerier) VoidOnly(ctx context.Context) (pgconn.CommandTag, error) {
-	cmdTag, err := q.conn.Exec(ctx, voidOnlySQL)
-	if err != nil {
-		return cmdTag, fmt.Errorf("exec query VoidOnly: %w", err)
-	}
-	return cmdTag, err
+// InventoryItem represents the Postgres composite type "inventory_item".
+type InventoryItem struct {
+	ItemName pgtype.Text
+	Sku      Sku
 }
 
-// VoidOnlyBatch implements Querier.VoidOnlyBatch.
-func (q *DBQuerier) VoidOnlyBatch(batch *pgx.Batch) {
-	batch.Queue(voidOnlySQL)
+// Qux represents the Postgres composite type "qux".
+type Qux struct {
+	Item InventoryItem
+	Foo  pgtype.Int8
 }
 
-// VoidOnlyScan implements Querier.VoidOnlyScan.
-func (q *DBQuerier) VoidOnlyScan(results pgx.BatchResults) (pgconn.CommandTag, error) {
-	cmdTag, err := results.Exec()
-	if err != nil {
-		return cmdTag, fmt.Errorf("exec VoidOnlyBatch: %w", err)
-	}
-	return cmdTag, err
+// Sku represents the Postgres composite type "sku".
+type Sku struct {
+	SkuID pgtype.Text
 }
 
-const voidOnlyTwoParamsSQL = `SELECT void_fn_two_params($1, 'text');`
+const nested3SQL = `SELECT ROW (ROW ('item_name', ROW ('sku_id')::sku)::inventory_item, 88)::qux;`
 
-// VoidOnlyTwoParams implements Querier.VoidOnlyTwoParams.
-func (q *DBQuerier) VoidOnlyTwoParams(ctx context.Context, id int32) (pgconn.CommandTag, error) {
-	cmdTag, err := q.conn.Exec(ctx, voidOnlyTwoParamsSQL, id)
-	if err != nil {
-		return cmdTag, fmt.Errorf("exec query VoidOnlyTwoParams: %w", err)
-	}
-	return cmdTag, err
-}
-
-// VoidOnlyTwoParamsBatch implements Querier.VoidOnlyTwoParamsBatch.
-func (q *DBQuerier) VoidOnlyTwoParamsBatch(batch *pgx.Batch, id int32) {
-	batch.Queue(voidOnlyTwoParamsSQL, id)
-}
-
-// VoidOnlyTwoParamsScan implements Querier.VoidOnlyTwoParamsScan.
-func (q *DBQuerier) VoidOnlyTwoParamsScan(results pgx.BatchResults) (pgconn.CommandTag, error) {
-	cmdTag, err := results.Exec()
-	if err != nil {
-		return cmdTag, fmt.Errorf("exec VoidOnlyTwoParamsBatch: %w", err)
-	}
-	return cmdTag, err
-}
-
-const voidTwoSQL = `SELECT void_fn(), 'foo' as name;`
-
-// VoidTwo implements Querier.VoidTwo.
-func (q *DBQuerier) VoidTwo(ctx context.Context) (string, error) {
-	row := q.conn.QueryRow(ctx, voidTwoSQL)
-	var item string
-	if err := row.Scan(nil, &item); err != nil {
-		return item, fmt.Errorf("query VoidTwo: %w", err)
-	}
-	return item, nil
-}
-
-// VoidTwoBatch implements Querier.VoidTwoBatch.
-func (q *DBQuerier) VoidTwoBatch(batch *pgx.Batch) {
-	batch.Queue(voidTwoSQL)
-}
-
-// VoidTwoScan implements Querier.VoidTwoScan.
-func (q *DBQuerier) VoidTwoScan(results pgx.BatchResults) (string, error) {
-	row := results.QueryRow()
-	var item string
-	if err := row.Scan(nil, &item); err != nil {
-		return item, fmt.Errorf("scan VoidTwoBatch row: %w", err)
-	}
-	return item, nil
-}
-
-const voidThreeSQL = `SELECT void_fn(), 'foo' as foo, 'bar' as bar;`
-
-type VoidThreeRow struct {
-	Foo string `json:"foo"`
-	Bar string `json:"bar"`
-}
-
-// VoidThree implements Querier.VoidThree.
-func (q *DBQuerier) VoidThree(ctx context.Context) (VoidThreeRow, error) {
-	row := q.conn.QueryRow(ctx, voidThreeSQL)
-	var item VoidThreeRow
-	if err := row.Scan(nil, &item.Foo, &item.Bar); err != nil {
-		return item, fmt.Errorf("query VoidThree: %w", err)
-	}
-	return item, nil
-}
-
-// VoidThreeBatch implements Querier.VoidThreeBatch.
-func (q *DBQuerier) VoidThreeBatch(batch *pgx.Batch) {
-	batch.Queue(voidThreeSQL)
-}
-
-// VoidThreeScan implements Querier.VoidThreeScan.
-func (q *DBQuerier) VoidThreeScan(results pgx.BatchResults) (VoidThreeRow, error) {
-	row := results.QueryRow()
-	var item VoidThreeRow
-	if err := row.Scan(nil, &item.Foo, &item.Bar); err != nil {
-		return item, fmt.Errorf("scan VoidThreeBatch row: %w", err)
-	}
-	return item, nil
-}
-
-const voidThree2SQL = `SELECT 'foo' as foo, void_fn(), void_fn();`
-
-// VoidThree2 implements Querier.VoidThree2.
-func (q *DBQuerier) VoidThree2(ctx context.Context) ([]string, error) {
-	rows, err := q.conn.Query(ctx, voidThree2SQL)
+// Nested3 implements Querier.Nested3.
+func (q *DBQuerier) Nested3(ctx context.Context) ([]Qux, error) {
+	rows, err := q.conn.Query(ctx, nested3SQL)
 	if rows != nil {
 		defer rows.Close()
 	}
 	if err != nil {
-		return nil, fmt.Errorf("query VoidThree2: %w", err)
+		return nil, fmt.Errorf("query Nested3: %w", err)
 	}
-	items := []string{}
+	items := []Qux{}
+	rowRow := pgtype.CompositeFields([]interface{}{
+		&InventoryItem{},
+		&pgtype.Int8{},
+	})
 	for rows.Next() {
-		var item string
-		if err := rows.Scan(&item, nil, nil); err != nil {
-			return nil, fmt.Errorf("scan VoidThree2 row: %w", err)
+		var item Qux
+		if err := rows.Scan(rowRow); err != nil {
+			return nil, fmt.Errorf("scan Nested3 row: %w", err)
 		}
+		item.Item = *rowRow[0].(*InventoryItem)
+		item.Foo = *rowRow[1].(*pgtype.Int8)
 		items = append(items, item)
 	}
 	if err := rows.Err(); err != nil {
@@ -223,13 +110,13 @@ func (q *DBQuerier) VoidThree2(ctx context.Context) ([]string, error) {
 	return items, err
 }
 
-// VoidThree2Batch implements Querier.VoidThree2Batch.
-func (q *DBQuerier) VoidThree2Batch(batch *pgx.Batch) {
-	batch.Queue(voidThree2SQL)
+// Nested3Batch implements Querier.Nested3Batch.
+func (q *DBQuerier) Nested3Batch(batch *pgx.Batch) {
+	batch.Queue(nested3SQL)
 }
 
-// VoidThree2Scan implements Querier.VoidThree2Scan.
-func (q *DBQuerier) VoidThree2Scan(results pgx.BatchResults) ([]string, error) {
+// Nested3Scan implements Querier.Nested3Scan.
+func (q *DBQuerier) Nested3Scan(results pgx.BatchResults) ([]Qux, error) {
 	rows, err := results.Query()
 	if rows != nil {
 		defer rows.Close()
@@ -237,12 +124,18 @@ func (q *DBQuerier) VoidThree2Scan(results pgx.BatchResults) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	items := []string{}
+	items := []Qux{}
+	rowRow := pgtype.CompositeFields([]interface{}{
+		&InventoryItem{},
+		&pgtype.Int8{},
+	})
 	for rows.Next() {
-		var item string
-		if err := rows.Scan(&item, nil, nil); err != nil {
-			return nil, fmt.Errorf("scan VoidThree2Batch row: %w", err)
+		var item Qux
+		if err := rows.Scan(rowRow); err != nil {
+			return nil, fmt.Errorf("scan Nested3Batch row: %w", err)
 		}
+		item.Item = *rowRow[0].(*InventoryItem)
+		item.Foo = *rowRow[1].(*pgtype.Int8)
 		items = append(items, item)
 	}
 	if err := rows.Err(); err != nil {
