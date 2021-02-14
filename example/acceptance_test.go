@@ -92,6 +92,7 @@ func TestExamples(t *testing.T) {
 				"--go-type", "text=github.com/jschaf/pggen/example/custom_types/mytype.String",
 				"--go-type", "int8=github.com/jschaf/pggen/example/custom_types.CustomInt",
 				"--go-type", "my_int=int",
+				"--go-type", "_my_int=[]int",
 			},
 		},
 		{

@@ -14,12 +14,25 @@ func TestQuerier(t *testing.T) {
 	q := NewQuerier(conn)
 	ctx := context.Background()
 
-	_, err := q.CustomTypes(ctx)
-	assert.NoError(t, err)
+	{
+		_, err := q.CustomTypes(ctx)
+		assert.NoError(t, err)
+	}
 
-	batch := &pgx.Batch{}
-	q.CustomTypesBatch(batch)
-	results := conn.SendBatch(ctx, batch)
-	_, err = q.CustomTypesScan(results)
-	assert.NoError(t, err)
+	{
+		batch := &pgx.Batch{}
+		q.CustomTypesBatch(batch)
+		results := conn.SendBatch(ctx, batch)
+		_, err := q.CustomTypesScan(results)
+		_ = results.Close()
+		assert.NoError(t, err)
+	}
+
+	{
+		array, err := q.IntArray(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		assert.Equal(t, [][]int32{{5, 6, 7}}, array)
+	}
 }

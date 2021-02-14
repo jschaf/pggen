@@ -51,7 +51,8 @@ type (
 		Name string     // pg_type.typname: data type name
 	}
 
-	// Void type is an empty type.
+	// Void type is an empty type. A void type doesn't appear in output but it's
+	// necessary to scan rows.
 	VoidType struct{}
 
 	// ArrayType is an array type where pg_type.typelem != 0 and the name begins
@@ -59,8 +60,7 @@ type (
 	ArrayType struct {
 		ID pgtype.OID // pg_type.oid: row identifier
 		// The name of the type, like _int4. Array types in Postgres typically
-		// begin with an underscore.
-		// From pg_type.typname:
+		// begin with an underscore. From pg_type.typname.
 		Name string
 		// pg_type.typelem: the element type of the array
 		ElemType Type

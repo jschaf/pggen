@@ -29,6 +29,13 @@ type Querier interface {
 	CustomMyIntBatch(batch *pgx.Batch)
 	// CustomMyIntScan scans the result of an executed CustomMyIntBatch query.
 	CustomMyIntScan(results pgx.BatchResults) (int, error)
+
+	IntArray(ctx context.Context) ([][]int32, error)
+	// IntArrayBatch enqueues a IntArray query into batch to be executed
+	// later by the batch.
+	IntArrayBatch(batch *pgx.Batch)
+	// IntArrayScan scans the result of an executed IntArrayBatch query.
+	IntArrayScan(results pgx.BatchResults) ([][]int32, error)
 }
 
 type DBQuerier struct {
@@ -126,4 +133,57 @@ func (q *DBQuerier) CustomMyIntScan(results pgx.BatchResults) (int, error) {
 		return item, fmt.Errorf("scan CustomMyIntBatch row: %w", err)
 	}
 	return item, nil
+}
+
+const intArraySQL = `SELECT ARRAY ['5', '6', '7']::int[] as ints;`
+
+// IntArray implements Querier.IntArray.
+func (q *DBQuerier) IntArray(ctx context.Context) ([][]int32, error) {
+	rows, err := q.conn.Query(ctx, intArraySQL)
+	if rows != nil {
+		defer rows.Close()
+	}
+	if err != nil {
+		return nil, fmt.Errorf("query IntArray: %w", err)
+	}
+	items := [][]int32{}
+	for rows.Next() {
+		var item []int32
+		if err := rows.Scan(&item); err != nil {
+			return nil, fmt.Errorf("scan IntArray row: %w", err)
+		}
+		items = append(items, item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, err
+}
+
+// IntArrayBatch implements Querier.IntArrayBatch.
+func (q *DBQuerier) IntArrayBatch(batch *pgx.Batch) {
+	batch.Queue(intArraySQL)
+}
+
+// IntArrayScan implements Querier.IntArrayScan.
+func (q *DBQuerier) IntArrayScan(results pgx.BatchResults) ([][]int32, error) {
+	rows, err := results.Query()
+	if rows != nil {
+		defer rows.Close()
+	}
+	if err != nil {
+		return nil, err
+	}
+	items := [][]int32{}
+	for rows.Next() {
+		var item []int32
+		if err := rows.Scan(&item); err != nil {
+			return nil, fmt.Errorf("scan IntArrayBatch row: %w", err)
+		}
+		items = append(items, item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, err
 }

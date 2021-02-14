@@ -32,8 +32,9 @@ func (tf *TypeFetcher) FindTypesByOIDs(oids ...uint32) (map[pgtype.OID]Type, err
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	// First, recursively find all OIDs in composite types. Composite types are the
-	// only type that can be nested.
+	// First, recursively find all descendant OIDs from composite or array types.
+	// Composite types are the only type that can be nested. Array types have an
+	// element type that might be a composite type.
 	descOIDs, err := tf.querier.FindDescendantOIDs(ctx, oids)
 	if err != nil {
 		return nil, fmt.Errorf("find descendant oids: %w", err)
@@ -62,6 +63,16 @@ func (tf *TypeFetcher) FindTypesByOIDs(oids ...uint32) (map[pgtype.OID]Type, err
 		types[comp.ID] = comp
 		tf.cache.addType(comp)
 		delete(uncached, comp.ID)
+	}
+
+	arrs, err := tf.findArrayTypes(ctx, uncached)
+	if err != nil {
+		return nil, fmt.Errorf("find array types: %w", err)
+	}
+	for _, arr := range arrs {
+		types[arr.ID] = arr
+		tf.cache.addType(arr)
+		delete(uncached, arr.ID)
 	}
 
 	unknowns, err := tf.findUnknownTypes(ctx, uncached)
@@ -184,6 +195,27 @@ func (tf *TypeFetcher) findUnknownTypes(ctx context.Context, uncached map[pgtype
 			ID:     row.OID,
 			Name:   row.Name.String,
 			PgKind: TypeKind(row.Kind.Int),
+		}
+	}
+	return types, nil
+}
+
+func (tf *TypeFetcher) findArrayTypes(ctx context.Context, uncached map[pgtype.OID]struct{}) ([]ArrayType, error) {
+	oids := oidKeys(uncached)
+	rows, err := tf.querier.FindArrayTypes(ctx, oids)
+	if err != nil {
+		return nil, fmt.Errorf("find OID names for array OIDs: %w", err)
+	}
+	types := make([]ArrayType, len(rows))
+	for i, row := range rows {
+		elemType, ok := tf.cache.getOID(uint32(row.ElemOID))
+		if !ok {
+			return nil, fmt.Errorf("find type for array elem %s oid=%d", row.TypeName.String, row.OID)
+		}
+		types[i] = ArrayType{
+			ID:       row.OID,
+			Name:     row.TypeName.String,
+			ElemType: elemType,
 		}
 	}
 	return types, nil

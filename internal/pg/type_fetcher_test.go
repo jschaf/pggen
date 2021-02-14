@@ -26,6 +26,12 @@ func TestNewTypeFetcher(t *testing.T) {
 			wants:    []Type{Int4},
 		},
 		{
+			name:     "int4 array",
+			schema:   "",
+			fetchOID: Int4Array.ID,
+			wants:    []Type{Int4Array},
+		},
+		{
 			name:     "Void",
 			schema:   "",
 			fetchOID: pgoid.Void,
@@ -42,6 +48,26 @@ func TestNewTypeFetcher(t *testing.T) {
 					Labels:    []string{"computer", "phone"},
 					Orders:    []float32{1, 2},
 					ChildOIDs: nil, // ignored
+				},
+			},
+		},
+		{
+			name:     "enum array",
+			schema:   `CREATE TYPE device_type AS ENUM ('computer', 'phone');`,
+			fetchOID: "_device_type",
+			wants: []Type{
+				ArrayType{
+					Name: "_device_type",
+					ElemType: EnumType{
+						Name:   "device_type",
+						Labels: []string{"computer", "phone"},
+						Orders: []float32{1, 2},
+					},
+				},
+				EnumType{
+					Name:   "device_type",
+					Labels: []string{"computer", "phone"},
+					Orders: []float32{1, 2},
 				},
 			},
 		},
@@ -175,7 +201,7 @@ func TestNewTypeFetcher(t *testing.T) {
 			}
 
 			opts := cmp.Options{
-				cmpopts.IgnoreFields(EnumType{}, "ChildOIDs"),
+				cmpopts.IgnoreFields(EnumType{}, "ChildOIDs", "ID"),
 				cmpopts.IgnoreFields(CompositeType{}, "ID"),
 			}
 			sortTypes(wantTypes)
