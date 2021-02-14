@@ -87,22 +87,47 @@ func (c CompositeDeclarer) Declare(pkgPath string) (string, error) {
 	} else {
 		sb.WriteString(" {\n") // type Foo struct {\n
 	}
-	nameLen := 0
-	for _, name := range c.comp.FieldNames {
-		if len(name) > nameLen {
-			nameLen = len(name)
-		}
-	}
 	// Struct fields.
+	nameLen, typeLen := getLongestNameTypes(c.comp, pkgPath)
 	for i, name := range c.comp.FieldNames {
+		// Name
 		sb.WriteRune('\t')
 		sb.WriteString(name)
-		sb.WriteString(strings.Repeat(" ", nameLen+1-len(name)))
-		sb.WriteString(c.comp.FieldTypes[i].QualifyRel(pkgPath))
+		// Type
+		qualType := c.comp.FieldTypes[i].QualifyRel(pkgPath)
+		sb.WriteString(strings.Repeat(" ", nameLen-len(name)))
+		sb.WriteString(qualType)
+		// JSON struct tag
+		sb.WriteString(strings.Repeat(" ", typeLen-len(qualType)))
+		sb.WriteString("`json:")
+		sb.WriteString(strconv.Quote(c.comp.PgComposite.ColumnNames[i]))
+		sb.WriteString("`")
 		sb.WriteRune('\n')
 	}
 	sb.WriteString("}")
 	return sb.String(), nil
+}
+
+// getLongestNameTypes returns the length of the longest name and type name for
+// all child fields of a composite type. Useful for aligning struct definitions.
+func getLongestNameTypes(typ gotype.CompositeType, pkgPath string) (int, int) {
+	nameLen := 0
+	for _, name := range typ.FieldNames {
+		if n := len(name); n > nameLen {
+			nameLen = n
+		}
+	}
+	nameLen++ // 1 space to separate name from type
+
+	typeLen := 0
+	for _, childType := range typ.FieldTypes {
+		if n := len(childType.QualifyRel(pkgPath)); n > typeLen {
+			typeLen = n
+		}
+	}
+	typeLen++ // 1 space to separate type from struct tags.
+
+	return nameLen, typeLen
 }
 
 // EnumDeclarer declares a new string type and the const values to map to a

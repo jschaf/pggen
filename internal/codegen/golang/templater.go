@@ -594,8 +594,8 @@ func (tq TemplatedQuery) EmitResultElem() (string, error) {
 	return strings.TrimPrefix(result, "[]"), nil
 }
 
-// getLongestOutput returns the column of the longest name in all columns and
-// the column of the longest type to enable struct alignment.
+// getLongestOutput returns the length of the longest name and type name in all
+// columns. Useful for struct definition alignment.
 func getLongestOutput(outs []TemplatedColumn) (int, int) {
 	nameLen := 0
 	for _, out := range outs {
@@ -625,22 +625,22 @@ func (tq TemplatedQuery) EmitRowStruct() string {
 	case ast.ResultKindOne, ast.ResultKindMany:
 		outs := removeVoidColumns(tq.Outputs)
 		if len(outs) <= 1 {
-			return ""
+			return "" // if there's only 1 output column, return it directly
 		}
 		sb := &strings.Builder{}
 		sb.WriteString("\n\ntype ")
 		sb.WriteString(tq.Name)
 		sb.WriteString("Row struct {\n")
-		typeCol, structCol := getLongestOutput(outs)
+		maxNameLen, maxTypeLen := getLongestOutput(outs)
 		for _, out := range outs {
 			// Name
 			sb.WriteString("\t")
 			sb.WriteString(out.UpperName)
 			// Type
-			sb.WriteString(strings.Repeat(" ", typeCol-len(out.UpperName)))
+			sb.WriteString(strings.Repeat(" ", maxNameLen-len(out.UpperName)))
 			sb.WriteString(out.QualType)
 			// JSON struct tag
-			sb.WriteString(strings.Repeat(" ", structCol-len(out.QualType)))
+			sb.WriteString(strings.Repeat(" ", maxTypeLen-len(out.QualType)))
 			sb.WriteString("`json:")
 			sb.WriteString(strconv.Quote(out.PgName))
 			sb.WriteString("`")

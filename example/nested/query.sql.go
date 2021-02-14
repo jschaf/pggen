@@ -64,19 +64,19 @@ func (q *DBQuerier) WithTx(tx pgx.Tx) (*DBQuerier, error) {
 
 // InventoryItem represents the Postgres composite type "inventory_item".
 type InventoryItem struct {
-	ItemName pgtype.Text
-	Sku      Sku
+	ItemName pgtype.Text `json:"item_name"`
+	Sku      Sku         `json:"sku"`
 }
 
 // Qux represents the Postgres composite type "qux".
 type Qux struct {
-	InvItem InventoryItem
-	Foo     pgtype.Int8
+	InvItem InventoryItem `json:"inv_item"`
+	Foo     pgtype.Int8   `json:"foo"`
 }
 
 // Sku represents the Postgres composite type "sku".
 type Sku struct {
-	SkuID pgtype.Text
+	SkuID pgtype.Text `json:"sku_id"`
 }
 
 const nested3SQL = `SELECT ROW (ROW ('item_name', ROW ('sku_id')::sku)::inventory_item, 88)::qux AS qux;`

@@ -62,8 +62,8 @@ type (
 		PgComposite pg.CompositeType // original Postgres composite type
 		PkgPath     string
 		Pkg         string
-		Name        string // Go-style type name in UpperCamelCase
-		FieldNames  []string
+		Name        string   // Go-style type name in UpperCamelCase
+		FieldNames  []string // Go-style child names in UpperCamelCase
 		FieldTypes  []Type
 	}
 )

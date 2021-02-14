@@ -106,8 +106,8 @@ func (q *DBQuerier) WithTx(tx pgx.Tx) (*DBQuerier, error) {
 
 // User represents the Postgres composite type "user".
 type User struct {
-	ID   pgtype.Int8
-	Name pgtype.Text
+	ID   pgtype.Int8 `json:"id"`
+	Name pgtype.Text `json:"name"`
 }
 
 // DeviceType represents the Postgres enum "device_type".

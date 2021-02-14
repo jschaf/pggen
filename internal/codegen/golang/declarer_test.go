@@ -64,20 +64,23 @@ func TestFindDeclarer_Declare(t *testing.T) {
 		{
 			name: "composite",
 			typ: gotype.CompositeType{
-				PgComposite: pg.CompositeType{Name: "some_table"},
-				PkgPath:     "example.com/foo",
-				Pkg:         "foo",
-				Name:        "SomeTable",
-				FieldNames:  []string{"Foo", "BarBaz"},
-				FieldTypes:  []gotype.Type{gotype.Int16, gotype.PgText},
+				PgComposite: pg.CompositeType{
+					Name:        "some_table",
+					ColumnNames: []string{"foo", "bar_baz"},
+				},
+				PkgPath:    "example.com/foo",
+				Pkg:        "foo",
+				Name:       "SomeTable",
+				FieldNames: []string{"Foo", "BarBaz"},
+				FieldTypes: []gotype.Type{gotype.Int16, gotype.PgText},
 			},
 			pkgPath: "example.com/foo",
 			want: []string{
 				texts.Dedent(`
 				// SomeTable represents the Postgres composite type "some_table".
 				type SomeTable struct {
-					Foo    int16
-					BarBaz pgtype.Text
+					Foo    int16       ` + "`json:\"foo\"`" + `
+					BarBaz pgtype.Text ` + "`json:\"bar_baz\"`" + `
 				}
 			`),
 			},
@@ -85,19 +88,25 @@ func TestFindDeclarer_Declare(t *testing.T) {
 		{
 			name: "nested composite",
 			typ: gotype.CompositeType{
-				PgComposite: pg.CompositeType{Name: "some_table"},
-				PkgPath:     "example.com/foo",
-				Pkg:         "foo",
-				Name:        "SomeTable",
-				FieldNames:  []string{"Foo", "BarBaz"},
+				PgComposite: pg.CompositeType{
+					Name:        "some_table",
+					ColumnNames: []string{"foo", "bar_baz"},
+				},
+				PkgPath:    "example.com/foo",
+				Pkg:        "foo",
+				Name:       "SomeTable",
+				FieldNames: []string{"Foo", "BarBaz"},
 				FieldTypes: []gotype.Type{
 					gotype.CompositeType{
-						PgComposite: pg.CompositeType{Name: "foo_type"},
-						PkgPath:     "example.com/foo",
-						Pkg:         "foo",
-						Name:        "FooType",
-						FieldNames:  []string{"Alpha"},
-						FieldTypes:  []gotype.Type{gotype.PgText},
+						PgComposite: pg.CompositeType{
+							Name:        "foo_type",
+							ColumnNames: []string{"alpha"},
+						},
+						PkgPath:    "example.com/foo",
+						Pkg:        "foo",
+						Name:       "FooType",
+						FieldNames: []string{"Alpha"},
+						FieldTypes: []gotype.Type{gotype.PgText},
 					},
 					gotype.PgText,
 				},
@@ -107,14 +116,14 @@ func TestFindDeclarer_Declare(t *testing.T) {
 				texts.Dedent(`
 				// SomeTable represents the Postgres composite type "some_table".
 				type SomeTable struct {
-					Foo    FooType
-					BarBaz pgtype.Text
+					Foo    FooType     ` + "`json:\"foo\"`" + `
+					BarBaz pgtype.Text ` + "`json:\"bar_baz\"`" + `
 				}
 			`),
 				texts.Dedent(`
 				// FooType represents the Postgres composite type "foo_type".
 				type FooType struct {
-					Alpha pgtype.Text
+					Alpha pgtype.Text ` + "`json:\"alpha\"`" + `
 				}
 			`),
 			},
