@@ -54,7 +54,7 @@ type GenerateOptions struct {
 	// If more than one query file, also writes querier.go.
 	OutputDir string
 	// A map of lowercase acronyms to the upper case equivalent, like:
-	// "api" => "API".
+	// "api" => "API", or "apis" => "APIs".
 	Acronyms map[string]string
 	// A map from a Postgres type name to a fully qualified Go type.
 	TypeOverrides map[string]string
