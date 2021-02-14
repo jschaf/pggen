@@ -18,7 +18,7 @@ func TestQuerier(t *testing.T) {
 
 	want := []Qux{
 		{
-			Item: InventoryItem{
+			InvItem: InventoryItem{
 				ItemName: pgtype.Text{
 					String: "item_name",
 					Status: pgtype.Present,

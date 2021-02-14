@@ -70,8 +70,8 @@ type InventoryItem struct {
 
 // Qux represents the Postgres composite type "qux".
 type Qux struct {
-	Item InventoryItem
-	Foo  pgtype.Int8
+	InvItem InventoryItem
+	Foo     pgtype.Int8
 }
 
 // Sku represents the Postgres composite type "sku".
@@ -79,7 +79,7 @@ type Sku struct {
 	SkuID pgtype.Text
 }
 
-const nested3SQL = `SELECT ROW (ROW ('item_name', ROW ('sku_id')::sku)::inventory_item, 88)::qux;`
+const nested3SQL = `SELECT ROW (ROW ('item_name', ROW ('sku_id')::sku)::inventory_item, 88)::qux AS qux;`
 
 // Nested3 implements Querier.Nested3.
 func (q *DBQuerier) Nested3(ctx context.Context) ([]Qux, error) {
@@ -91,7 +91,7 @@ func (q *DBQuerier) Nested3(ctx context.Context) ([]Qux, error) {
 		return nil, fmt.Errorf("query Nested3: %w", err)
 	}
 	items := []Qux{}
-	rowRow := pgtype.CompositeFields{
+	quxRow := pgtype.CompositeFields{
 		pgtype.CompositeFields{
 			&pgtype.Text{},
 			pgtype.CompositeFields{
@@ -102,12 +102,12 @@ func (q *DBQuerier) Nested3(ctx context.Context) ([]Qux, error) {
 	}
 	for rows.Next() {
 		var item Qux
-		if err := rows.Scan(rowRow); err != nil {
+		if err := rows.Scan(quxRow); err != nil {
 			return nil, fmt.Errorf("scan Nested3 row: %w", err)
 		}
-		item.Item.ItemName = *rowRow[0].(pgtype.CompositeFields)[0].(*pgtype.Text)
-		item.Item.Sku.SkuID = *rowRow[0].(pgtype.CompositeFields)[1].(pgtype.CompositeFields)[0].(*pgtype.Text)
-		item.Foo = *rowRow[1].(*pgtype.Int8)
+		item.InvItem.ItemName = *quxRow[0].(pgtype.CompositeFields)[0].(*pgtype.Text)
+		item.InvItem.Sku.SkuID = *quxRow[0].(pgtype.CompositeFields)[1].(pgtype.CompositeFields)[0].(*pgtype.Text)
+		item.Foo = *quxRow[1].(*pgtype.Int8)
 		items = append(items, item)
 	}
 	if err := rows.Err(); err != nil {
@@ -131,7 +131,7 @@ func (q *DBQuerier) Nested3Scan(results pgx.BatchResults) ([]Qux, error) {
 		return nil, err
 	}
 	items := []Qux{}
-	rowRow := pgtype.CompositeFields{
+	quxRow := pgtype.CompositeFields{
 		pgtype.CompositeFields{
 			&pgtype.Text{},
 			pgtype.CompositeFields{
@@ -142,12 +142,12 @@ func (q *DBQuerier) Nested3Scan(results pgx.BatchResults) ([]Qux, error) {
 	}
 	for rows.Next() {
 		var item Qux
-		if err := rows.Scan(rowRow); err != nil {
+		if err := rows.Scan(quxRow); err != nil {
 			return nil, fmt.Errorf("scan Nested3Batch row: %w", err)
 		}
-		item.Item.ItemName = *rowRow[0].(pgtype.CompositeFields)[0].(*pgtype.Text)
-		item.Item.Sku.SkuID = *rowRow[0].(pgtype.CompositeFields)[1].(pgtype.CompositeFields)[0].(*pgtype.Text)
-		item.Foo = *rowRow[1].(*pgtype.Int8)
+		item.InvItem.ItemName = *quxRow[0].(pgtype.CompositeFields)[0].(*pgtype.Text)
+		item.InvItem.Sku.SkuID = *quxRow[0].(pgtype.CompositeFields)[1].(pgtype.CompositeFields)[0].(*pgtype.Text)
+		item.Foo = *quxRow[1].(*pgtype.Int8)
 		items = append(items, item)
 	}
 	if err := rows.Err(); err != nil {

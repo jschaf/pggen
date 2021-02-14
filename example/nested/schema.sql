@@ -8,6 +8,6 @@ CREATE TYPE inventory_item AS (
 );
 
 CREATE TABLE qux (
-  item inventory_item,
+  inv_item inventory_item,
   foo  int8
 );
