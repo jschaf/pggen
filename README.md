@@ -163,7 +163,7 @@ pggen gen go \
 
 Examples embedded in the repo:
 
-- [./example/integration_test.go] - End-to-end examples of how to call pggen.
+- [./example/acceptance_test.go] - End-to-end examples of how to call pggen.
 - [./example/author] - A single table schema with simple queries.
 - [./example/enums] - Postgres and Go enums.
 - [./example/erp] - A few tables with mildly complex queries.
@@ -171,7 +171,7 @@ Examples embedded in the repo:
 - [./example/pgcrypto] - pgcrypto Postgres extension.
 - [./example/nested] - Nested composite types.
 
-[./example/integration_test.go]: ./example/integration_test.go
+[./example/acceptance_test.go]: ./example/acceptance_test.go
 [./example/author]: ./example/author
 [./example/enums]: ./example/enums
 [./example/erp]: ./example/erp
@@ -480,34 +480,6 @@ We'll walk through the generated file `author/query.sql.go`:
 [`pgtype`]: https://pkg.go.dev/github.com/jackc/pgtype
 [internal/pginfer/nullability.go]: ./internal/pginfer/nullability.go
 
-# How it works
-
-In a nutshell, pggen runs each query on Postgres to extract type information, 
-and generates the appropriate code. In detail:
-
-- pggen determines input parameters by using a `PREPARE` statement and querying
-  the [`pg_prepared_statement`] table to get type information for each 
-  parameter.
-  
-- pggen determines output columns by executing the query and reading the field
-  descriptions returned with the query result rows. The field descriptions 
-  contain the type ID for each output column. The type ID is a Postgres object 
-  ID (OID), the primary key to identify a row in the [`pg_type`] catalog table.
-
-- pggen determines if an output column can be null using heuristics. If a column
-  cannot be null, pggen uses more ergonomic types to represent the output like
-  `string` instead of `pgtype.Text`. The heuristics are quite simple; see
-  [internal/pginfer/nullability.go]. A proper approach requires a full Postgres 
-  SQL syntax parser with control flow analysis to determine nullability.
-   
-For more detail, see the original, outdated [design doc] and discussion with the 
-[pgx author] and [sqlc author].
-
-[`pg_prepared_statement`]: https://www.postgresql.org/docs/current/view-pg-prepared-statements.html
-[`pg_type`]: https://www.postgresql.org/docs/13/catalog-pg-type.html
-[design doc]: https://docs.google.com/document/d/1NvVKD6cyXvJLWUfqFYad76CWMDFoK9mzKuj1JawkL2A/edit#
-[pgx author]: https://github.com/jackc/pgx/issues/915
-[sqlc author]: https://github.com/kyleconroy/sqlc/issues/854
 
 # Comparison to sqlc
 
@@ -523,7 +495,7 @@ information for Postgres catalog tables.
 Use sqlc if you don't wish to run Postgres to generate code or if you need
 better nullability analysis than pggen provides.
 
-Use pggen if you can run Postgres for code generation and you use complex 
+Use pggen if you can run Postgres for code generation, and you use complex 
 queries that sqlc is unable to parse. Additionally, use pggen if you have a 
 custom database setup that's difficult to replicate in a schema file. pggen
 supports running on any database with any extensions.

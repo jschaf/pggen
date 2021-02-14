@@ -26,13 +26,13 @@ psql:
 test:
 	go test ./...
 
-.PHONY: integration-test
-integration-test:
-	go test ./example/integration_test.go
+.PHONY: acceptance-test
+acceptance-test:
+	go test ./example/acceptance_test.go
 
-.PHONY: update-integration-test
-update-integration-test: statik
-	go test ./example/integration_test.go -update
+.PHONY: update-acceptance-test
+update-acceptance-test: statik
+	go test ./example/acceptance_test.go -update
 
 .PHONY: lint
 lint:

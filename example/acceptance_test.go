@@ -1,4 +1,4 @@
-// +build integration_test
+// +build acceptance_test
 
 package example
 
