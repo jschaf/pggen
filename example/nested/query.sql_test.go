@@ -1,3 +1,6 @@
+// TODO: remove skip
+// +build skip
+
 package nested
 
 import (
