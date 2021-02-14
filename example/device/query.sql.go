@@ -16,10 +16,10 @@ import (
 // calling SendBatch on pgx.Conn, pgxpool.Pool, or pgx.Tx, use the Scan methods
 // to parse the results.
 type Querier interface {
-	FindDevicesByUser(ctx context.Context, iD int) ([]FindDevicesByUserRow, error)
+	FindDevicesByUser(ctx context.Context, id int) ([]FindDevicesByUserRow, error)
 	// FindDevicesByUserBatch enqueues a FindDevicesByUser query into batch to be executed
 	// later by the batch.
-	FindDevicesByUserBatch(batch *pgx.Batch, iD int)
+	FindDevicesByUserBatch(batch *pgx.Batch, id int)
 	// FindDevicesByUserScan scans the result of an executed FindDevicesByUserBatch query.
 	FindDevicesByUserScan(results pgx.BatchResults) ([]FindDevicesByUserRow, error)
 
@@ -138,8 +138,8 @@ type FindDevicesByUserRow struct {
 }
 
 // FindDevicesByUser implements Querier.FindDevicesByUser.
-func (q *DBQuerier) FindDevicesByUser(ctx context.Context, iD int) ([]FindDevicesByUserRow, error) {
-	rows, err := q.conn.Query(ctx, findDevicesByUserSQL, iD)
+func (q *DBQuerier) FindDevicesByUser(ctx context.Context, id int) ([]FindDevicesByUserRow, error) {
+	rows, err := q.conn.Query(ctx, findDevicesByUserSQL, id)
 	if rows != nil {
 		defer rows.Close()
 	}
@@ -161,8 +161,8 @@ func (q *DBQuerier) FindDevicesByUser(ctx context.Context, iD int) ([]FindDevice
 }
 
 // FindDevicesByUserBatch implements Querier.FindDevicesByUserBatch.
-func (q *DBQuerier) FindDevicesByUserBatch(batch *pgx.Batch, iD int) {
-	batch.Queue(findDevicesByUserSQL, iD)
+func (q *DBQuerier) FindDevicesByUserBatch(batch *pgx.Batch, id int) {
+	batch.Queue(findDevicesByUserSQL, id)
 }
 
 // FindDevicesByUserScan implements Querier.FindDevicesByUserScan.

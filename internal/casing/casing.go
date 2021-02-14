@@ -73,15 +73,22 @@ func (cs Caser) convert(s string, converter converter) string {
 	sb.Grow(len(s))
 	chars := []byte(s)
 	lo := 0
+	isUpSpan := false
 	for hi := 0; hi < len(chars); {
 		ch, size := utf8.DecodeRune(chars[hi:])
 		switch {
 		case ch == '_':
+			isUpSpan = false
 			converter(sb, chars[lo:hi])
 			lo = hi + size // skip underscore
 		case unicode.IsUpper(ch):
-			converter(sb, chars[lo:hi])
-			lo = hi
+			isUpSpan = lo+1 == hi || isUpSpan
+			if !isUpSpan {
+				converter(sb, chars[lo:hi])
+				lo = hi
+			}
+		default:
+			isUpSpan = false
 		}
 		hi += size
 	}
@@ -93,7 +100,7 @@ func (cs Caser) appendUpperCamel(sb *strings.Builder, chars []byte) {
 	if len(chars) == 0 {
 		return
 	}
-	if a, ok := cs.acronyms[string(chars)]; ok {
+	if a, ok := cs.acronyms[strings.ToLower(string(chars))]; ok {
 		sb.WriteString(a)
 		return
 	}
@@ -107,7 +114,7 @@ func (cs Caser) appendLowerCamel(sb *strings.Builder, chars []byte) {
 		return
 	}
 	isFirst := sb.Len() == 0
-	if a, ok := cs.acronyms[string(chars)]; ok {
+	if a, ok := cs.acronyms[strings.ToLower(string(chars))]; ok {
 		if isFirst {
 			// First word should be uncapitalized. We don't know exactly how to do
 			// that, so assume lower casing the acronym is sufficient.
@@ -120,8 +127,14 @@ func (cs Caser) appendLowerCamel(sb *strings.Builder, chars []byte) {
 	firstCh, size := utf8.DecodeRune(chars)
 	if isFirst {
 		sb.WriteRune(unicode.ToLower(firstCh))
+		// Lowercase rest of first word.
+		for i := size; i < len(chars); {
+			ch, n := utf8.DecodeRune(chars[i:])
+			sb.WriteRune(unicode.ToLower(ch))
+			i += n
+		}
 	} else {
 		sb.WriteRune(unicode.ToUpper(firstCh))
+		sb.Write(chars[size:])
 	}
-	sb.Write(chars[size:])
 }

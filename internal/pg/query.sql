@@ -40,7 +40,7 @@ FROM pg_type typ
   JOIN enums enum ON typ.oid = enum.enum_type
 WHERE typ.typisdefined
   AND typ.typtype = 'e'
-  AND typ.oid = ANY (pggen.arg('oids')::oid[]);
+  AND typ.oid = ANY (pggen.arg('OIDs')::oid[]);
 
 -- A composite type represents a row or record, defined implicitly for each
 -- table, or explicitly with CREATE TYPE.

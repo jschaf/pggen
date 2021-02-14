@@ -34,6 +34,8 @@ func TestCaser_ToUpperGoIdent(t *testing.T) {
 		{"Ě", "Ě", nil},
 		{"ě", "Ě", nil},
 		{"Ěě_ě", "ĚěĚ", nil},
+		{"OIDs", "OIDs", map[string]string{"oids": "OIDs"}},
+		{"OIDsBar", "OIDsBar", map[string]string{"oids": "OIDs"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.word+"="+tt.want, func(t *testing.T) {
@@ -75,6 +77,9 @@ func TestCaser_ToLowerGoIdent(t *testing.T) {
 		{"Ěě_ě", "ěěĚ", nil},
 		{"if", "if_", nil},
 		{"type", "type_", nil},
+		{"OIDs", "oids", nil},
+		{"OIDsBar", "oidsBar", nil},
+		{"FindOIDByVal", "findOIDByVal", map[string]string{"oid": "OID"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.word+"="+tt.want, func(t *testing.T) {
