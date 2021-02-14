@@ -16,29 +16,29 @@ import (
 // calling SendBatch on pgx.Conn, pgxpool.Pool, or pgx.Tx, use the Scan methods
 // to parse the results.
 type Querier interface {
-	FindEnumTypes(ctx context.Context, oIDs []uint32) ([]FindEnumTypesRow, error)
+	FindEnumTypes(ctx context.Context, oids []uint32) ([]FindEnumTypesRow, error)
 	// FindEnumTypesBatch enqueues a FindEnumTypes query into batch to be executed
 	// later by the batch.
-	FindEnumTypesBatch(batch *pgx.Batch, oIDs []uint32)
+	FindEnumTypesBatch(batch *pgx.Batch, oids []uint32)
 	// FindEnumTypesScan scans the result of an executed FindEnumTypesBatch query.
 	FindEnumTypesScan(results pgx.BatchResults) ([]FindEnumTypesRow, error)
 
 	// A composite type represents a row or record, defined implicitly for each
 	// table, or explicitly with CREATE TYPE.
 	// https://www.postgresql.org/docs/13/rowtypes.html
-	FindCompositeTypes(ctx context.Context, oIDs []uint32) ([]FindCompositeTypesRow, error)
+	FindCompositeTypes(ctx context.Context, oids []uint32) ([]FindCompositeTypesRow, error)
 	// FindCompositeTypesBatch enqueues a FindCompositeTypes query into batch to be executed
 	// later by the batch.
-	FindCompositeTypesBatch(batch *pgx.Batch, oIDs []uint32)
+	FindCompositeTypesBatch(batch *pgx.Batch, oids []uint32)
 	// FindCompositeTypesScan scans the result of an executed FindCompositeTypesBatch query.
 	FindCompositeTypesScan(results pgx.BatchResults) ([]FindCompositeTypesRow, error)
 
 	// Recursively expands all given OIDs to all descendants through composite
 	// types.
-	FindDescendantOIDs(ctx context.Context, oIDs []uint32) ([]pgtype.OID, error)
+	FindDescendantOIDs(ctx context.Context, oids []uint32) ([]pgtype.OID, error)
 	// FindDescendantOIDsBatch enqueues a FindDescendantOIDs query into batch to be executed
 	// later by the batch.
-	FindDescendantOIDsBatch(batch *pgx.Batch, oIDs []uint32)
+	FindDescendantOIDsBatch(batch *pgx.Batch, oids []uint32)
 	// FindDescendantOIDsScan scans the result of an executed FindDescendantOIDsBatch query.
 	FindDescendantOIDsScan(results pgx.BatchResults) ([]pgtype.OID, error)
 
@@ -49,17 +49,17 @@ type Querier interface {
 	// FindOIDByNameScan scans the result of an executed FindOIDByNameBatch query.
 	FindOIDByNameScan(results pgx.BatchResults) (pgtype.OID, error)
 
-	FindOIDName(ctx context.Context, oID pgtype.OID) (pgtype.Name, error)
+	FindOIDName(ctx context.Context, oid pgtype.OID) (pgtype.Name, error)
 	// FindOIDNameBatch enqueues a FindOIDName query into batch to be executed
 	// later by the batch.
-	FindOIDNameBatch(batch *pgx.Batch, oID pgtype.OID)
+	FindOIDNameBatch(batch *pgx.Batch, oid pgtype.OID)
 	// FindOIDNameScan scans the result of an executed FindOIDNameBatch query.
 	FindOIDNameScan(results pgx.BatchResults) (pgtype.Name, error)
 
-	FindOIDNames(ctx context.Context, oID []uint32) ([]FindOIDNamesRow, error)
+	FindOIDNames(ctx context.Context, oid []uint32) ([]FindOIDNamesRow, error)
 	// FindOIDNamesBatch enqueues a FindOIDNames query into batch to be executed
 	// later by the batch.
-	FindOIDNamesBatch(batch *pgx.Batch, oID []uint32)
+	FindOIDNamesBatch(batch *pgx.Batch, oid []uint32)
 	// FindOIDNamesScan scans the result of an executed FindOIDNamesBatch query.
 	FindOIDNamesScan(results pgx.BatchResults) ([]FindOIDNamesRow, error)
 }
@@ -156,8 +156,8 @@ type FindEnumTypesRow struct {
 }
 
 // FindEnumTypes implements Querier.FindEnumTypes.
-func (q *DBQuerier) FindEnumTypes(ctx context.Context, oIDs []uint32) ([]FindEnumTypesRow, error) {
-	rows, err := q.conn.Query(ctx, findEnumTypesSQL, oIDs)
+func (q *DBQuerier) FindEnumTypes(ctx context.Context, oids []uint32) ([]FindEnumTypesRow, error) {
+	rows, err := q.conn.Query(ctx, findEnumTypesSQL, oids)
 	if rows != nil {
 		defer rows.Close()
 	}
@@ -179,8 +179,8 @@ func (q *DBQuerier) FindEnumTypes(ctx context.Context, oIDs []uint32) ([]FindEnu
 }
 
 // FindEnumTypesBatch implements Querier.FindEnumTypesBatch.
-func (q *DBQuerier) FindEnumTypesBatch(batch *pgx.Batch, oIDs []uint32) {
-	batch.Queue(findEnumTypesSQL, oIDs)
+func (q *DBQuerier) FindEnumTypesBatch(batch *pgx.Batch, oids []uint32) {
+	batch.Queue(findEnumTypesSQL, oids)
 }
 
 // FindEnumTypesScan implements Querier.FindEnumTypesScan.
@@ -248,8 +248,8 @@ type FindCompositeTypesRow struct {
 }
 
 // FindCompositeTypes implements Querier.FindCompositeTypes.
-func (q *DBQuerier) FindCompositeTypes(ctx context.Context, oIDs []uint32) ([]FindCompositeTypesRow, error) {
-	rows, err := q.conn.Query(ctx, findCompositeTypesSQL, oIDs)
+func (q *DBQuerier) FindCompositeTypes(ctx context.Context, oids []uint32) ([]FindCompositeTypesRow, error) {
+	rows, err := q.conn.Query(ctx, findCompositeTypesSQL, oids)
 	if rows != nil {
 		defer rows.Close()
 	}
@@ -271,8 +271,8 @@ func (q *DBQuerier) FindCompositeTypes(ctx context.Context, oIDs []uint32) ([]Fi
 }
 
 // FindCompositeTypesBatch implements Querier.FindCompositeTypesBatch.
-func (q *DBQuerier) FindCompositeTypesBatch(batch *pgx.Batch, oIDs []uint32) {
-	batch.Queue(findCompositeTypesSQL, oIDs)
+func (q *DBQuerier) FindCompositeTypesBatch(batch *pgx.Batch, oids []uint32) {
+	batch.Queue(findCompositeTypesSQL, oids)
 }
 
 // FindCompositeTypesScan implements Querier.FindCompositeTypesScan.
@@ -314,8 +314,8 @@ SELECT oid
 FROM oid_descs;`
 
 // FindDescendantOIDs implements Querier.FindDescendantOIDs.
-func (q *DBQuerier) FindDescendantOIDs(ctx context.Context, oIDs []uint32) ([]pgtype.OID, error) {
-	rows, err := q.conn.Query(ctx, findDescendantOIDsSQL, oIDs)
+func (q *DBQuerier) FindDescendantOIDs(ctx context.Context, oids []uint32) ([]pgtype.OID, error) {
+	rows, err := q.conn.Query(ctx, findDescendantOIDsSQL, oids)
 	if rows != nil {
 		defer rows.Close()
 	}
@@ -337,8 +337,8 @@ func (q *DBQuerier) FindDescendantOIDs(ctx context.Context, oIDs []uint32) ([]pg
 }
 
 // FindDescendantOIDsBatch implements Querier.FindDescendantOIDsBatch.
-func (q *DBQuerier) FindDescendantOIDsBatch(batch *pgx.Batch, oIDs []uint32) {
-	batch.Queue(findDescendantOIDsSQL, oIDs)
+func (q *DBQuerier) FindDescendantOIDsBatch(batch *pgx.Batch, oids []uint32) {
+	batch.Queue(findDescendantOIDsSQL, oids)
 }
 
 // FindDescendantOIDsScan implements Querier.FindDescendantOIDsScan.
@@ -398,8 +398,8 @@ FROM pg_type
 WHERE oid = $1;`
 
 // FindOIDName implements Querier.FindOIDName.
-func (q *DBQuerier) FindOIDName(ctx context.Context, oID pgtype.OID) (pgtype.Name, error) {
-	row := q.conn.QueryRow(ctx, findOIDNameSQL, oID)
+func (q *DBQuerier) FindOIDName(ctx context.Context, oid pgtype.OID) (pgtype.Name, error) {
+	row := q.conn.QueryRow(ctx, findOIDNameSQL, oid)
 	var item pgtype.Name
 	if err := row.Scan(&item); err != nil {
 		return item, fmt.Errorf("query FindOIDName: %w", err)
@@ -408,8 +408,8 @@ func (q *DBQuerier) FindOIDName(ctx context.Context, oID pgtype.OID) (pgtype.Nam
 }
 
 // FindOIDNameBatch implements Querier.FindOIDNameBatch.
-func (q *DBQuerier) FindOIDNameBatch(batch *pgx.Batch, oID pgtype.OID) {
-	batch.Queue(findOIDNameSQL, oID)
+func (q *DBQuerier) FindOIDNameBatch(batch *pgx.Batch, oid pgtype.OID) {
+	batch.Queue(findOIDNameSQL, oid)
 }
 
 // FindOIDNameScan implements Querier.FindOIDNameScan.
@@ -433,8 +433,8 @@ type FindOIDNamesRow struct {
 }
 
 // FindOIDNames implements Querier.FindOIDNames.
-func (q *DBQuerier) FindOIDNames(ctx context.Context, oID []uint32) ([]FindOIDNamesRow, error) {
-	rows, err := q.conn.Query(ctx, findOIDNamesSQL, oID)
+func (q *DBQuerier) FindOIDNames(ctx context.Context, oid []uint32) ([]FindOIDNamesRow, error) {
+	rows, err := q.conn.Query(ctx, findOIDNamesSQL, oid)
 	if rows != nil {
 		defer rows.Close()
 	}
@@ -456,8 +456,8 @@ func (q *DBQuerier) FindOIDNames(ctx context.Context, oID []uint32) ([]FindOIDNa
 }
 
 // FindOIDNamesBatch implements Querier.FindOIDNamesBatch.
-func (q *DBQuerier) FindOIDNamesBatch(batch *pgx.Batch, oID []uint32) {
-	batch.Queue(findOIDNamesSQL, oID)
+func (q *DBQuerier) FindOIDNamesBatch(batch *pgx.Batch, oid []uint32) {
+	batch.Queue(findOIDNamesSQL, oid)
 }
 
 // FindOIDNamesScan implements Querier.FindOIDNamesScan.

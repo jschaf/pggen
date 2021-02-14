@@ -40,7 +40,7 @@ FROM pg_type typ
   JOIN enums enum ON typ.oid = enum.enum_type
 WHERE typ.typisdefined
   AND typ.typtype = 'e'
-  AND typ.oid = ANY (pggen.arg('OIDs')::oid[]);
+  AND typ.oid = ANY (pggen.arg('oids')::oid[]);
 
 -- A composite type represents a row or record, defined implicitly for each
 -- table, or explicitly with CREATE TYPE.
@@ -73,7 +73,7 @@ SELECT
   col_type_names
 FROM pg_type typ
   JOIN table_cols cols ON typ.typrelid = cols.table_oid
-WHERE typ.oid = ANY (pggen.arg('OIDs')::oid[])
+WHERE typ.oid = ANY (pggen.arg('oids')::oid[])
   AND typ.typtype = 'c';
 
 -- Recursively expands all given OIDs to all descendants through composite
@@ -81,7 +81,7 @@ WHERE typ.oid = ANY (pggen.arg('OIDs')::oid[])
 -- name: FindDescendantOIDs :many
 WITH RECURSIVE oid_descs(oid) AS (
   SELECT oid
-  FROM unnest(pggen.arg('OIDs')::oid[]) AS t(oid)
+  FROM unnest(pggen.arg('oids')::oid[]) AS t(oid)
   UNION
   SELECT attr.atttypid
   FROM pg_type typ
@@ -97,14 +97,14 @@ FROM oid_descs;
 -- name: FindOIDByName :one
 SELECT oid
 FROM pg_type
-WHERE typname::text = pggen.arg('Name');
+WHERE typname::text = pggen.arg('name');
 
 -- name: FindOIDName :one
 SELECT typname AS name
 FROM pg_type
-WHERE oid = pggen.arg('OID');
+WHERE oid = pggen.arg('oid');
 
 -- name: FindOIDNames :many
 SELECT oid, typname AS name, typtype AS kind
 FROM pg_type
-WHERE oid = ANY (pggen.arg('OID')::oid[]);
+WHERE oid = ANY (pggen.arg('oid')::oid[]);
