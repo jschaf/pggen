@@ -41,20 +41,18 @@ type GenerateOptions struct {
 	//
 	//   # Example URL
 	//   postgres://jack:secret@pg.example.com:5432/foo_db?sslmode=verify-ca
-	//
-	// Must be empty if DockerInitScripts is not empty.
 	ConnString string
 	// Generate code for each of the SQL query file paths.
 	QueryFiles []string
+	// Schema files to run on Postgres init. Can be *.sql, *.sql.gz, or executable
+	// *.sh files .
+	SchemaFiles []string
 	// The name of the Go package for the file. If empty, defaults to the
 	// directory name.
 	GoPackage string
 	// Directory to write generated files. Writes one file for each query file.
 	// If more than one query file, also writes querier.go.
 	OutputDir string
-	// Docker init scripts to run in dockerized Postgres. Must be nil if
-	// ConnString is set.
-	DockerInitScripts []string
 	// A map of lowercase acronyms to the upper case equivalent, like:
 	// "api" => "API".
 	Acronyms map[string]string
@@ -132,7 +130,7 @@ func Generate(opts GenerateOptions) (mErr error) {
 func connectPostgres(ctx context.Context, opts GenerateOptions, l *zap.SugaredLogger) (*pgx.Conn, func() error, error) {
 	// Create connection by starting dockerized Postgres.
 	if opts.ConnString == "" {
-		client, err := pgdocker.Start(ctx, opts.DockerInitScripts, l)
+		client, err := pgdocker.Start(ctx, opts.SchemaFiles, l)
 		if err != nil {
 			return nil, nil, fmt.Errorf("start dockerized postgres: %w", err)
 		}
@@ -156,7 +154,7 @@ func connectPostgres(ctx context.Context, opts GenerateOptions, l *zap.SugaredLo
 	// Run SQL init scripts. pgdocker runs these in the other case by copying
 	// the files into the entrypoint folder. Emulate the behavior for a subset of
 	// supported files.
-	for _, script := range opts.DockerInitScripts {
+	for _, script := range opts.SchemaFiles {
 		if filepath.Ext(script) != ".sql" {
 			return nil, nopCleanup, fmt.Errorf("cannot run non-sql schema file on Postgres "+
 				"(*.sh and *.sql.gz files only supported without --postgres-connection): %s", script)

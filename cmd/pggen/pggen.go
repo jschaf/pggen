@@ -136,13 +136,13 @@ func newGenCmd() *ffcli.Command {
 
 			// Codegen.
 			err = pggen.Generate(pggen.GenerateOptions{
-				Language:          pggen.LangGo,
-				ConnString:        *postgresConn,
-				DockerInitScripts: schemas,
-				QueryFiles:        queries,
-				OutputDir:         outDir,
-				Acronyms:          acros,
-				TypeOverrides:     typeOverrides,
+				Language:      pggen.LangGo,
+				ConnString:    *postgresConn,
+				SchemaFiles:   schemas,
+				QueryFiles:    queries,
+				OutputDir:     outDir,
+				Acronyms:      acros,
+				TypeOverrides: typeOverrides,
 			})
 			fmt.Printf("gen go: out_dir=%s files=%s\n", outDir, strings.Join(queries, ","))
 			return err
