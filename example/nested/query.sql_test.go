@@ -1,11 +1,9 @@
-// TODO: remove skip
-// +build skip
-
 package nested
 
 import (
 	"context"
 	"github.com/jackc/pgtype"
+	"github.com/jackc/pgx/v4"
 	"github.com/jschaf/pggen/internal/pgtest"
 	"github.com/stretchr/testify/assert"
 	"testing"
@@ -18,11 +16,7 @@ func TestQuerier(t *testing.T) {
 	q := NewQuerier(conn)
 	ctx := context.Background()
 
-	rows, err := q.Nested3(ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
-	assert.Equal(t, []Qux{
+	want := []Qux{
 		{
 			Item: InventoryItem{
 				ItemName: pgtype.Text{
@@ -39,5 +33,23 @@ func TestQuerier(t *testing.T) {
 				Status: pgtype.Present,
 			},
 		},
-	}, rows)
+	}
+	{
+		rows, err := q.Nested3(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		assert.Equal(t, want, rows)
+	}
+
+	{
+		batch := &pgx.Batch{}
+		q.Nested3Batch(batch)
+		results := conn.SendBatch(ctx, batch)
+		rows, err := q.Nested3Scan(results)
+		if err != nil {
+			t.Fatal(err)
+		}
+		assert.Equal(t, want, rows)
+	}
 }
