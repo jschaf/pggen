@@ -441,22 +441,13 @@ func (tq TemplatedQuery) EmitResultTypeInit(name string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("create result type for EmitResultTypeInit: %w", err)
 	}
-	if strings.HasPrefix(result, "[]") {
-		switch tq.ResultKind {
-		case ast.ResultKindMany:
-			return name + " := " + result + "{}", nil
-		case ast.ResultKindOne:
-			return name + " := " + result + "{}", nil
-		default:
-			return "", fmt.Errorf("unhandled EmitResultTypeInit type %s for kind %s", result, tq.ResultKind)
-		}
-	}
-	switch tq.ResultKind {
-	case ast.ResultKindMany, ast.ResultKindOne:
-		return "var " + name + " " + result, nil
-	default:
+	if tq.ResultKind != ast.ResultKindMany && tq.ResultKind != ast.ResultKindOne {
 		return "", fmt.Errorf("unhandled EmitResultTypeInit type %s for kind %s", result, tq.ResultKind)
 	}
+	if strings.HasPrefix(result, "[]") {
+		return name + " := " + result + "{}", nil
+	}
+	return "var " + name + " " + result, nil
 }
 
 // EmitResultCompositeInits declares all pgtype.CompositeFields for composite
