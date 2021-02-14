@@ -480,6 +480,9 @@ We'll walk through the generated file `author/query.sql.go`:
 [`pgtype`]: https://pkg.go.dev/github.com/jackc/pgtype
 [internal/pginfer/nullability.go]: ./internal/pginfer/nullability.go
 
+# Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) and [ARCHITECTURE.md](ARCHITECTURE.md).
 
 # Comparison to sqlc
 
