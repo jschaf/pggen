@@ -157,13 +157,23 @@ type (
 	}
 
 	// Generate the concatenation of the results of sub-plans.
+	// Combine the results of the child operations. This can be the result of an
+	// explicit UNION ALL statement, or the need for a parent operation to
+	// consume the results of two or more children together.
+	// https://www.pgmustard.com/docs/explain/append
 	Append struct {
 		Plan
 		Nodes []Node
 	}
 
+	// ProjectSet appears when the SELECT or ORDER BY clause of the query. They
+	// basically just execute the set-returning function(s) for each tuple until
+	// none of the functions return any more records.
+	// https://www.postgresql.org/message-id/CAKJS1f9pWUwxaD%2B0kxOOUuwaBcpGQtCKi3DKE8ob_uHN-JTJhw%40mail.gmail.com
 	ProjectSet struct {
 		Plan
+		Output []string
+		Nodes  []Node
 	}
 
 	// Apply rows produced by subplan(s) to result table(s), by inserting,
@@ -174,110 +184,169 @@ type (
 		RelationName string
 		Schema       string
 		Alias        string
+		Output       []string
+		Nodes        []Node
 	}
 
+	// Combines the sorted results of the child operations, in a way that
+	// preserves their sort order.
+	// Can be used for combining already-sorted rows from table partitions.
+	// https://www.pgmustard.com/docs/explain/merge-append
 	MergeAppend struct {
 		Plan
+		SortKey []string
+		Output  []string
+		Nodes   []Node
 	}
 
 	RecursiveUnion struct {
 		Plan
+		Output []string
+		Nodes  []Node
 	}
 
 	BitmapAnd struct {
 		Plan
+		Output []string
+		Nodes  []Node
 	}
 
 	BitmapOr struct {
 		Plan
+		Output []string
+		Nodes  []Node
 	}
 
 	Scan struct {
 		Plan
+		Output []string
+		Nodes  []Node
 	}
 
 	SeqScan struct {
 		Plan
+		Output []string
+		Nodes  []Node
 	}
 
 	SampleScan struct {
 		Plan
+		Output []string
+		Nodes  []Node
 	}
 
 	IndexScan struct {
 		Plan
+		Output []string
+		Nodes  []Node
 	}
 
 	IndexOnlyScan struct {
 		Plan
+		Output []string
+		Nodes  []Node
 	}
 
 	BitmapIndexScan struct {
 		Plan
+		Output []string
+		Nodes  []Node
 	}
 
 	BitmapHeapScan struct {
 		Plan
+		Output []string
+		Nodes  []Node
 	}
 
 	TidScan struct {
 		Plan
+		Output []string
+		Nodes  []Node
 	}
 
 	SubqueryScan struct {
 		Plan
+		Output []string
+		Nodes  []Node
 	}
 
 	FunctionScan struct {
 		Plan
+		Output []string
+		Nodes  []Node
 	}
 
 	ValuesScan struct {
 		Plan
+		Output []string
+		Nodes  []Node
 	}
 
 	TableFuncScan struct {
 		Plan
+		Output []string
+		Nodes  []Node
 	}
 
 	CteScan struct {
 		Plan
+		Output []string
+		Nodes  []Node
 	}
 
 	NamedTuplestoreScan struct {
 		Plan
+		Output []string
+		Nodes  []Node
 	}
 
 	WorkTableScan struct {
 		Plan
+		Output []string
+		Nodes  []Node
 	}
 
 	ForeignScan struct {
 		Plan
+		Output []string
+		Nodes  []Node
 	}
 
 	CustomScan struct {
 		Plan
+		Output []string
+		Nodes  []Node
 	}
 
 	Join struct {
 		Plan
+		Output []string
+		Nodes  []Node
 	}
 
 	NestLoop struct {
 		Plan
+		Output []string
+		Nodes  []Node
 	}
 
 	MergeJoin struct {
 		Plan
+		Output []string
+		Nodes  []Node
 	}
 
 	HashJoin struct {
 		Plan
+		Output []string
+		Nodes  []Node
 	}
 
 	Material struct {
 		Plan
+		Output []string
+		Nodes  []Node
 	}
 
 	Sort struct {
@@ -289,18 +358,26 @@ type (
 
 	IncrementalSort struct {
 		Plan
+		Output []string
+		Nodes  []Node
 	}
 
 	Group struct {
 		Plan
+		Output []string
+		Nodes  []Node
 	}
 
 	Agg struct {
 		Plan
+		Output []string
+		Nodes  []Node
 	}
 
 	WindowAgg struct {
 		Plan
+		Output []string
+		Nodes  []Node
 	}
 
 	// Unique is a very simple node type that just filters out duplicate tuples
@@ -314,26 +391,38 @@ type (
 
 	Gather struct {
 		Plan
+		Output []string
+		Nodes  []Node
 	}
 
 	GatherMerge struct {
 		Plan
+		Output []string
+		Nodes  []Node
 	}
 
 	Hash struct {
 		Plan
+		Output []string
+		Nodes  []Node
 	}
 
 	SetOp struct {
 		Plan
+		Output []string
+		Nodes  []Node
 	}
 
 	LockRows struct {
 		Plan
+		Output []string
+		Nodes  []Node
 	}
 
 	Limit struct {
 		Plan
+		Output []string
+		Nodes  []Node
 	}
 )
 

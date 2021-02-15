@@ -52,6 +52,7 @@ func ParseNode(rawPlan map[string]interface{}) (Node, error) {
 	case KindResult:
 		return Result{Plan: plan, Output: output}, nil
 	case KindProjectSet:
+		return ProjectSet{Plan: plan, Output: output, Nodes: nodes}, nil
 	case KindModifyTable:
 		op, _ := parseString(rawPlan, "Operation")
 		schema, _ := parseString(rawPlan, "Schema")
@@ -63,52 +64,91 @@ func ParseNode(rawPlan map[string]interface{}) (Node, error) {
 			RelationName: relationName,
 			Schema:       schema,
 			Alias:        alias,
+			Output:       output,
+			Nodes:        nodes,
 		}, nil
 	case KindAppend:
 		return Append{Plan: plan, Nodes: nodes}, nil
 	case KindMergeAppend:
+		return MergeAppend{Plan: plan, Output: output, Nodes: nodes}, nil
 	case KindRecursiveUnion:
+		return RecursiveUnion{Plan: plan, Output: output, Nodes: nodes}, nil
 	case KindBitmapAnd:
+		return BitmapAnd{Plan: plan, Output: output, Nodes: nodes}, nil
 	case KindBitmapOr:
+		return BitmapOr{Plan: plan, Output: output, Nodes: nodes}, nil
 	case KindScan:
+		return Scan{Plan: plan, Output: output, Nodes: nodes}, nil
 	case KindSeqScan:
+		return SeqScan{Plan: plan, Output: output, Nodes: nodes}, nil
 	case KindSampleScan:
+		return SampleScan{Plan: plan, Output: output, Nodes: nodes}, nil
 	case KindIndexScan:
+		return IndexScan{Plan: plan, Output: output, Nodes: nodes}, nil
 	case KindIndexOnlyScan:
+		return IndexOnlyScan{Plan: plan, Output: output, Nodes: nodes}, nil
 	case KindBitmapIndexScan:
+		return BitmapIndexScan{Plan: plan, Output: output, Nodes: nodes}, nil
 	case KindBitmapHeapScan:
+		return BitmapHeapScan{Plan: plan, Output: output, Nodes: nodes}, nil
 	case KindTidScan:
+		return TidScan{Plan: plan, Output: output, Nodes: nodes}, nil
 	case KindSubqueryScan:
+		return SubqueryScan{Plan: plan, Output: output, Nodes: nodes}, nil
 	case KindFunctionScan:
+		return FunctionScan{Plan: plan, Output: output, Nodes: nodes}, nil
 	case KindValuesScan:
+		return ValuesScan{Plan: plan, Output: output, Nodes: nodes}, nil
 	case KindTableFuncScan:
+		return TableFuncScan{Plan: plan, Output: output, Nodes: nodes}, nil
 	case KindCteScan:
+		return CteScan{Plan: plan, Output: output, Nodes: nodes}, nil
 	case KindNamedTuplestoreScan:
+		return NamedTuplestoreScan{Plan: plan, Output: output, Nodes: nodes}, nil
 	case KindWorkTableScan:
+		return WorkTableScan{Plan: plan, Output: output, Nodes: nodes}, nil
 	case KindForeignScan:
+		return ForeignScan{Plan: plan, Output: output, Nodes: nodes}, nil
 	case KindCustomScan:
+		return CustomScan{Plan: plan, Output: output, Nodes: nodes}, nil
 	case KindJoin:
+		return Join{Plan: plan, Output: output, Nodes: nodes}, nil
 	case KindNestLoop:
+		return NestLoop{Plan: plan, Output: output, Nodes: nodes}, nil
 	case KindMergeJoin:
+		return MergeJoin{Plan: plan, Output: output, Nodes: nodes}, nil
 	case KindHashJoin:
+		return HashJoin{Plan: plan, Output: output, Nodes: nodes}, nil
 	case KindMaterial:
+		return Material{Plan: plan, Output: output, Nodes: nodes}, nil
 	case KindSort:
 		sortKey, _ := parseStringSlice(rawPlan, "Sort Key")
 		return Sort{Plan: plan, Output: output, SortKey: sortKey, Nodes: nodes}, nil
 	case KindIncrementalSort:
+		return IncrementalSort{Plan: plan, Output: output, Nodes: nodes}, nil
 	case KindGroup:
+		return Group{Plan: plan, Output: output, Nodes: nodes}, nil
 	case KindAgg:
+		return Agg{Plan: plan, Output: output, Nodes: nodes}, nil
 	case KindWindowAgg:
+		return WindowAgg{Plan: plan, Output: output, Nodes: nodes}, nil
 	case KindUnique:
 		return Unique{Plan: plan, Output: output, Nodes: nodes}, nil
 	case KindGather:
+		return Gather{Plan: plan, Output: output, Nodes: nodes}, nil
 	case KindGatherMerge:
+		return GatherMerge{Plan: plan, Output: output, Nodes: nodes}, nil
 	case KindHash:
+		return Hash{Plan: plan, Output: output, Nodes: nodes}, nil
 	case KindSetOp:
+		return SetOp{Plan: plan, Output: output, Nodes: nodes}, nil
 	case KindLockRows:
+		return LockRows{Plan: plan, Output: output, Nodes: nodes}, nil
 	case KindLimit:
+		return Limit{Plan: plan, Output: output, Nodes: nodes}, nil
+	default:
+		return BadNode{}, fmt.Errorf("unhandled node kind: %s", kind)
 	}
-	return BadNode{}, fmt.Errorf("unhandled node kind: %s", kind)
 }
 
 func parseChildNodes(plan map[string]interface{}) ([]Node, error) {

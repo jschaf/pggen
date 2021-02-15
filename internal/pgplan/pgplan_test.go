@@ -100,6 +100,28 @@ func TestParseNode_DB(t *testing.T) {
 				Operation:    OperationInsert,
 				RelationName: "author",
 				Alias:        "author",
+				Nodes:        []Node{Result{Output: []string{"1"}}},
+			},
+		},
+		{
+			sql: "INSERT INTO author (author_id) VALUES (1) RETURNING author_id",
+			want: ModifyTable{
+				Operation:    OperationInsert,
+				RelationName: "author",
+				Alias:        "author",
+				Output:       []string{"author.author_id"},
+				Nodes: []Node{
+					Result{
+						Output: []string{"1"},
+					},
+				},
+			},
+		},
+		{
+			sql: "SELECT generate_series(1,2)",
+			want: ProjectSet{
+				Output: []string{"generate_series(1, 2)"},
+				Nodes:  []Node{Result{}},
 			},
 		},
 	}
