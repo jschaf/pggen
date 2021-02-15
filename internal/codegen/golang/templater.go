@@ -214,6 +214,9 @@ func (tm Templater) templateFile(file codegen.QueryFile) (TemplatedFile, []Decla
 				return TemplatedFile{}, nil, err
 			}
 			imports.AddType(goType)
+			if isEnumArray(goType) {
+				imports.AddPackage("unsafe") // used to cast []string to []EnumType
+			}
 			outputs[i] = TemplatedColumn{
 				PgName:    out.PgName,
 				UpperName: tm.chooseUpperName(out.PgName, "UnnamedColumn", i, len(query.Outputs)),
@@ -379,6 +382,18 @@ func (tq TemplatedQuery) EmitRowScanArgs() (string, error) {
 		sb.Grow(15 * len(tq.Outputs))
 		for i, out := range tq.Outputs {
 			switch out.Type.(type) {
+			case gotype.ArrayType:
+				if isEnumArray(out.Type) {
+					sb.WriteString(out.LowerName)
+					sb.WriteString("Array")
+				} else {
+					if hasOnlyOneNonVoid {
+						sb.WriteString("&item")
+					} else {
+						sb.WriteString("&item.")
+						sb.WriteString(out.UpperName)
+					}
+				}
 			case gotype.CompositeType:
 				sb.WriteString(out.LowerName)
 				sb.WriteString("Row")
@@ -450,9 +465,61 @@ func (tq TemplatedQuery) EmitResultTypeInit(name string) (string, error) {
 	return "var " + name + " " + result, nil
 }
 
+// EmitResultEnumArrayInits declares all pgtype.EnumArray types for enum arrays
+// in the output columns. pggen uses pgtype.EnumArray as arg to the pgx row scan
+// methods. Emits definitions like:
+//
+//   deviceTypeArray := &pgtype.EnumArray{}
+func (tq TemplatedQuery) EmitResultEnumArrayInits() string {
+	sb := &strings.Builder{}
+	for _, out := range tq.Outputs {
+		if !isEnumArray(out.Type) {
+			continue
+		}
+		sb.WriteString("\n\t") // 1 level indent inside querier method
+		sb.WriteString(out.LowerName)
+		sb.WriteString("Array := &pgtype.EnumArray{}")
+	}
+	return sb.String()
+}
+
+// EmitResultEnumArrayAssigns writes all the assign statements for the
+// pgtype.EnumArray fields representing an array of Postgres enums into the
+// output value.
+func (tq TemplatedQuery) EmitResultEnumArrayAssigns() (string, error) {
+	sb := &strings.Builder{}
+	for _, out := range tq.Outputs {
+		if !isEnumArray(out.Type) {
+			continue
+		}
+		indent := "\n\t"
+		if tq.ResultKind == ast.ResultKindMany {
+			indent += "\t" // a :many query processes items in a for loop
+		}
+		sb.WriteString(indent)
+		sb.WriteString(out.LowerName)
+		sb.WriteString("Array.AssignTo((*[]string)(unsafe.Pointer(&item)))")
+	}
+	return sb.String(), nil
+}
+
+func isEnumArray(typ gotype.Type) bool {
+	if typ, ok := typ.(gotype.ArrayType); !ok {
+		return false
+	} else if _, ok := typ.Elem.(gotype.EnumType); !ok {
+		return false
+	}
+	return true
+}
+
 // EmitResultCompositeInits declares all pgtype.CompositeFields for composite
 // types in the output columns. pggen uses pgtype.CompositeFields as args to the
-// row scan methods.
+// row scan methods. Emits definitions like:
+//
+//   userRow := pgtype.CompositeFields{
+//      &pgtype.Int8{},
+//      &pgtype.Text{},
+//   }
 func (tq TemplatedQuery) EmitResultCompositeInits(pkgPath string) (string, error) {
 	sb := &strings.Builder{}
 	for _, out := range tq.Outputs {
@@ -460,11 +527,6 @@ func (tq TemplatedQuery) EmitResultCompositeInits(pkgPath string) (string, error
 		if !ok {
 			continue
 		}
-		// Emit definition like:
-		//   userRow := pgtype.CompositeFields{
-		//      &pgtype.Int8{},
-		//      &pgtype.Text{},
-		//   }
 		sb.WriteString("\n\t") // 1 level indent inside querier method
 		sb.WriteString(out.LowerName)
 		sb.WriteString("Row := ")

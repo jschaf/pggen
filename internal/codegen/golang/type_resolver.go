@@ -91,6 +91,12 @@ func (tr TypeResolver) Resolve(pgt pg.Type, nullable bool, pkgPath string) (goty
 
 	// New type that pggen will define in generated source code.
 	switch pgt := pgt.(type) {
+	case pg.ArrayType:
+		elemType, err := tr.Resolve(pgt.ElemType, nullable, pkgPath)
+		if err != nil {
+			return nil, fmt.Errorf("resolve array elem type for array type %q: %w", pgt.Name, err)
+		}
+		return gotype.NewArrayType(pkgPath, pgt, tr.caser, elemType), nil
 	case pg.EnumType:
 		enum := gotype.NewEnumType(pkgPath, pgt, tr.caser)
 		return enum, nil

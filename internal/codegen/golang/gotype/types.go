@@ -33,10 +33,19 @@ type (
 	// return values.
 	VoidType struct{}
 
+	// ArrayType is a Go slice type.
+	ArrayType struct {
+		PgArray pg.ArrayType // original Postgres array type
+		PkgPath string       // fully qualified package path, like "github.com/jschaf/pggen"
+		Pkg     string       // last part of the package path like "pggen" or empty for builtin types
+		Name    string       // name of Go slice type in UpperCamelCase with leading brackets, like "[]Foo"
+		Elem    Type         // base type of the slice, like int for []int
+	}
+
 	// EnumType is a string type with constant values that maps to the labels of
 	// a Postgres enum.
 	EnumType struct {
-		PgEnum  pg.EnumType // the original Postgres enum
+		PgEnum  pg.EnumType // the original Postgres enum type
 		PkgPath string
 		Pkg     string
 		Name    string
@@ -72,6 +81,11 @@ func (e VoidType) QualifyRel(pkgPath string) string { return qualifyRel(e, pkgPa
 func (e VoidType) Import() string                   { return "" }
 func (e VoidType) Package() string                  { return "" }
 func (e VoidType) BaseName() string                 { return "" }
+
+func (a ArrayType) QualifyRel(pkgPath string) string { return qualifyRel(a, pkgPath) }
+func (a ArrayType) Import() string                   { return a.PkgPath }
+func (a ArrayType) Package() string                  { return a.Pkg }
+func (a ArrayType) BaseName() string                 { return a.Name }
 
 func (e EnumType) QualifyRel(pkgPath string) string { return qualifyRel(e, pkgPath) }
 func (e EnumType) Import() string                   { return e.PkgPath }
@@ -109,6 +123,20 @@ func qualifyRel(typ Type, otherPkgPath string) string {
 	return sb.String()
 }
 
+func NewArrayType(pkgPath string, pgArray pg.ArrayType, caser casing.Caser, elemType Type) ArrayType {
+	name := caser.ToUpperGoIdent(pgArray.Name)
+	if name == "" {
+		name = ChooseFallbackName(pgArray.Name, "UnnamedArray")
+	}
+	return ArrayType{
+		PgArray: pgArray,
+		PkgPath: pkgPath,
+		Pkg:     ExtractShortPackage([]byte(pkgPath)),
+		Name:    "[]" + name,
+		Elem:    elemType,
+	}
+}
+
 func NewEnumType(pkgPath string, pgEnum pg.EnumType, caser casing.Caser) EnumType {
 	name := caser.ToUpperGoIdent(pgEnum.Name)
 	if name == "" {
@@ -134,8 +162,8 @@ func NewEnumType(pkgPath string, pgEnum pg.EnumType, caser casing.Caser) EnumTyp
 	}
 }
 
-// NewOpaqueType creates a Opaque by parsing the fully qualified Go type like:
-// "github.com/jschaf/pggen.GenerateOpts", or a builtin type like "string".
+// NewOpaqueType creates a OpaqueType by parsing the fully qualified Go type
+// like "github.com/jschaf/pggen.GenerateOpts", or a builtin type like "string".
 func NewOpaqueType(qualType string) OpaqueType {
 	if !strings.ContainsRune(qualType, '.') {
 		return OpaqueType{Name: qualType} // builtin type like "string"

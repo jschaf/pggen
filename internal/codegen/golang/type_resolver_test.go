@@ -13,7 +13,17 @@ func TestTypeResolver_Resolve(t *testing.T) {
 	testPkgPath := "github.com/jschaf/pggen/internal/codegen/golang/test_resolve"
 	caser := casing.NewCaser()
 	caser.AddAcronym("ios", "IOS")
+	caser.AddAcronym("macos", "MacOS")
 	caser.AddAcronym("id", "ID")
+	pgDeviceEnum := pg.EnumType{Name: "device_type", Labels: []string{"macos", "ios", "web"}}
+	goDeviceEnum := gotype.EnumType{
+		PgEnum:  pgDeviceEnum,
+		PkgPath: testPkgPath,
+		Pkg:     "test_resolve",
+		Name:    "DeviceType",
+		Labels:  []string{"DeviceTypeMacOS", "DeviceTypeIOS", "DeviceTypeWeb"},
+		Values:  []string{"macos", "ios", "web"},
+	}
 	tests := []struct {
 		name      string
 		overrides map[string]string
@@ -23,12 +33,19 @@ func TestTypeResolver_Resolve(t *testing.T) {
 	}{
 		{
 			name:   "enum",
-			pgType: pg.EnumType{Name: "device_type", Labels: []string{"macos", "ios", "web"}},
-			want: gotype.NewEnumType(
-				testPkgPath,
-				pg.EnumType{Name: "device_type", Labels: []string{"macos", "ios", "web"}},
-				caser,
-			),
+			pgType: pgDeviceEnum,
+			want:   goDeviceEnum,
+		},
+		{
+			name:   "enum array",
+			pgType: pg.ArrayType{Name: "_device_type", ElemType: pgDeviceEnum},
+			want: gotype.ArrayType{
+				PgArray: pg.ArrayType{Name: "_device_type", ElemType: pgDeviceEnum},
+				PkgPath: testPkgPath,
+				Pkg:     "test_resolve",
+				Name:    "[]DeviceType",
+				Elem:    goDeviceEnum,
+			},
 		},
 		{
 			name:   "void",
@@ -39,25 +56,41 @@ func TestTypeResolver_Resolve(t *testing.T) {
 			name:      "override",
 			overrides: map[string]string{"custom_type": "example.com/custom.QualType"},
 			pgType:    pg.BaseType{Name: "custom_type"},
-			want:      gotype.NewOpaqueType("example.com/custom.QualType"),
+			want: gotype.OpaqueType{
+				PkgPath: "example.com/custom",
+				Pkg:     "custom",
+				Name:    "QualType",
+			},
 		},
 		{
 			name:     "known nonNullable empty",
 			pgType:   pg.BaseType{Name: "text", ID: pgtype.PointOID},
 			nullable: false,
-			want:     gotype.NewOpaqueType("github.com/jackc/pgtype.Point"),
+			want: gotype.OpaqueType{
+				PkgPath: "github.com/jackc/pgtype",
+				Pkg:     "pgtype",
+				Name:    "Point",
+			},
 		},
 		{
 			name:     "known nullable",
 			pgType:   pg.BaseType{Name: "text", ID: pgtype.PointOID},
 			nullable: true,
-			want:     gotype.NewOpaqueType("github.com/jackc/pgtype.Point"),
+			want: gotype.OpaqueType{
+				PkgPath: "github.com/jackc/pgtype",
+				Pkg:     "pgtype",
+				Name:    "Point",
+			},
 		},
 		{
 			name:      "bigint - int8",
 			overrides: map[string]string{"bigint": "example.com/custom.QualType"},
 			pgType:    pg.BaseType{Name: "int8", ID: pgtype.Int8OID},
-			want:      gotype.NewOpaqueType("example.com/custom.QualType"),
+			want: gotype.OpaqueType{
+				PkgPath: "example.com/custom",
+				Pkg:     "custom",
+				Name:    "QualType",
+			},
 		},
 		{
 			name: "composite",
