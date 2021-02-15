@@ -5,14 +5,25 @@ import (
 	"github.com/jschaf/pggen/internal/ast"
 	"github.com/jschaf/pggen/internal/pg"
 	"github.com/jschaf/pggen/internal/pgtest"
+	"github.com/jschaf/pggen/internal/texts"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
 
 func TestInferrer_InferTypes(t *testing.T) {
-	conn, cleanupFunc := pgtest.NewPostgresSchema(t, []string{
-		"../../example/author/schema.sql",
-	})
+	conn, cleanupFunc := pgtest.NewPostgresSchemaString(t, texts.Dedent(`
+		CREATE TABLE author (
+			author_id  serial PRIMARY KEY,
+			first_name text NOT NULL,
+			last_name  text NOT NULL,
+			suffix text NULL
+		);
+
+		CREATE TYPE device_type AS ENUM (
+			'phone',
+			'laptop'
+		);
+	`))
 	defer cleanupFunc()
 
 	tests := []struct {
@@ -35,6 +46,44 @@ func TestInferrer_InferTypes(t *testing.T) {
 				},
 			},
 		},
+		{
+			&ast.SourceQuery{
+				Name:        "UnionOneCol",
+				PreparedSQL: "SELECT 1 AS num UNION SELECT 2 AS num",
+				ResultKind:  ast.ResultKindMany,
+			},
+			TypedQuery{
+				Name:        "UnionOneCol",
+				ResultKind:  ast.ResultKindMany,
+				PreparedSQL: "SELECT 1 AS num UNION SELECT 2 AS num",
+				Outputs: []OutputColumn{
+					{PgName: "num", PgType: pg.Int4, Nullable: true},
+				},
+			},
+		},
+		// {
+		// 	&ast.SourceQuery{
+		// 		Name:        "UnionEnumArrays",
+		// 		PreparedSQL: texts.Dedent(`
+		// 			SELECT enum_range('phone'::device_type, 'phone'::device_type) AS device_types
+		// 			UNION ALL
+		// 			SELECT enum_range(NULL::device_type) AS device_types;
+		// 		`),
+		// 		ResultKind:  ast.ResultKindMany,
+		// 	},
+		// 	TypedQuery{
+		// 		Name:        "UnionEnumArrays",
+		// 		ResultKind:  ast.ResultKindMany,
+		// 		PreparedSQL: texts.Dedent(`
+		// 			SELECT enum_range('ipad'::device_type, 'iot'::device_type) AS device_types
+		// 			UNION All
+		// 			SELECT enum_range(NULL::device_type) AS device_types;
+		// 		`),
+		// 		Outputs: []OutputColumn{
+		// 			{PgName: "device_types", PgType: pg.Int4, Nullable: true},
+		// 		},
+		// 	},
+		// },
 		{
 			&ast.SourceQuery{
 				Name:        "FindByFirstName",

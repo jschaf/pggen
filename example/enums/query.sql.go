@@ -31,19 +31,13 @@ type Querier interface {
 	// InsertDeviceScan scans the result of an executed InsertDeviceBatch query.
 	InsertDeviceScan(results pgx.BatchResults) (pgconn.CommandTag, error)
 
+	// Select an array of all device_type enum values.
 	FindOneDeviceArray(ctx context.Context) ([]DeviceType, error)
 	// FindOneDeviceArrayBatch enqueues a FindOneDeviceArray query into batch to be executed
 	// later by the batch.
 	FindOneDeviceArrayBatch(batch *pgx.Batch)
 	// FindOneDeviceArrayScan scans the result of an executed FindOneDeviceArrayBatch query.
 	FindOneDeviceArrayScan(results pgx.BatchResults) ([]DeviceType, error)
-
-	FindManyDeviceArray(ctx context.Context) ([][]DeviceType, error)
-	// FindManyDeviceArrayBatch enqueues a FindManyDeviceArray query into batch to be executed
-	// later by the batch.
-	FindManyDeviceArrayBatch(batch *pgx.Batch)
-	// FindManyDeviceArrayScan scans the result of an executed FindManyDeviceArrayBatch query.
-	FindManyDeviceArrayScan(results pgx.BatchResults) ([][]DeviceType, error)
 }
 
 type DBQuerier struct {
@@ -183,7 +177,7 @@ func (q *DBQuerier) InsertDeviceScan(results pgx.BatchResults) (pgconn.CommandTa
 	return cmdTag, err
 }
 
-const findOneDeviceArraySQL = `select enum_range(null::device_type) as device_types;`
+const findOneDeviceArraySQL = `SELECT enum_range(NULL::device_type) AS device_types;`
 
 // FindOneDeviceArray implements Querier.FindOneDeviceArray.
 func (q *DBQuerier) FindOneDeviceArray(ctx context.Context) ([]DeviceType, error) {
@@ -212,61 +206,4 @@ func (q *DBQuerier) FindOneDeviceArrayScan(results pgx.BatchResults) ([]DeviceTy
 	}
 	deviceTypesArray.AssignTo((*[]string)(unsafe.Pointer(&item)))
 	return item, nil
-}
-
-const findManyDeviceArraySQL = `select enum_range(null::device_type) as device_types;`
-
-// FindManyDeviceArray implements Querier.FindManyDeviceArray.
-func (q *DBQuerier) FindManyDeviceArray(ctx context.Context) ([][]DeviceType, error) {
-	rows, err := q.conn.Query(ctx, findManyDeviceArraySQL)
-	if rows != nil {
-		defer rows.Close()
-	}
-	if err != nil {
-		return nil, fmt.Errorf("query FindManyDeviceArray: %w", err)
-	}
-	items := [][]DeviceType{}
-	deviceTypesArray := &pgtype.EnumArray{}
-	for rows.Next() {
-		var item []DeviceType
-		if err := rows.Scan(deviceTypesArray); err != nil {
-			return nil, fmt.Errorf("scan FindManyDeviceArray row: %w", err)
-		}
-		deviceTypesArray.AssignTo((*[]string)(unsafe.Pointer(&item)))
-		items = append(items, item)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, err
-}
-
-// FindManyDeviceArrayBatch implements Querier.FindManyDeviceArrayBatch.
-func (q *DBQuerier) FindManyDeviceArrayBatch(batch *pgx.Batch) {
-	batch.Queue(findManyDeviceArraySQL)
-}
-
-// FindManyDeviceArrayScan implements Querier.FindManyDeviceArrayScan.
-func (q *DBQuerier) FindManyDeviceArrayScan(results pgx.BatchResults) ([][]DeviceType, error) {
-	rows, err := results.Query()
-	if rows != nil {
-		defer rows.Close()
-	}
-	if err != nil {
-		return nil, err
-	}
-	items := [][]DeviceType{}
-	deviceTypesArray := &pgtype.EnumArray{}
-	for rows.Next() {
-		var item []DeviceType
-		if err := rows.Scan(deviceTypesArray); err != nil {
-			return nil, fmt.Errorf("scan FindManyDeviceArrayBatch row: %w", err)
-		}
-		deviceTypesArray.AssignTo((*[]string)(unsafe.Pointer(&item)))
-		items = append(items, item)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, err
 }

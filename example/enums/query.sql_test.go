@@ -81,18 +81,18 @@ func TestQuerier(t *testing.T) {
 		assert.Equal(t, allDeviceTypes, devices)
 	}
 
-	{
-		devices, err := q.FindManyDeviceArray(ctx)
-		require.Nil(t, err)
-		assert.Equal(t, [][]DeviceType{allDeviceTypes[3:], allDeviceTypes}, devices)
-	}
-
-	{
-		batch := &pgx.Batch{}
-		q.FindManyDeviceArrayBatch(batch)
-		results := conn.SendBatch(ctx, batch)
-		devices, err := q.FindManyDeviceArrayScan(results)
-		require.Nil(t, err)
-		assert.Equal(t, [][]DeviceType{allDeviceTypes[3:], allDeviceTypes}, devices)
-	}
+	// {
+	// 	devices, err := q.FindManyDeviceArray(ctx)
+	// 	require.Nil(t, err)
+	// 	assert.Equal(t, [][]DeviceType{allDeviceTypes[3:], allDeviceTypes}, devices)
+	// }
+	//
+	// {
+	// 	batch := &pgx.Batch{}
+	// 	q.FindManyDeviceArrayBatch(batch)
+	// 	results := conn.SendBatch(ctx, batch)
+	// 	devices, err := q.FindManyDeviceArrayScan(results)
+	// 	require.Nil(t, err)
+	// 	assert.Equal(t, [][]DeviceType{allDeviceTypes[3:], allDeviceTypes}, devices)
+	// }
 }
