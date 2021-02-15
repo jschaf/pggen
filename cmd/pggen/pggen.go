@@ -147,12 +147,16 @@ func newGenCmd() *ffcli.Command {
 				TypeOverrides: typeOverrides,
 				LogLevel:      logLvl,
 			})
+			if err != nil {
+				return err
+			}
+
 			filesDesc := "files"
 			if len(queries) == 1 {
 				filesDesc = "file"
 			}
 			fmt.Printf("generated %d query %s\n", len(queries), filesDesc)
-			return err
+			return nil
 		},
 	}
 	cmd := &ffcli.Command{

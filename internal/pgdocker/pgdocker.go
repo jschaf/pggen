@@ -14,6 +14,7 @@ import (
 	"github.com/jackc/pgx/v4"
 	"github.com/jschaf/pggen/internal/errs"
 	"github.com/jschaf/pggen/internal/ports"
+	"go.uber.org/multierr"
 	"go.uber.org/zap"
 	"io"
 	"io/ioutil"
@@ -50,6 +51,18 @@ func Start(ctx context.Context, initScripts []string, l *zap.SugaredLogger) (cli
 	if err != nil {
 		return nil, fmt.Errorf("run container: %w", err)
 	}
+	// Enrich logs with Docker container logs.
+	defer func() {
+		if mErr != nil {
+			logs, err := c.getContainerLogs()
+			if err != nil {
+				mErr = multierr.Append(mErr, err)
+			} else {
+				mErr = fmt.Errorf("%w\nContainer logs for container ID %s\n\n%s", mErr, containerID, logs)
+			}
+		}
+	}()
+	// Cleanup the container after we're done.
 	defer func() {
 		if client != nil && mErr != nil {
 			ctx, cancel := context.WithTimeout(context.Background(), time.Second)
@@ -67,6 +80,30 @@ func Start(ctx context.Context, initScripts []string, l *zap.SugaredLogger) (cli
 	}
 	c.l.Debugf("started docker postgres in %d ms", time.Since(now).Milliseconds())
 	return c, nil
+}
+
+// getContainerLogs returns a string of all stderr and stdout logs for a
+// container. Useful to enrich output when pggen fails to start the Docker
+// container.
+func (c *Client) getContainerLogs() (logs string, mErr error) {
+	if c.containerID == "" {
+		return "", nil
+	}
+	logsCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	logsR, err := c.docker.ContainerLogs(logsCtx, c.containerID, types.ContainerLogsOptions{
+		ShowStdout: true,
+		ShowStderr: true,
+	})
+	defer errs.Capture(&mErr, logsR.Close, "close container logs")
+	if err != nil {
+		return "", fmt.Errorf("get container logs: %w", err)
+	}
+	bs, err := io.ReadAll(logsR)
+	if err != nil {
+		return "", fmt.Errorf("reall all container logs: %w", err)
+	}
+	return string(bs), nil
 }
 
 // buildImage creates a new Postgres Docker image with the given init scripts
@@ -218,7 +255,7 @@ func (c *Client) waitIsReady(ctx context.Context) error {
 		conn, err := pgx.ConnectConfig(ctx, cfg)
 		if err == nil {
 			if err := conn.Close(ctx); err != nil {
-				c.l.Errorf("close postgres connection: %w", err)
+				c.l.Errorf("close postgres connection: %s", err)
 			}
 			return nil
 		}
