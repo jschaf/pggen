@@ -141,7 +141,9 @@ FROM oid_descs;
 -- name: FindOIDByName :one
 SELECT oid
 FROM pg_type
-WHERE typname::text = pggen.arg('name');
+WHERE typname::text = pggen.arg('name')
+ORDER BY oid DESC
+LIMIT 1;
 
 -- name: FindOIDName :one
 SELECT typname AS name

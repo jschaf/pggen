@@ -39,12 +39,12 @@ func TestNewTypeFetcher(t *testing.T) {
 		},
 		{
 			name:     "enum",
-			schema:   `CREATE TYPE device_type AS ENUM ('computer', 'phone');`,
-			fetchOID: "device_type",
+			schema:   `CREATE TYPE device AS ENUM ('computer', 'phone');`,
+			fetchOID: "device",
 			wants: []Type{
 				EnumType{
 					ID:        0, // set in test
-					Name:      "device_type",
+					Name:      "device",
 					Labels:    []string{"computer", "phone"},
 					Orders:    []float32{1, 2},
 					ChildOIDs: nil, // ignored
@@ -53,19 +53,19 @@ func TestNewTypeFetcher(t *testing.T) {
 		},
 		{
 			name:     "enum array",
-			schema:   `CREATE TYPE device_type AS ENUM ('computer', 'phone');`,
-			fetchOID: "_device_type",
+			schema:   `CREATE TYPE device2 AS ENUM ('computer', 'phone');`,
+			fetchOID: "_device2",
 			wants: []Type{
 				ArrayType{
-					Name: "_device_type",
+					Name: "_device2",
 					ElemType: EnumType{
-						Name:   "device_type",
+						Name:   "device2",
 						Labels: []string{"computer", "phone"},
 						Orders: []float32{1, 2},
 					},
 				},
 				EnumType{
-					Name:   "device_type",
+					Name:   "device2",
 					Labels: []string{"computer", "phone"},
 					Orders: []float32{1, 2},
 				},

@@ -473,7 +473,9 @@ func (q *DBQuerier) FindDescendantOIDsScan(results pgx.BatchResults) ([]pgtype.O
 
 const findOIDByNameSQL = `SELECT oid
 FROM pg_type
-WHERE typname::text = $1;`
+WHERE typname::text = $1
+ORDER BY oid DESC
+LIMIT 1;`
 
 // FindOIDByName implements Querier.FindOIDByName.
 func (q *DBQuerier) FindOIDByName(ctx context.Context, name string) (pgtype.OID, error) {
