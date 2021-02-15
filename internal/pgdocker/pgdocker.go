@@ -99,7 +99,7 @@ func (c *Client) getContainerLogs() (logs string, mErr error) {
 	if err != nil {
 		return "", fmt.Errorf("get container logs: %w", err)
 	}
-	bs, err := io.ReadAll(logsR)
+	bs, err := ioutil.ReadAll(logsR)
 	if err != nil {
 		return "", fmt.Errorf("reall all container logs: %w", err)
 	}
