@@ -37,3 +37,6 @@ update-acceptance-test: statik
 .PHONY: lint
 lint:
 	golangci-lint run
+
+.PHONY: all
+all: lint test acceptance-test
