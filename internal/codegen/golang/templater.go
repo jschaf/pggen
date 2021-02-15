@@ -498,7 +498,13 @@ func (tq TemplatedQuery) EmitResultEnumArrayAssigns() (string, error) {
 		}
 		sb.WriteString(indent)
 		sb.WriteString(out.LowerName)
-		sb.WriteString("Array.AssignTo((*[]string)(unsafe.Pointer(&item)))")
+		sb.WriteString("Array.AssignTo((*[]string)(unsafe.Pointer(&item")
+		if len(removeVoidColumns(tq.Outputs)) > 1 {
+			sb.WriteRune('.')
+			sb.WriteString(out.UpperName)
+		}
+		sb.WriteString(")))")
+		sb.WriteString(" // safe cast; enum array is []string")
 	}
 	return sb.String(), nil
 }

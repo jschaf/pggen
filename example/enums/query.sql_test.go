@@ -12,8 +12,8 @@ import (
 )
 
 func TestQuerier(t *testing.T) {
-	conn, _ := pgtest.NewPostgresSchema(t, []string{"schema.sql"})
-	// defer cleanup()
+	conn, cleanup := pgtest.NewPostgresSchema(t, []string{"schema.sql"})
+	defer cleanup()
 
 	q := NewQuerier(conn)
 	ctx := context.Background()
@@ -60,8 +60,8 @@ func TestQuerier(t *testing.T) {
 		q.FindOneDeviceArrayBatch(batch)
 		results := conn.SendBatch(ctx, batch)
 		devices, err := q.FindOneDeviceArrayScan(results)
-		require.Nil(t, results.Close())
 		require.Nil(t, err)
+		require.Nil(t, results.Close())
 		assert.Equal(t, allDeviceTypes, devices)
 	}
 
@@ -76,8 +76,8 @@ func TestQuerier(t *testing.T) {
 		q.FindOneDeviceArrayBatch(batch)
 		results := conn.SendBatch(ctx, batch)
 		devices, err := q.FindOneDeviceArrayScan(results)
-		require.Nil(t, results.Close())
 		require.Nil(t, err)
+		require.Nil(t, results.Close())
 		assert.Equal(t, allDeviceTypes, devices)
 	}
 
@@ -93,6 +93,29 @@ func TestQuerier(t *testing.T) {
 		results := conn.SendBatch(ctx, batch)
 		devices, err := q.FindManyDeviceArrayScan(results)
 		require.Nil(t, err)
+		require.Nil(t, results.Close())
 		assert.Equal(t, [][]DeviceType{allDeviceTypes[3:], allDeviceTypes}, devices)
+	}
+
+	{
+		devices, err := q.FindManyDeviceArrayWithNum(ctx)
+		require.Nil(t, err)
+		assert.Equal(t, []FindManyDeviceArrayWithNumRow{
+			{Num: 1, DeviceTypes: allDeviceTypes[3:]},
+			{Num: 2, DeviceTypes: allDeviceTypes},
+		}, devices)
+	}
+
+	{
+		batch := &pgx.Batch{}
+		q.FindManyDeviceArrayWithNumBatch(batch)
+		results := conn.SendBatch(ctx, batch)
+		devices, err := q.FindManyDeviceArrayWithNumScan(results)
+		require.Nil(t, err)
+		require.Nil(t, results.Close())
+		assert.Equal(t, []FindManyDeviceArrayWithNumRow{
+			{Num: 1, DeviceTypes: allDeviceTypes[3:]},
+			{Num: 2, DeviceTypes: allDeviceTypes},
+		}, devices)
 	}
 }
