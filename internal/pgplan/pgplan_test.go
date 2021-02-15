@@ -63,32 +63,38 @@ func TestParseNode_DB(t *testing.T) {
 	}{
 		{
 			sql:  "SELECT 1 AS one",
-			want: Result{Output: []string{"1"}},
+			want: Result{Plan{Outs: []string{"1"}}},
 		},
 		{
 			sql: "SELECT 1 AS num UNION ALL SELECT 2 AS num",
 			want: Append{
-				Nodes: []Node{
-					Result{Output: []string{"1"}},
-					Result{Output: []string{"2"}},
+				Plan{
+					Nodes: []Node{
+						Result{Plan{Outs: []string{"1"}}},
+						Result{Plan{Outs: []string{"2"}}},
+					},
 				},
 			},
 		},
 		{
 			sql: "SELECT 1 AS num UNION SELECT 2 AS num",
 			want: Unique{
-				Output: []string{"(1)"},
-				Nodes: []Node{
-					Sort{
-						Output:  []string{"(1)"},
-						SortKey: []string{"(1)"},
-						Nodes: []Node{
-							Append{
+				Plan: Plan{
+					Outs: []string{"(1)"},
+					Nodes: []Node{
+						Sort{
+							Plan: Plan{
+								Outs: []string{"(1)"},
 								Nodes: []Node{
-									Result{Output: []string{"1"}},
-									Result{Output: []string{"2"}},
+									Append{
+										Plan{Nodes: []Node{
+											Result{Plan{Outs: []string{"1"}}},
+											Result{Plan{Outs: []string{"2"}}},
+										}},
+									},
 								},
 							},
+							SortKey: []string{"(1)"},
 						},
 					},
 				},
@@ -97,31 +103,33 @@ func TestParseNode_DB(t *testing.T) {
 		{
 			sql: "INSERT INTO author (author_id) VALUES (1)",
 			want: ModifyTable{
+				Plan: Plan{
+					Nodes: []Node{Result{Plan{Outs: []string{"1"}}}},
+				},
 				Operation:    OperationInsert,
 				RelationName: "author",
 				Alias:        "author",
-				Nodes:        []Node{Result{Output: []string{"1"}}},
 			},
 		},
 		{
 			sql: "INSERT INTO author (author_id) VALUES (1) RETURNING author_id",
 			want: ModifyTable{
+				Plan: Plan{
+					Outs:  []string{"author.author_id"},
+					Nodes: []Node{Result{Plan{Outs: []string{"1"}}}},
+				},
 				Operation:    OperationInsert,
 				RelationName: "author",
 				Alias:        "author",
-				Output:       []string{"author.author_id"},
-				Nodes: []Node{
-					Result{
-						Output: []string{"1"},
-					},
-				},
 			},
 		},
 		{
 			sql: "SELECT generate_series(1,2)",
 			want: ProjectSet{
-				Output: []string{"generate_series(1, 2)"},
-				Nodes:  []Node{Result{}},
+				Plan{
+					Outs:  []string{"generate_series(1, 2)"},
+					Nodes: []Node{Result{}},
+				},
 			},
 		},
 	}

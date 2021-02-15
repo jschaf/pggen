@@ -4,6 +4,11 @@ package pgplan
 // https://doxygen.postgresql.org/nodes_8h.html#a83ba1e84fa23f6619c3d29036b160919
 type Node interface {
 	Kind() NodeKind
+	// Output returns the output columns of the node. The format of each output
+	// column depends on the type of node.
+	Output() []string
+	// Children returns the direct children of the node, or nil if none exist.
+	Children() []Node
 }
 
 // NodeKind is the top-level node plan type that Postgres plans for executing
@@ -12,7 +17,7 @@ type NodeKind string
 
 //goland:noinspection GoUnusedConst
 const (
-	KindBadNode             NodeKind = "BadPlan"
+	KindBadNode             NodeKind = "BadNode"
 	KindResult              NodeKind = "Result"
 	KindProjectSet          NodeKind = "ProjectSet"
 	KindModifyTable         NodeKind = "ModifyTable"
@@ -140,41 +145,44 @@ type Plan struct {
 
 	// Custom plan, if any.
 	CustomPlanProvider string
+
+	// The column expressions (target list), if any.
+	Outs []string
+
+	// Child nodes, if any.
+	Nodes []Node
+}
+
+func (p Plan) Output() []string {
+	return p.Outs
+}
+
+func (p Plan) Children() []Node {
+	return p.Nodes
 }
 
 type (
 	// BadNode is returned whenever a plan is not parseable.
-	BadNode struct{}
+	BadNode struct{ Plan }
 
 	// If no outer plan, evaluate a variable-free targetlist.
 	// If outer plan, return tuples from outer plan (after a level of
 	// projection as shown by targetlist).
 	// https://sourcegraph.com/github.com/postgres/postgres@8facf1ea00b7a0c08c755a0392212b83e04ae28a/-/blob/src/include/nodes/plannodes.h#L180:1
-	Result struct {
-		Plan
-		// The column expressions (target list).
-		Output []string
-	}
+	Result struct{ Plan }
 
 	// Generate the concatenation of the results of sub-plans.
 	// Combine the results of the child operations. This can be the result of an
 	// explicit UNION ALL statement, or the need for a parent operation to
 	// consume the results of two or more children together.
 	// https://www.pgmustard.com/docs/explain/append
-	Append struct {
-		Plan
-		Nodes []Node
-	}
+	Append struct{ Plan }
 
 	// ProjectSet appears when the SELECT or ORDER BY clause of the query. They
 	// basically just execute the set-returning function(s) for each tuple until
 	// none of the functions return any more records.
 	// https://www.postgresql.org/message-id/CAKJS1f9pWUwxaD%2B0kxOOUuwaBcpGQtCKi3DKE8ob_uHN-JTJhw%40mail.gmail.com
-	ProjectSet struct {
-		Plan
-		Output []string
-		Nodes  []Node
-	}
+	ProjectSet struct{ Plan }
 
 	// Apply rows produced by subplan(s) to result table(s), by inserting,
 	// updating, or deleting.
@@ -184,8 +192,6 @@ type (
 		RelationName string
 		Schema       string
 		Alias        string
-		Output       []string
-		Nodes        []Node
 	}
 
 	// Combines the sorted results of the child operations, in a way that
@@ -195,235 +201,51 @@ type (
 	MergeAppend struct {
 		Plan
 		SortKey []string
-		Output  []string
-		Nodes   []Node
 	}
 
-	RecursiveUnion struct {
+	RecursiveUnion      struct{ Plan }
+	BitmapAnd           struct{ Plan }
+	BitmapOr            struct{ Plan }
+	Scan                struct{ Plan }
+	SeqScan             struct{ Plan }
+	SampleScan          struct{ Plan }
+	IndexScan           struct{ Plan }
+	IndexOnlyScan       struct{ Plan }
+	BitmapIndexScan     struct{ Plan }
+	BitmapHeapScan      struct{ Plan }
+	TidScan             struct{ Plan }
+	SubqueryScan        struct{ Plan }
+	FunctionScan        struct{ Plan }
+	ValuesScan          struct{ Plan }
+	TableFuncScan       struct{ Plan }
+	CteScan             struct{ Plan }
+	NamedTuplestoreScan struct{ Plan }
+	WorkTableScan       struct{ Plan }
+	ForeignScan         struct{ Plan }
+	CustomScan          struct{ Plan }
+	Join                struct{ Plan }
+	NestLoop            struct{ Plan }
+	MergeJoin           struct{ Plan }
+	HashJoin            struct{ Plan }
+	Material            struct{ Plan }
+	Sort                struct {
 		Plan
-		Output []string
-		Nodes  []Node
-	}
-
-	BitmapAnd struct {
-		Plan
-		Output []string
-		Nodes  []Node
-	}
-
-	BitmapOr struct {
-		Plan
-		Output []string
-		Nodes  []Node
-	}
-
-	Scan struct {
-		Plan
-		Output []string
-		Nodes  []Node
-	}
-
-	SeqScan struct {
-		Plan
-		Output []string
-		Nodes  []Node
-	}
-
-	SampleScan struct {
-		Plan
-		Output []string
-		Nodes  []Node
-	}
-
-	IndexScan struct {
-		Plan
-		Output []string
-		Nodes  []Node
-	}
-
-	IndexOnlyScan struct {
-		Plan
-		Output []string
-		Nodes  []Node
-	}
-
-	BitmapIndexScan struct {
-		Plan
-		Output []string
-		Nodes  []Node
-	}
-
-	BitmapHeapScan struct {
-		Plan
-		Output []string
-		Nodes  []Node
-	}
-
-	TidScan struct {
-		Plan
-		Output []string
-		Nodes  []Node
-	}
-
-	SubqueryScan struct {
-		Plan
-		Output []string
-		Nodes  []Node
-	}
-
-	FunctionScan struct {
-		Plan
-		Output []string
-		Nodes  []Node
-	}
-
-	ValuesScan struct {
-		Plan
-		Output []string
-		Nodes  []Node
-	}
-
-	TableFuncScan struct {
-		Plan
-		Output []string
-		Nodes  []Node
-	}
-
-	CteScan struct {
-		Plan
-		Output []string
-		Nodes  []Node
-	}
-
-	NamedTuplestoreScan struct {
-		Plan
-		Output []string
-		Nodes  []Node
-	}
-
-	WorkTableScan struct {
-		Plan
-		Output []string
-		Nodes  []Node
-	}
-
-	ForeignScan struct {
-		Plan
-		Output []string
-		Nodes  []Node
-	}
-
-	CustomScan struct {
-		Plan
-		Output []string
-		Nodes  []Node
-	}
-
-	Join struct {
-		Plan
-		Output []string
-		Nodes  []Node
-	}
-
-	NestLoop struct {
-		Plan
-		Output []string
-		Nodes  []Node
-	}
-
-	MergeJoin struct {
-		Plan
-		Output []string
-		Nodes  []Node
-	}
-
-	HashJoin struct {
-		Plan
-		Output []string
-		Nodes  []Node
-	}
-
-	Material struct {
-		Plan
-		Output []string
-		Nodes  []Node
-	}
-
-	Sort struct {
-		Plan
-		Output  []string
 		SortKey []string
-		Nodes   []Node
 	}
-
-	IncrementalSort struct {
-		Plan
-		Output []string
-		Nodes  []Node
-	}
-
-	Group struct {
-		Plan
-		Output []string
-		Nodes  []Node
-	}
-
-	Agg struct {
-		Plan
-		Output []string
-		Nodes  []Node
-	}
-
-	WindowAgg struct {
-		Plan
-		Output []string
-		Nodes  []Node
-	}
-
+	IncrementalSort struct{ Plan }
+	Group           struct{ Plan }
+	Agg             struct{ Plan }
+	WindowAgg       struct{ Plan }
 	// Unique is a very simple node type that just filters out duplicate tuples
 	// from a stream of sorted tuples from its subplan.
 	// https://sourcegraph.com/github.com/postgres/postgres@8facf1ea00b7a0c08c755a0392212b83e04ae28a/-/blob/src/include/nodes/plannodes.h?subtree=true#L864:16
-	Unique struct {
-		Plan
-		Nodes  []Node
-		Output []string
-	}
-
-	Gather struct {
-		Plan
-		Output []string
-		Nodes  []Node
-	}
-
-	GatherMerge struct {
-		Plan
-		Output []string
-		Nodes  []Node
-	}
-
-	Hash struct {
-		Plan
-		Output []string
-		Nodes  []Node
-	}
-
-	SetOp struct {
-		Plan
-		Output []string
-		Nodes  []Node
-	}
-
-	LockRows struct {
-		Plan
-		Output []string
-		Nodes  []Node
-	}
-
-	Limit struct {
-		Plan
-		Output []string
-		Nodes  []Node
-	}
+	Unique      struct{ Plan }
+	Gather      struct{ Plan }
+	GatherMerge struct{ Plan }
+	Hash        struct{ Plan }
+	SetOp       struct{ Plan }
+	LockRows    struct{ Plan }
+	Limit       struct{ Plan }
 )
 
 func (BadNode) Kind() NodeKind             { return KindBadNode }
