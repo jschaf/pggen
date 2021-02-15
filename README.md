@@ -436,7 +436,7 @@ We'll walk through the generated file `author/query.sql.go`:
     `pgtype` Go type like `pgtype.Text`. If a column is non-nullable, pggen uses
      a more ergonomic type like `string`. pggen's nullability inference in 
     [internal/pginfer/nullability.go] is rudimentary; a proper approach requires
-     a full AST with some control flow analysis.
+     a full explain plan with some control flow analysis.
     
 -   Lastly, pggen generates the implementation for each query.
 
