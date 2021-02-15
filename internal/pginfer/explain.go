@@ -56,14 +56,8 @@ func (inf *Inferrer) explainQuery(query *ast.SourceQuery) (Plan, error) {
 	relationStr, _ := relation.(string)
 
 	// Outputs
-	rawOuts, ok := plan["Output"]
-	if !ok {
-		return Plan{}, fmt.Errorf("explain output had no 'Plan.Output' node")
-	}
-	outs, ok := rawOuts.([]interface{})
-	if !ok {
-		return Plan{}, fmt.Errorf("explain output 'Plan.Output' is not []interface{}; got type %T for value %v", outs, outs)
-	}
+	rawOuts := plan["Output"]
+	outs, _ := rawOuts.([]interface{})
 	strOuts := make([]string, len(outs))
 	for i, out := range outs {
 		out, ok := out.(string)

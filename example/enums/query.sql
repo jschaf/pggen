@@ -12,6 +12,6 @@ SELECT enum_range(NULL::device_type) AS device_types;
 
 -- Select many rows of device_type enum values.
 -- name: FindManyDeviceArray :many
--- SELECT enum_range('ipad'::device_type, 'iot'::device_type) AS device_types
--- UNION ALL
--- SELECT enum_range(NULL::device_type) AS device_types;
+SELECT enum_range('ipad'::device_type, 'iot'::device_type) AS device_types
+UNION ALL
+SELECT enum_range(NULL::device_type) AS device_types;

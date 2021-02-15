@@ -165,13 +165,6 @@ func (inf *Inferrer) deallocateQuery(name string) error {
 }
 
 func (inf *Inferrer) inferOutputTypes(query *ast.SourceQuery) ([]OutputColumn, error) {
-	// If the query has no output, we don't have to infer the output types.
-	if hasOutput, err := inf.hasOutput(query); err != nil {
-		return nil, fmt.Errorf("check query has output: %w", err)
-	} else if !hasOutput {
-		return nil, nil
-	}
-
 	// Execute the query to get field descriptions of the output columns.
 	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
 	defer cancel()
@@ -200,47 +193,20 @@ func (inf *Inferrer) inferOutputTypes(query *ast.SourceQuery) ([]OutputColumn, e
 	}
 
 	// Create output columns
-	outs := make([]OutputColumn, len(descriptions))
+	var outs []OutputColumn
 	for i, desc := range descriptions {
 		pgType, ok := types[pgtype.OID(desc.DataTypeOID)]
 		if !ok {
 			return nil, fmt.Errorf("no type name found for oid %d", desc.DataTypeOID)
 		}
-		outs[i] = OutputColumn{
+
+		outs = append(outs, OutputColumn{
 			PgName:   string(desc.Name),
 			PgType:   pgType,
 			Nullable: nullables[i],
-		}
+		})
 	}
 	return outs, nil
-}
-
-// hasOutput explains the query to determine if it has any output columns.
-func (inf *Inferrer) hasOutput(query *ast.SourceQuery) (bool, error) {
-	explainQuery := `EXPLAIN (VERBOSE, FORMAT JSON) ` + query.PreparedSQL
-	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
-	defer cancel()
-	row := inf.conn.QueryRow(ctx, explainQuery, createParamArgs(query)...)
-	explain := make([]map[string]map[string]interface{}, 0, 1)
-	if err := row.Scan(&explain); err != nil {
-		return false, fmt.Errorf("explain prepared query: %w", err)
-	}
-	if len(explain) == 0 {
-		return false, fmt.Errorf("no explain output")
-	}
-	plan, ok := explain[0]["Plan"]
-	if !ok {
-		return false, fmt.Errorf("explain output no 'Plan' node")
-	}
-	rawOuts, ok := plan["Output"]
-	if !ok {
-		return false, nil
-	}
-	outs, ok := rawOuts.([]interface{})
-	if !ok {
-		return false, fmt.Errorf("explain output 'Plan.Output' is not []interface")
-	}
-	return len(outs) > 0, nil
 }
 
 // inferOutputNullability infers which of the output columns produced by the
