@@ -14,6 +14,7 @@ import (
 	"github.com/jschaf/pggen/internal/pginfer"
 	_ "github.com/jschaf/pggen/internal/statik" // bundled template files
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 	gotok "go/token"
 	"io/ioutil"
 	"path/filepath"
@@ -58,6 +59,8 @@ type GenerateOptions struct {
 	Acronyms map[string]string
 	// A map from a Postgres type name to a fully qualified Go type.
 	TypeOverrides map[string]string
+	// What level to log at.
+	LogLevel zapcore.Level
 }
 
 // Generate generates language specific code to safely wrap each SQL
@@ -78,8 +81,7 @@ func Generate(opts GenerateOptions) (mErr error) {
 
 	// Logger.
 	logCfg := zap.NewDevelopmentConfig()
-	// TODO: control by log-level flag
-	logCfg.Level = zap.NewAtomicLevelAt(zap.DebugLevel)
+	logCfg.Level = zap.NewAtomicLevelAt(opts.LogLevel)
 	logger, err := logCfg.Build()
 	if err != nil {
 		return fmt.Errorf("create zap logger: %w", err)

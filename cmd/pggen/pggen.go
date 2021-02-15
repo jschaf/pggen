@@ -9,14 +9,14 @@ import (
 	"github.com/jschaf/pggen/internal/flags"
 	"github.com/jschaf/pggen/internal/texts"
 	"github.com/peterbourgon/ff/v3/ffcli"
+	"go.uber.org/zap"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
 )
 
-const flagHelp = `
-pggen generates type-safe code from files containing Postgres queries by running
+var flagHelp = `pggen generates type-safe code from files containing Postgres queries by running
 the queries on Postgres to get type information.
 
 EXAMPLES
@@ -40,7 +40,7 @@ func run() error {
 	rootFlagSet := flag.NewFlagSet("root", flag.ExitOnError)
 	rootCmd := &ffcli.Command{
 		ShortUsage: "pggen <subcommand> [options...]",
-		LongHelp:   flagHelp[1 : len(flagHelp)-1], // remove lead/trail newlines
+		LongHelp:   flagHelp,
 		FlagSet:    rootFlagSet,
 		Subcommands: []*ffcli.Command{
 			genCmd,
@@ -75,6 +75,8 @@ func newGenCmd() *ffcli.Command {
 	goTypes := flags.Strings(fset, "go-type", nil,
 		"custom type mapping from Postgres to fully qualified Go type, "+
 			"like 'device_type=github.com/jschaf/pggen.DeviceType'")
+	logLvl := zap.InfoLevel
+	fset.Var(&logLvl, "log", "log level: debug, info, or error")
 	goSubCmd := &ffcli.Command{
 		Name:       "go",
 		ShortUsage: "pggen gen go --query-glob glob [--schema-glob <glob>]... [flags]",
@@ -143,8 +145,13 @@ func newGenCmd() *ffcli.Command {
 				OutputDir:     outDir,
 				Acronyms:      acros,
 				TypeOverrides: typeOverrides,
+				LogLevel:      logLvl,
 			})
-			fmt.Printf("gen go: out_dir=%s files=%s\n", outDir, strings.Join(queries, ","))
+			filesDesc := "files"
+			if len(queries) == 1 {
+				filesDesc = "file"
+			}
+			fmt.Printf("generated %d query %s\n", len(queries), filesDesc)
 			return err
 		},
 	}
