@@ -29,7 +29,7 @@ func TestGenerate_Go_Example_CustomTypes(t *testing.T) {
 			},
 		})
 	if err != nil {
-		t.Fatalf("Generate() example/syntax: %s", err)
+		t.Fatalf("Generate() example/custom_types: %s", err)
 	}
 
 	wantQueriesFile := "query.sql.go"

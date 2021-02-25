@@ -23,7 +23,7 @@ func TestGenerate_Go_Example_Pgcrypto(t *testing.T) {
 			Language:   pggen.LangGo,
 		})
 	if err != nil {
-		t.Fatalf("Generate() example/syntax: %s", err)
+		t.Fatalf("Generate() example/pgcrypto: %s", err)
 	}
 
 	wantQueriesFile := "query.sql.go"
