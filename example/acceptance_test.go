@@ -78,6 +78,15 @@ func TestExamples(t *testing.T) {
 			},
 		},
 		{
+			name: "example/ltree",
+			args: []string{
+				"--schema-glob", "example/ltree/schema.sql",
+				"--query-glob", "example/ltree/query.sql",
+				"--go-type", "ltree=github.com/jackc/pgtype.Text",
+				"--go-type", "_ltree=github.com/jackc/pgtype.TextArray",
+			},
+		},
+		{
 			name: "example/syntax",
 			args: []string{
 				"--schema-glob", "example/syntax/schema.sql",
