@@ -28,11 +28,11 @@ test:
 
 .PHONY: acceptance-test
 acceptance-test:
-	go test ./example/acceptance_test.go
+	DOCKER_API_VERSION=1.39 go test ./example/acceptance_test.go
 
 .PHONY: update-acceptance-test
 update-acceptance-test: statik
-	go test ./example/acceptance_test.go -update
+	DOCKER_API_VERSION=1.39 go test ./example/acceptance_test.go -update
 
 .PHONY: lint
 lint:
