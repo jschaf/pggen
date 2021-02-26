@@ -3,14 +3,15 @@ package pginfer
 import (
 	"context"
 	"fmt"
+	"strings"
+	"time"
+
 	"github.com/jackc/pgproto3/v2"
 	"github.com/jackc/pgtype"
 	"github.com/jackc/pgx/v4"
 	"github.com/jschaf/pggen/internal/ast"
 	"github.com/jschaf/pggen/internal/errs"
 	"github.com/jschaf/pggen/internal/pg"
-	"strings"
-	"time"
 )
 
 const defaultTimeout = 3 * time.Second
@@ -238,6 +239,9 @@ func (inf *Inferrer) inferOutputNullability(query *ast.SourceQuery, descs []pgpr
 	// nullable.
 	nullables := make([]bool, len(descs))
 	for i, out := range plan.Outputs {
+		if i == len(cols) {
+			break
+		}
 		nullables[i] = isColNullable(query, plan, out, cols[i])
 	}
 	return nullables, nil
