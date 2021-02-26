@@ -32,6 +32,14 @@ type Querier interface {
 	// FindAuthorsScan scans the result of an executed FindAuthorsBatch query.
 	FindAuthorsScan(results pgx.BatchResults) ([]FindAuthorsRow, error)
 
+	// FindAuthorNames finds one (or zero) authors by ID.
+	FindAuthorNames(ctx context.Context, authorID int32) ([]FindAuthorNamesRow, error)
+	// FindAuthorNamesBatch enqueues a FindAuthorNames query into batch to be executed
+	// later by the batch.
+	FindAuthorNamesBatch(batch *pgx.Batch, authorID int32)
+	// FindAuthorNamesScan scans the result of an executed FindAuthorNamesBatch query.
+	FindAuthorNamesScan(results pgx.BatchResults) ([]FindAuthorNamesRow, error)
+
 	// DeleteAuthors deletes authors with a first name of "joe".
 	DeleteAuthors(ctx context.Context) (pgconn.CommandTag, error)
 	// DeleteAuthorsBatch enqueues a DeleteAuthors query into batch to be executed
@@ -197,6 +205,64 @@ func (q *DBQuerier) FindAuthorsScan(results pgx.BatchResults) ([]FindAuthorsRow,
 		var item FindAuthorsRow
 		if err := rows.Scan(&item.AuthorID, &item.FirstName, &item.LastName, &item.Suffix); err != nil {
 			return nil, fmt.Errorf("scan FindAuthorsBatch row: %w", err)
+		}
+		items = append(items, item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, err
+}
+
+const findAuthorNamesSQL = `SELECT first_name,last_name FROM author ORDER BY author_id = $1;`
+
+type FindAuthorNamesRow struct {
+	FirstName pgtype.Text `json:"first_name"`
+	LastName  pgtype.Text `json:"last_name"`
+}
+
+// FindAuthorNames implements Querier.FindAuthorNames.
+func (q *DBQuerier) FindAuthorNames(ctx context.Context, authorID int32) ([]FindAuthorNamesRow, error) {
+	rows, err := q.conn.Query(ctx, findAuthorNamesSQL, authorID)
+	if rows != nil {
+		defer rows.Close()
+	}
+	if err != nil {
+		return nil, fmt.Errorf("query FindAuthorNames: %w", err)
+	}
+	items := []FindAuthorNamesRow{}
+	for rows.Next() {
+		var item FindAuthorNamesRow
+		if err := rows.Scan(&item.FirstName, &item.LastName); err != nil {
+			return nil, fmt.Errorf("scan FindAuthorNames row: %w", err)
+		}
+		items = append(items, item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, err
+}
+
+// FindAuthorNamesBatch implements Querier.FindAuthorNamesBatch.
+func (q *DBQuerier) FindAuthorNamesBatch(batch *pgx.Batch, authorID int32) {
+	batch.Queue(findAuthorNamesSQL, authorID)
+}
+
+// FindAuthorNamesScan implements Querier.FindAuthorNamesScan.
+func (q *DBQuerier) FindAuthorNamesScan(results pgx.BatchResults) ([]FindAuthorNamesRow, error) {
+	rows, err := results.Query()
+	if rows != nil {
+		defer rows.Close()
+	}
+	if err != nil {
+		return nil, err
+	}
+	items := []FindAuthorNamesRow{}
+	for rows.Next() {
+		var item FindAuthorNamesRow
+		if err := rows.Scan(&item.FirstName, &item.LastName); err != nil {
+			return nil, fmt.Errorf("scan FindAuthorNamesBatch row: %w", err)
 		}
 		items = append(items, item)
 	}
