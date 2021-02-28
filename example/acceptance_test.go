@@ -85,6 +85,8 @@ func TestExamples(t *testing.T) {
 				"--go-type", "int8=*int",
 				"--go-type", "int4=*int",
 				"--go-type", "text=*string",
+				"--go-type", "_int8=[]int",
+				"--go-type", "_int4=[]int",
 			},
 		},
 		{

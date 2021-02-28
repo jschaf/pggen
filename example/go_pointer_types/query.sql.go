@@ -29,6 +29,20 @@ type Querier interface {
 	// GenSeriesScan scans the result of an executed GenSeriesBatch query.
 	GenSeriesScan(results pgx.BatchResults) ([]*int, error)
 
+	GenSeriesArr1(ctx context.Context) ([]int, error)
+	// GenSeriesArr1Batch enqueues a GenSeriesArr1 query into batch to be executed
+	// later by the batch.
+	GenSeriesArr1Batch(batch *pgx.Batch)
+	// GenSeriesArr1Scan scans the result of an executed GenSeriesArr1Batch query.
+	GenSeriesArr1Scan(results pgx.BatchResults) ([]int, error)
+
+	GenSeriesArr(ctx context.Context) ([][]int, error)
+	// GenSeriesArrBatch enqueues a GenSeriesArr query into batch to be executed
+	// later by the batch.
+	GenSeriesArrBatch(batch *pgx.Batch)
+	// GenSeriesArrScan scans the result of an executed GenSeriesArrBatch query.
+	GenSeriesArrScan(results pgx.BatchResults) ([][]int, error)
+
 	GenSeriesStr1(ctx context.Context) (*string, error)
 	// GenSeriesStr1Batch enqueues a GenSeriesStr1 query into batch to be executed
 	// later by the batch.
@@ -82,7 +96,9 @@ func (q *DBQuerier) WithTx(tx pgx.Tx) (*DBQuerier, error) {
 	return &DBQuerier{conn: tx}, nil
 }
 
-const genSeries1SQL = `SELECT n from generate_series(0, 2) n LIMIT 1;`
+const genSeries1SQL = `SELECT n
+FROM generate_series(0, 2) n
+LIMIT 1;`
 
 // GenSeries1 implements Querier.GenSeries1.
 func (q *DBQuerier) GenSeries1(ctx context.Context) (*int, error) {
@@ -109,7 +125,8 @@ func (q *DBQuerier) GenSeries1Scan(results pgx.BatchResults) (*int, error) {
 	return &item, nil
 }
 
-const genSeriesSQL = `SELECT n from generate_series(0, 2) n;`
+const genSeriesSQL = `SELECT n
+FROM generate_series(0, 2) n;`
 
 // GenSeries implements Querier.GenSeries.
 func (q *DBQuerier) GenSeries(ctx context.Context) ([]*int, error) {
@@ -162,7 +179,91 @@ func (q *DBQuerier) GenSeriesScan(results pgx.BatchResults) ([]*int, error) {
 	return items, err
 }
 
-const genSeriesStr1SQL = `SELECT n::text from generate_series(0, 2) n LIMIT 1;`
+const genSeriesArr1SQL = `SELECT array_agg(n)
+FROM generate_series(0, 2) n;`
+
+// GenSeriesArr1 implements Querier.GenSeriesArr1.
+func (q *DBQuerier) GenSeriesArr1(ctx context.Context) ([]int, error) {
+	row := q.conn.QueryRow(ctx, genSeriesArr1SQL)
+	item := []int{}
+	if err := row.Scan(&item); err != nil {
+		return item, fmt.Errorf("query GenSeriesArr1: %w", err)
+	}
+	return item, nil
+}
+
+// GenSeriesArr1Batch implements Querier.GenSeriesArr1Batch.
+func (q *DBQuerier) GenSeriesArr1Batch(batch *pgx.Batch) {
+	batch.Queue(genSeriesArr1SQL)
+}
+
+// GenSeriesArr1Scan implements Querier.GenSeriesArr1Scan.
+func (q *DBQuerier) GenSeriesArr1Scan(results pgx.BatchResults) ([]int, error) {
+	row := results.QueryRow()
+	item := []int{}
+	if err := row.Scan(&item); err != nil {
+		return item, fmt.Errorf("scan GenSeriesArr1Batch row: %w", err)
+	}
+	return item, nil
+}
+
+const genSeriesArrSQL = `SELECT array_agg(n)
+FROM generate_series(0, 2) n;`
+
+// GenSeriesArr implements Querier.GenSeriesArr.
+func (q *DBQuerier) GenSeriesArr(ctx context.Context) ([][]int, error) {
+	rows, err := q.conn.Query(ctx, genSeriesArrSQL)
+	if rows != nil {
+		defer rows.Close()
+	}
+	if err != nil {
+		return nil, fmt.Errorf("query GenSeriesArr: %w", err)
+	}
+	items := [][]int{}
+	for rows.Next() {
+		var item []int
+		if err := rows.Scan(&item); err != nil {
+			return nil, fmt.Errorf("scan GenSeriesArr row: %w", err)
+		}
+		items = append(items, item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, err
+}
+
+// GenSeriesArrBatch implements Querier.GenSeriesArrBatch.
+func (q *DBQuerier) GenSeriesArrBatch(batch *pgx.Batch) {
+	batch.Queue(genSeriesArrSQL)
+}
+
+// GenSeriesArrScan implements Querier.GenSeriesArrScan.
+func (q *DBQuerier) GenSeriesArrScan(results pgx.BatchResults) ([][]int, error) {
+	rows, err := results.Query()
+	if rows != nil {
+		defer rows.Close()
+	}
+	if err != nil {
+		return nil, err
+	}
+	items := [][]int{}
+	for rows.Next() {
+		var item []int
+		if err := rows.Scan(&item); err != nil {
+			return nil, fmt.Errorf("scan GenSeriesArrBatch row: %w", err)
+		}
+		items = append(items, item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, err
+}
+
+const genSeriesStr1SQL = `SELECT n::text
+FROM generate_series(0, 2) n
+LIMIT 1;`
 
 // GenSeriesStr1 implements Querier.GenSeriesStr1.
 func (q *DBQuerier) GenSeriesStr1(ctx context.Context) (*string, error) {
@@ -189,7 +290,8 @@ func (q *DBQuerier) GenSeriesStr1Scan(results pgx.BatchResults) (*string, error)
 	return &item, nil
 }
 
-const genSeriesStrSQL = `SELECT n::text from generate_series(0, 2) n;`
+const genSeriesStrSQL = `SELECT n::text
+FROM generate_series(0, 2) n;`
 
 // GenSeriesStr implements Querier.GenSeriesStr.
 func (q *DBQuerier) GenSeriesStr(ctx context.Context) ([]*string, error) {
