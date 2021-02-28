@@ -168,9 +168,16 @@ func NewOpaqueType(qualType string) OpaqueType {
 	if !strings.ContainsRune(qualType, '.') {
 		return OpaqueType{Name: qualType} // builtin type like "string"
 	}
+	isArr := qualType[:2] == "[]"
+	if isArr {
+		qualType = qualType[2:]
+	}
 	bs := []byte(qualType)
 	idx := bytes.LastIndexByte(bs, '.')
 	name := string(bs[idx+1:])
+	if isArr {
+		name = "[]" + name
+	}
 	pkgPath := bs[:idx]
 	shortPkg := ExtractShortPackage(pkgPath)
 	return OpaqueType{

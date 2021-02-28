@@ -103,6 +103,16 @@ func TestTypeResolver_Resolve(t *testing.T) {
 			},
 		},
 		{
+			name:      "_real - _float4 custom type",
+			overrides: map[string]string{"_real": "[]example.com/custom.F32"},
+			pgType:    pg.BaseType{Name: "_float4", ID: pgtype.Float8OID},
+			want: gotype.OpaqueType{
+				PkgPath: "example.com/custom",
+				Pkg:     "custom",
+				Name:    "[]F32",
+			},
+		},
+		{
 			name: "composite",
 			pgType: pg.CompositeType{
 				Name:        "qux",
