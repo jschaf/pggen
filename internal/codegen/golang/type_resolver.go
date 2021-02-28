@@ -17,61 +17,8 @@ type TypeResolver struct {
 func NewTypeResolver(c casing.Caser, overrides map[string]string) TypeResolver {
 	overs := make(map[string]string, len(overrides))
 	for k, v := range overrides {
-		overs[k] = v
-		// Type aliases.
-		// https://www.postgresql.org/docs/13/datatype.html#DATATYPE-TABLE
-		switch k {
-		case "bigint":
-			overs["int8"] = v
-		case "int8":
-			overs["bigint"] = v
-
-		case "bigserial":
-			overs["serial8"] = v
-		case "serial8":
-			overs["bigserial"] = v
-
-		case "boolean":
-			overs["bool"] = v
-		case "bool":
-			overs["boolean"] = v
-
-		case "double precision":
-			overs["float8"] = v
-		case "float8":
-			overs["double precision"] = v
-
-		case "int":
-			overs["integer"] = v
-			overs["int4"] = v
-		case "integer":
-			overs["int"] = v
-			overs["int4"] = v
-		case "int4":
-			overs["integer"] = v
-			overs["int"] = v
-
-			// TODO: numeric, multi word aliases
-
-		case "real":
-			overs["float4"] = v
-		case "float4":
-			overs["real"] = v
-
-		case "smallint":
-			overs["int2"] = v
-		case "int2":
-			overs["smallint"] = v
-
-		case "smallserial":
-			overs["serial2"] = v
-		case "serial2":
-			overs["smallserial"] = v
-
-		case "serial":
-			overs["serial4"] = v
-		case "serial4":
-			overs["serial"] = v
+		for _, alias := range listAliases(k) {
+			overs[alias] = v
 		}
 	}
 	return TypeResolver{caser: c, overrides: overs}
@@ -146,4 +93,41 @@ func CreateCompositeType(
 		FieldTypes:  fieldTypes,
 	}
 	return ct, nil
+}
+
+// Type aliases.
+// https://www.postgresql.org/docs/13/datatype.html#DATATYPE-TABLE
+func listAliases(name string) []string {
+	switch name {
+	case "bigint", "int8":
+		return []string{"bigint", "int8"}
+
+	case "bigserial", "serial8":
+		return []string{"bigserial", "serial8"}
+
+	case "bool", "boolean":
+		return []string{"bool", "boolean"}
+
+	case "float8", "double precision":
+		return []string{"float8", "double precision"}
+
+	case "int", "integer", "int4":
+		return []string{"int", "integer", "int4"}
+
+	case "real", "float4":
+		return []string{"real", "float4"}
+
+	case "smallint", "int2":
+		return []string{"smallint", "int2"}
+
+	case "smallserial", "serial2":
+		return []string{"smallserial", "serial2"}
+
+	case "serial", "serial4":
+		return []string{"serial", "serial4"}
+
+	default:
+		// TODO: numeric, multi word aliases
+		return []string{name}
+	}
 }
