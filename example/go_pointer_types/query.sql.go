@@ -15,6 +15,13 @@ import (
 // calling SendBatch on pgx.Conn, pgxpool.Pool, or pgx.Tx, use the Scan methods
 // to parse the results.
 type Querier interface {
+	GenSeries1(ctx context.Context) (*int, error)
+	// GenSeries1Batch enqueues a GenSeries1 query into batch to be executed
+	// later by the batch.
+	GenSeries1Batch(batch *pgx.Batch)
+	// GenSeries1Scan scans the result of an executed GenSeries1Batch query.
+	GenSeries1Scan(results pgx.BatchResults) (*int, error)
+
 	GenSeries(ctx context.Context) ([]*int, error)
 	// GenSeriesBatch enqueues a GenSeries query into batch to be executed
 	// later by the batch.
@@ -61,6 +68,33 @@ func (q *DBQuerier) WithTx(tx pgx.Tx) (*DBQuerier, error) {
 	return &DBQuerier{conn: tx}, nil
 }
 
+const genSeries1SQL = `SELECT n from generate_series(0, 2) n LIMIT 1;`
+
+// GenSeries1 implements Querier.GenSeries1.
+func (q *DBQuerier) GenSeries1(ctx context.Context) (*int, error) {
+	row := q.conn.QueryRow(ctx, genSeries1SQL)
+	var item int
+	if err := row.Scan(&item); err != nil {
+		return &item, fmt.Errorf("query GenSeries1: %w", err)
+	}
+	return &item, nil
+}
+
+// GenSeries1Batch implements Querier.GenSeries1Batch.
+func (q *DBQuerier) GenSeries1Batch(batch *pgx.Batch) {
+	batch.Queue(genSeries1SQL)
+}
+
+// GenSeries1Scan implements Querier.GenSeries1Scan.
+func (q *DBQuerier) GenSeries1Scan(results pgx.BatchResults) (*int, error) {
+	row := results.QueryRow()
+	var item int
+	if err := row.Scan(&item); err != nil {
+		return &item, fmt.Errorf("scan GenSeries1Batch row: %w", err)
+	}
+	return &item, nil
+}
+
 const genSeriesSQL = `SELECT n from generate_series(0, 2) n;`
 
 // GenSeries implements Querier.GenSeries.
@@ -74,11 +108,11 @@ func (q *DBQuerier) GenSeries(ctx context.Context) ([]*int, error) {
 	}
 	items := []*int{}
 	for rows.Next() {
-		var item *int
+		var item int
 		if err := rows.Scan(&item); err != nil {
 			return nil, fmt.Errorf("scan GenSeries row: %w", err)
 		}
-		items = append(items, item)
+		items = append(items, &item)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
@@ -102,11 +136,11 @@ func (q *DBQuerier) GenSeriesScan(results pgx.BatchResults) ([]*int, error) {
 	}
 	items := []*int{}
 	for rows.Next() {
-		var item *int
+		var item int
 		if err := rows.Scan(&item); err != nil {
 			return nil, fmt.Errorf("scan GenSeriesBatch row: %w", err)
 		}
-		items = append(items, item)
+		items = append(items, &item)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err

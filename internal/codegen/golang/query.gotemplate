@@ -85,11 +85,11 @@ func (q *DBQuerier) {{ $q.Name }}(ctx context.Context {{- $q.EmitParams }}) ({{ 
 	{{- $q.EmitResultCompositeInits $.PkgPath -}}
 	{{- $q.EmitResultEnumArrayInits }}
 	if err := row.Scan({{ $q.EmitRowScanArgs }}); err != nil {
-		return item, fmt.Errorf("query {{ $q.Name }}: %w", err)
+		return {{ $q.EmitResultExpr "item" }}, fmt.Errorf("query {{ $q.Name }}: %w", err)
 	}
 	{{- $q.EmitResultCompositeAssigns $.PkgPath -}}
 	{{- $q.EmitResultEnumArrayAssigns }}
-	return item, nil
+	return {{ $q.EmitResultExpr "item" }}, nil
 {{- else if eq $q.ResultKind ":many" }}
 	rows, err := q.conn.Query(ctx, {{ $q.SQLVarName }} {{- $q.EmitParamNames }})
 	if rows != nil {
@@ -108,7 +108,7 @@ func (q *DBQuerier) {{ $q.Name }}(ctx context.Context {{- $q.EmitParams }}) ({{ 
 		}
 		{{- $q.EmitResultCompositeAssigns $.PkgPath -}}
 		{{- $q.EmitResultEnumArrayAssigns }}
-		items = append(items, item)
+		items = append(items, {{ $q.EmitResultExpr "item" }})
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
@@ -136,11 +136,11 @@ func (q *DBQuerier) {{.Name}}Scan(results pgx.BatchResults) ({{ $q.EmitResultTyp
 	{{- $q.EmitResultCompositeInits $.PkgPath -}}
 	{{- $q.EmitResultEnumArrayInits }}
 	if err := row.Scan({{ $q.EmitRowScanArgs }}); err != nil {
-		return item, fmt.Errorf("scan {{ $q.Name }}Batch row: %w", err)
+		return {{ $q.EmitResultExpr "item" }}, fmt.Errorf("scan {{ $q.Name }}Batch row: %w", err)
 	}
 	{{- $q.EmitResultCompositeAssigns $.PkgPath -}}
 	{{- $q.EmitResultEnumArrayAssigns }}
-	return item, nil
+	return {{ $q.EmitResultExpr "item" }}, nil
 {{- else if eq $q.ResultKind ":many" }}
 	rows, err := results.Query()
 	if rows != nil {
@@ -159,7 +159,7 @@ func (q *DBQuerier) {{.Name}}Scan(results pgx.BatchResults) ({{ $q.EmitResultTyp
 		}
 		{{- $q.EmitResultCompositeAssigns $.PkgPath -}}
 		{{- $q.EmitResultEnumArrayAssigns }}
-		items = append(items, item)
+		items = append(items, {{ $q.EmitResultExpr "item" }})
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err

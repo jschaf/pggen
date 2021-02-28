@@ -381,7 +381,7 @@ func (tq TemplatedQuery) EmitRowScanArgs() (string, error) {
 		sb := strings.Builder{}
 		sb.Grow(15 * len(tq.Outputs))
 		for i, out := range tq.Outputs {
-			switch out.Type.(type) {
+			switch typ := out.Type.(type) {
 			case gotype.ArrayType:
 				if isEnumArray(out.Type) {
 					sb.WriteString(out.LowerName)
@@ -394,18 +394,24 @@ func (tq TemplatedQuery) EmitRowScanArgs() (string, error) {
 						sb.WriteString(out.UpperName)
 					}
 				}
+
 			case gotype.CompositeType:
 				sb.WriteString(out.LowerName)
 				sb.WriteString("Row")
+
 			case gotype.VoidType:
 				sb.WriteString("nil")
-			default:
+
+			case gotype.EnumType, gotype.OpaqueType:
 				if hasOnlyOneNonVoid {
 					sb.WriteString("&item")
 				} else {
 					sb.WriteString("&item.")
 					sb.WriteString(out.UpperName)
 				}
+
+			default:
+				return "", fmt.Errorf("unhandled type to emit row scan: %s %T", typ.BaseName(), typ)
 			}
 			if i < len(tq.Outputs)-1 {
 				sb.WriteString(", ")
@@ -459,10 +465,14 @@ func (tq TemplatedQuery) EmitResultTypeInit(name string) (string, error) {
 	if tq.ResultKind != ast.ResultKindMany && tq.ResultKind != ast.ResultKindOne {
 		return "", fmt.Errorf("unhandled EmitResultTypeInit type %s for kind %s", result, tq.ResultKind)
 	}
-	if strings.HasPrefix(result, "[]") {
+	isArr := strings.HasPrefix(result, "[]")
+	if isArr {
 		return name + " := " + result + "{}", nil
 	}
-	return "var " + name + " " + result, nil
+	// Remove pointer. Return the right type by adding an address operator, "&",
+	// where needed.
+	raw := strings.TrimPrefix(result, "*")
+	return "var " + name + " " + raw, nil
 }
 
 // EmitResultEnumArrayInits declares all pgtype.EnumArray types for enum arrays
@@ -659,7 +669,29 @@ func (tq TemplatedQuery) EmitResultElem() (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("unhandled EmitResultElem type: %w", err)
 	}
-	return strings.TrimPrefix(result, "[]"), nil
+	// Unwrap arrays because we build the array with append.
+	arr := strings.TrimPrefix(result, "[]")
+	// Unwrap pointers because we add "&" to return the correct types.
+	ptr := strings.TrimPrefix(arr, "*")
+	return ptr, nil
+}
+
+// EmitResultExpr returns the string representation of a single item to return
+// for :one queries or to append for :many queries. Useful for figuring out if
+// we need to use the address operator. Controls the string item and &item in:
+//
+//   items = append(items, item)
+//   items = append(items, &item)
+func (tq TemplatedQuery) EmitResultExpr(name string) (string, error) {
+	result, err := tq.EmitResultType()
+	if err != nil {
+		return "", fmt.Errorf("unhandled EmitResultExpr type: %w", err)
+	}
+	isPtr := strings.HasPrefix(result, "[]*") || strings.HasPrefix(result, "*")
+	if isPtr {
+		return "&" + name, nil
+	}
+	return name, nil
 }
 
 // getLongestOutput returns the length of the longest name and type name in all
