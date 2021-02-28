@@ -236,13 +236,19 @@ func (inf *Inferrer) inferOutputNullability(query *ast.SourceQuery, descs []pgpr
 	}
 
 	// The nth entry determines if the output column described by descs[n] is
-	// nullable.
+	// nullable. plan.Outputs might contain more entries than cols because the
+	// plan output also contains information like sort columns.
 	nullables := make([]bool, len(descs))
-	for i, out := range plan.Outputs {
-		if i == len(cols) {
+	for i := range nullables {
+		nullables[i] = true // assume nullable until proven otherwise
+	}
+	for i, col := range cols {
+		if i == len(plan.Outputs) {
+			// plan.Outputs might not have the same output because the top level node
+			// joins child outputs like with append.
 			break
 		}
-		nullables[i] = isColNullable(query, plan, out, cols[i])
+		nullables[i] = isColNullable(query, plan, plan.Outputs[i], col)
 	}
 	return nullables, nil
 }

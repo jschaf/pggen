@@ -288,7 +288,7 @@ UNION ALL
 SELECT 2 as num, enum_range(NULL::device_type) AS device_types;`
 
 type FindManyDeviceArrayWithNumRow struct {
-	Num         int32        `json:"num"`
+	Num         pgtype.Int4  `json:"num"`
 	DeviceTypes []DeviceType `json:"device_types"`
 }
 

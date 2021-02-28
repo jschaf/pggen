@@ -214,7 +214,7 @@ func (q *DBQuerier) FindAuthorsScan(results pgx.BatchResults) ([]FindAuthorsRow,
 	return items, err
 }
 
-const findAuthorNamesSQL = `SELECT first_name,last_name FROM author ORDER BY author_id = $1;`
+const findAuthorNamesSQL = `SELECT first_name, last_name FROM author ORDER BY author_id = $1;`
 
 type FindAuthorNamesRow struct {
 	FirstName pgtype.Text `json:"first_name"`

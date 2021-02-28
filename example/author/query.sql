@@ -8,7 +8,7 @@ SELECT * FROM author WHERE first_name = pggen.arg('FirstName');
 
 -- FindAuthorNames finds one (or zero) authors by ID.
 -- name: FindAuthorNames :many
-SELECT first_name,last_name FROM author ORDER BY author_id = pggen.arg('AuthorID');
+SELECT first_name, last_name FROM author ORDER BY author_id = pggen.arg('AuthorID');
 
 -- DeleteAuthors deletes authors with a first name of "joe".
 -- name: DeleteAuthors :exec
