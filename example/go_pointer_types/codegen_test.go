@@ -24,6 +24,7 @@ func TestGenerate_Go_Example_GoPointerTypes(t *testing.T) {
 			TypeOverrides: map[string]string{
 				"int4": "*int",
 				"int8": "*int",
+				"text": "*string",
 			},
 		})
 	if err != nil {

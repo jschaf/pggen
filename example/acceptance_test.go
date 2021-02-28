@@ -84,6 +84,7 @@ func TestExamples(t *testing.T) {
 				"--query-glob", "example/go_pointer_types/query.sql",
 				"--go-type", "int8=*int",
 				"--go-type", "int4=*int",
+				"--go-type", "text=*string",
 			},
 		},
 		{

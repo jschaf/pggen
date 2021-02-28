@@ -60,3 +60,55 @@ func TestQuerier(t *testing.T) {
 		assert.Equal(t, []*int{&zero, &one, &two}, got)
 	})
 }
+
+func TestQuerier_GenSeriesStr(t *testing.T) {
+	conn, cleanup := pgtest.NewPostgresSchema(t, []string{"schema.sql"})
+	defer cleanup()
+
+	q := NewQuerier(conn)
+	ctx := context.Background()
+
+	t.Run("GenSeriesStr1", func(t *testing.T) {
+		got, err := q.GenSeriesStr1(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		zero := "0"
+		assert.Equal(t, &zero, got)
+	})
+
+	t.Run("GenSeriesStr1 - Scan", func(t *testing.T) {
+		batch := &pgx.Batch{}
+		q.GenSeriesStr1Batch(batch)
+		results := conn.SendBatch(ctx, batch)
+		defer errs.CaptureT(t, results.Close, "close batch")
+		got, err := q.GenSeriesStr1Scan(results)
+		if err != nil {
+			t.Fatal(err)
+		}
+		zero := "0"
+		assert.Equal(t, &zero, got)
+	})
+
+	t.Run("GenSeriesStr", func(t *testing.T) {
+		got, err := q.GenSeriesStr(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		zero, one, two := "0", "1", "2"
+		assert.Equal(t, []*string{&zero, &one, &two}, got)
+	})
+
+	t.Run("GenSeriesStr - Scan", func(t *testing.T) {
+		batch := &pgx.Batch{}
+		q.GenSeriesStrBatch(batch)
+		results := conn.SendBatch(ctx, batch)
+		defer errs.CaptureT(t, results.Close, "close batch")
+		got, err := q.GenSeriesStrScan(results)
+		if err != nil {
+			t.Fatal(err)
+		}
+		zero, one, two := "0", "1", "2"
+		assert.Equal(t, []*string{&zero, &one, &two}, got)
+	})
+}

@@ -28,6 +28,20 @@ type Querier interface {
 	GenSeriesBatch(batch *pgx.Batch)
 	// GenSeriesScan scans the result of an executed GenSeriesBatch query.
 	GenSeriesScan(results pgx.BatchResults) ([]*int, error)
+
+	GenSeriesStr1(ctx context.Context) (*string, error)
+	// GenSeriesStr1Batch enqueues a GenSeriesStr1 query into batch to be executed
+	// later by the batch.
+	GenSeriesStr1Batch(batch *pgx.Batch)
+	// GenSeriesStr1Scan scans the result of an executed GenSeriesStr1Batch query.
+	GenSeriesStr1Scan(results pgx.BatchResults) (*string, error)
+
+	GenSeriesStr(ctx context.Context) ([]*string, error)
+	// GenSeriesStrBatch enqueues a GenSeriesStr query into batch to be executed
+	// later by the batch.
+	GenSeriesStrBatch(batch *pgx.Batch)
+	// GenSeriesStrScan scans the result of an executed GenSeriesStrBatch query.
+	GenSeriesStrScan(results pgx.BatchResults) ([]*string, error)
 }
 
 type DBQuerier struct {
@@ -139,6 +153,86 @@ func (q *DBQuerier) GenSeriesScan(results pgx.BatchResults) ([]*int, error) {
 		var item int
 		if err := rows.Scan(&item); err != nil {
 			return nil, fmt.Errorf("scan GenSeriesBatch row: %w", err)
+		}
+		items = append(items, &item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, err
+}
+
+const genSeriesStr1SQL = `SELECT n::text from generate_series(0, 2) n LIMIT 1;`
+
+// GenSeriesStr1 implements Querier.GenSeriesStr1.
+func (q *DBQuerier) GenSeriesStr1(ctx context.Context) (*string, error) {
+	row := q.conn.QueryRow(ctx, genSeriesStr1SQL)
+	var item string
+	if err := row.Scan(&item); err != nil {
+		return &item, fmt.Errorf("query GenSeriesStr1: %w", err)
+	}
+	return &item, nil
+}
+
+// GenSeriesStr1Batch implements Querier.GenSeriesStr1Batch.
+func (q *DBQuerier) GenSeriesStr1Batch(batch *pgx.Batch) {
+	batch.Queue(genSeriesStr1SQL)
+}
+
+// GenSeriesStr1Scan implements Querier.GenSeriesStr1Scan.
+func (q *DBQuerier) GenSeriesStr1Scan(results pgx.BatchResults) (*string, error) {
+	row := results.QueryRow()
+	var item string
+	if err := row.Scan(&item); err != nil {
+		return &item, fmt.Errorf("scan GenSeriesStr1Batch row: %w", err)
+	}
+	return &item, nil
+}
+
+const genSeriesStrSQL = `SELECT n::text from generate_series(0, 2) n;`
+
+// GenSeriesStr implements Querier.GenSeriesStr.
+func (q *DBQuerier) GenSeriesStr(ctx context.Context) ([]*string, error) {
+	rows, err := q.conn.Query(ctx, genSeriesStrSQL)
+	if rows != nil {
+		defer rows.Close()
+	}
+	if err != nil {
+		return nil, fmt.Errorf("query GenSeriesStr: %w", err)
+	}
+	items := []*string{}
+	for rows.Next() {
+		var item string
+		if err := rows.Scan(&item); err != nil {
+			return nil, fmt.Errorf("scan GenSeriesStr row: %w", err)
+		}
+		items = append(items, &item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, err
+}
+
+// GenSeriesStrBatch implements Querier.GenSeriesStrBatch.
+func (q *DBQuerier) GenSeriesStrBatch(batch *pgx.Batch) {
+	batch.Queue(genSeriesStrSQL)
+}
+
+// GenSeriesStrScan implements Querier.GenSeriesStrScan.
+func (q *DBQuerier) GenSeriesStrScan(results pgx.BatchResults) ([]*string, error) {
+	rows, err := results.Query()
+	if rows != nil {
+		defer rows.Close()
+	}
+	if err != nil {
+		return nil, err
+	}
+	items := []*string{}
+	for rows.Next() {
+		var item string
+		if err := rows.Scan(&item); err != nil {
+			return nil, fmt.Errorf("scan GenSeriesStrBatch row: %w", err)
 		}
 		items = append(items, &item)
 	}
