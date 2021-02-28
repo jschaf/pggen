@@ -22,6 +22,7 @@ func TestGenerate_Go_Example_GoPointerTypes(t *testing.T) {
 			GoPackage:  "go_pointer_types",
 			Language:   pggen.LangGo,
 			TypeOverrides: map[string]string{
+				"int4": "*int",
 				"int8": "*int",
 			},
 		})
