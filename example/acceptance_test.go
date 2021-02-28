@@ -78,6 +78,15 @@ func TestExamples(t *testing.T) {
 			},
 		},
 		{
+			name: "example/go_pointer_types",
+			args: []string{
+				"--schema-glob", "example/go_pointer_types/schema.sql",
+				"--query-glob", "example/go_pointer_types/query.sql",
+				"--go-type", "int8=*int",
+				"--go-type", "int4=*int",
+			},
+		},
+		{
 			name: "example/ltree",
 			args: []string{
 				"--schema-glob", "example/ltree/schema.sql",
