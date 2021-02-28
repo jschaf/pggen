@@ -36,6 +36,13 @@ type Querier interface {
 	InsertSampleDataBatch(batch *pgx.Batch)
 	// InsertSampleDataScan scans the result of an executed InsertSampleDataBatch query.
 	InsertSampleDataScan(results pgx.BatchResults) (pgconn.CommandTag, error)
+
+	FindLtreeInput(ctx context.Context, inLtree pgtype.Text, inLtreeArray []string) (FindLtreeInputRow, error)
+	// FindLtreeInputBatch enqueues a FindLtreeInput query into batch to be executed
+	// later by the batch.
+	FindLtreeInputBatch(batch *pgx.Batch, inLtree pgtype.Text, inLtreeArray []string)
+	// FindLtreeInputScan scans the result of an executed FindLtreeInputBatch query.
+	FindLtreeInputScan(results pgx.BatchResults) (FindLtreeInputRow, error)
 }
 
 type DBQuerier struct {
@@ -196,4 +203,45 @@ func (q *DBQuerier) InsertSampleDataScan(results pgx.BatchResults) (pgconn.Comma
 		return cmdTag, fmt.Errorf("exec InsertSampleDataBatch: %w", err)
 	}
 	return cmdTag, err
+}
+
+const findLtreeInputSQL = `SELECT
+  $1::ltree                   AS ltree,
+  -- This won't work, but I'm not quite sure why.
+  -- Postgres errors with "wrong element type (SQLSTATE 42804)"
+  -- All caps because we use regex to find pggen.arg and it confuses pggen.
+  -- PGGEN.arg('in_ltree_array_direct')::ltree[]    AS direct_arr,
+
+  -- The parenthesis around the text[] cast are important. They signal to pggen
+  -- that we need a text array that Postgres then converts to ltree[].
+  ($2::text[])::ltree[] AS text_arr;`
+
+type FindLtreeInputRow struct {
+	Ltree   pgtype.Text      `json:"ltree"`
+	TextArr pgtype.TextArray `json:"text_arr"`
+}
+
+// FindLtreeInput implements Querier.FindLtreeInput.
+func (q *DBQuerier) FindLtreeInput(ctx context.Context, inLtree pgtype.Text, inLtreeArray []string) (FindLtreeInputRow, error) {
+	row := q.conn.QueryRow(ctx, findLtreeInputSQL, inLtree, inLtreeArray)
+	var item FindLtreeInputRow
+	if err := row.Scan(&item.Ltree, &item.TextArr); err != nil {
+		return item, fmt.Errorf("query FindLtreeInput: %w", err)
+	}
+	return item, nil
+}
+
+// FindLtreeInputBatch implements Querier.FindLtreeInputBatch.
+func (q *DBQuerier) FindLtreeInputBatch(batch *pgx.Batch, inLtree pgtype.Text, inLtreeArray []string) {
+	batch.Queue(findLtreeInputSQL, inLtree, inLtreeArray)
+}
+
+// FindLtreeInputScan implements Querier.FindLtreeInputScan.
+func (q *DBQuerier) FindLtreeInputScan(results pgx.BatchResults) (FindLtreeInputRow, error) {
+	row := results.QueryRow()
+	var item FindLtreeInputRow
+	if err := row.Scan(&item.Ltree, &item.TextArr); err != nil {
+		return item, fmt.Errorf("scan FindLtreeInputBatch row: %w", err)
+	}
+	return item, nil
 }

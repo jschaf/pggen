@@ -47,4 +47,30 @@ func TestQuerier(t *testing.T) {
 		}
 		assert.Equal(t, want, rows)
 	}
+
+	{
+		in1 := pgtype.Text{String: "foo", Status: pgtype.Present}
+		in2 := []string{"qux", "qux"}
+		in2Txt := newTextArray(in2)
+		rows, err := q.FindLtreeInput(ctx, in1, in2)
+		require.Nil(t, err)
+		assert.Equal(t, FindLtreeInputRow{
+			Ltree:   in1,
+			TextArr: in2Txt,
+		}, rows)
+	}
+}
+
+// newTextArray creates a one dimensional text array from the string slice with
+// no null elements.
+func newTextArray(ss []string) pgtype.TextArray {
+	elems := make([]pgtype.Text, len(ss))
+	for i, s := range ss {
+		elems[i] = pgtype.Text{String: s, Status: pgtype.Present}
+	}
+	return pgtype.TextArray{
+		Elements:   elems,
+		Dimensions: []pgtype.ArrayDimension{{Length: int32(len(ss)), LowerBound: 1}},
+		Status:     pgtype.Present,
+	}
 }

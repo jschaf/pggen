@@ -23,3 +23,15 @@ VALUES ('Top'),
        ('Top.Collections.Pictures.Astronomy.Stars'),
        ('Top.Collections.Pictures.Astronomy.Galaxies'),
        ('Top.Collections.Pictures.Astronomy.Astronauts');
+
+-- name: FindLtreeInput :one
+SELECT
+  pggen.arg('in_ltree')::ltree                   AS ltree,
+  -- This won't work, but I'm not quite sure why.
+  -- Postgres errors with "wrong element type (SQLSTATE 42804)"
+  -- All caps because we use regex to find pggen.arg and it confuses pggen.
+  -- PGGEN.arg('in_ltree_array_direct')::ltree[]    AS direct_arr,
+
+  -- The parenthesis around the text[] cast are important. They signal to pggen
+  -- that we need a text array that Postgres then converts to ltree[].
+  (pggen.arg('in_ltree_array')::text[])::ltree[] AS text_arr;
