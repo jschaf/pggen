@@ -63,6 +63,26 @@ func TestTypeResolver_Resolve(t *testing.T) {
 			},
 		},
 		{
+			name:      "override pointer",
+			overrides: map[string]string{"custom_type": "*example.com/custom.QualType"},
+			pgType:    pg.BaseType{Name: "custom_type"},
+			want: gotype.OpaqueType{
+				PkgPath: "example.com/custom",
+				Pkg:     "custom",
+				Name:    "*QualType",
+			},
+		},
+		{
+			name:      "override pointer slice",
+			overrides: map[string]string{"custom_type": "[]*example.com/custom.QualType"},
+			pgType:    pg.BaseType{Name: "custom_type"},
+			want: gotype.OpaqueType{
+				PkgPath: "example.com/custom",
+				Pkg:     "custom",
+				Name:    "[]*QualType",
+			},
+		},
+		{
 			name:     "known nonNullable empty",
 			pgType:   pg.BaseType{Name: "text", ID: pgtype.PointOID},
 			nullable: false,

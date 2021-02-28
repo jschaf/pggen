@@ -164,17 +164,30 @@ func NewEnumType(pkgPath string, pgEnum pg.EnumType, caser casing.Caser) EnumTyp
 
 // NewOpaqueType creates a OpaqueType by parsing the fully qualified Go type
 // like "github.com/jschaf/pggen.GenerateOpts", or a builtin type like "string".
+// Supports slice and pointer types:
+//
+//   - []int
+//   - []*int
+//   - *example.com/foo.Qux
+//   - []*example.com/foo.Qux
 func NewOpaqueType(qualType string) OpaqueType {
 	if !strings.ContainsRune(qualType, '.') {
 		return OpaqueType{Name: qualType} // builtin type like "string"
 	}
-	isArr := qualType[:2] == "[]"
-	if isArr {
-		qualType = qualType[2:]
-	}
 	bs := []byte(qualType)
+	isArr := bs[0] == '[' && bs[1] == ']'
+	if isArr {
+		bs = bs[2:]
+	}
+	isPtr := bs[0] == '*'
+	if isPtr {
+		bs = bs[1:]
+	}
 	idx := bytes.LastIndexByte(bs, '.')
 	name := string(bs[idx+1:])
+	if isPtr {
+		name = "*" + name
+	}
 	if isArr {
 		name = "[]" + name
 	}
