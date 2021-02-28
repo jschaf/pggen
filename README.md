@@ -21,7 +21,8 @@ Postgres queries. If Postgres can run the query, pggen can generate code for it.
     ```bash
     pggen gen go \
         --schema-glob author/schema.sql \
-        --query-glob 'author/*.sql'
+        --query-glob 'author/*.sql' \
+        --go-type 'text=*string'
     ```
     
 3.  Use the generated code.
@@ -242,7 +243,8 @@ Examples embedded in the repo:
     pggen gen go \
         --schema-glob example/custom_types/schema.sql \
         --query-glob example/custom_types/query.sql \
-        --go-type 'text=github.com/jschaf/pggen/example/custom_types/mytype.String'
+        --go-type 'int8=*int' \
+        --go-type 'text=github.com/jschaf/pggen/example/custom_types/mytype.String' \
     ```
     
     pgx must be able to decode the Postgres type using the given Go type. That 
