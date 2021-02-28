@@ -6,6 +6,7 @@ import (
 	"github.com/jschaf/pggen/internal/codegen/golang/gotype"
 	"github.com/jschaf/pggen/internal/pg"
 	"strconv"
+	"strings"
 )
 
 // TypeResolver handles the mapping between Postgres and Go types.
@@ -95,9 +96,21 @@ func CreateCompositeType(
 	return ct, nil
 }
 
-// Type aliases.
-// https://www.postgresql.org/docs/13/datatype.html#DATATYPE-TABLE
 func listAliases(name string) []string {
+	if strings.HasPrefix(name, "_") {
+		aliases := listElemAliases(name[1:])
+		for i, alias := range aliases {
+			aliases[i] = "_" + alias
+		}
+		return aliases
+	}
+	return listElemAliases(name)
+}
+
+// listElemAliases lists all known type aliases for a type name. The requested
+// type name is included in the list.
+// https://www.postgresql.org/docs/13/datatype.html#DATATYPE-TABLE
+func listElemAliases(name string) []string {
 	switch name {
 	case "bigint", "int8":
 		return []string{"bigint", "int8"}

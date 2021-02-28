@@ -93,6 +93,16 @@ func TestTypeResolver_Resolve(t *testing.T) {
 			},
 		},
 		{
+			name:      "_bigint - _int8",
+			overrides: map[string]string{"_bigint": "[]uint16"},
+			pgType:    pg.BaseType{Name: "_int8", ID: pgtype.Int8ArrayOID},
+			want: gotype.OpaqueType{
+				PkgPath: "",
+				Pkg:     "",
+				Name:    "[]uint16",
+			},
+		},
+		{
 			name: "composite",
 			pgType: pg.CompositeType{
 				Name:        "qux",
