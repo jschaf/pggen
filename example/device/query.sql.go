@@ -127,14 +127,14 @@ func (d DeviceType) String() string { return string(d) }
 const findDevicesByUserSQL = `SELECT
   id,
   name,
-  (SELECT array_agg(mac) FROM device WHERE owner = id)
+  (SELECT array_agg(mac) FROM device WHERE owner = id) AS mac_addrs
 FROM "user"
 WHERE id = $1;`
 
 type FindDevicesByUserRow struct {
 	ID       int                 `json:"id"`
 	Name     string              `json:"name"`
-	ArrayAgg pgtype.MacaddrArray `json:"array_agg"`
+	MacAddrs pgtype.MacaddrArray `json:"mac_addrs"`
 }
 
 // FindDevicesByUser implements Querier.FindDevicesByUser.
@@ -149,7 +149,7 @@ func (q *DBQuerier) FindDevicesByUser(ctx context.Context, id int) ([]FindDevice
 	items := []FindDevicesByUserRow{}
 	for rows.Next() {
 		var item FindDevicesByUserRow
-		if err := rows.Scan(&item.ID, &item.Name, &item.ArrayAgg); err != nil {
+		if err := rows.Scan(&item.ID, &item.Name, &item.MacAddrs); err != nil {
 			return nil, fmt.Errorf("scan FindDevicesByUser row: %w", err)
 		}
 		items = append(items, item)
@@ -177,7 +177,7 @@ func (q *DBQuerier) FindDevicesByUserScan(results pgx.BatchResults) ([]FindDevic
 	items := []FindDevicesByUserRow{}
 	for rows.Next() {
 		var item FindDevicesByUserRow
-		if err := rows.Scan(&item.ID, &item.Name, &item.ArrayAgg); err != nil {
+		if err := rows.Scan(&item.ID, &item.Name, &item.MacAddrs); err != nil {
 			return nil, fmt.Errorf("scan FindDevicesByUserBatch row: %w", err)
 		}
 		items = append(items, item)
@@ -412,7 +412,8 @@ func (q *DBQuerier) CompositeUserManyScan(results pgx.BatchResults) ([]User, err
 	return items, err
 }
 
-const insertUserSQL = `INSERT INTO "user" (id, name) VALUES ($1, $2);`
+const insertUserSQL = `INSERT INTO "user" (id, name)
+VALUES ($1, $2);`
 
 // InsertUser implements Querier.InsertUser.
 func (q *DBQuerier) InsertUser(ctx context.Context, userID int, name string) (pgconn.CommandTag, error) {
@@ -437,7 +438,8 @@ func (q *DBQuerier) InsertUserScan(results pgx.BatchResults) (pgconn.CommandTag,
 	return cmdTag, err
 }
 
-const insertDeviceSQL = `INSERT INTO device (mac, owner) VALUES ($1, $2);`
+const insertDeviceSQL = `INSERT INTO device (mac, owner)
+VALUES ($1, $2);`
 
 // InsertDevice implements Querier.InsertDevice.
 func (q *DBQuerier) InsertDevice(ctx context.Context, mac pgtype.Macaddr, owner int) (pgconn.CommandTag, error) {

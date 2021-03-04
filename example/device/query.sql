@@ -2,7 +2,7 @@
 SELECT
   id,
   name,
-  (SELECT array_agg(mac) FROM device WHERE owner = id)
+  (SELECT array_agg(mac) FROM device WHERE owner = id) AS mac_addrs
 FROM "user"
 WHERE id = pggen.arg('ID');
 
@@ -24,7 +24,9 @@ SELECT 1 AS num, ROW (15, 'qux')::"user" AS "user";
 SELECT ROW (15, 'qux')::"user" AS "user";
 
 -- name: InsertUser :exec
-INSERT INTO "user" (id, name) VALUES (pggen.arg('user_id'), pggen.arg('name'));
+INSERT INTO "user" (id, name)
+VALUES (pggen.arg('user_id'), pggen.arg('name'));
 
 -- name: InsertDevice :exec
-INSERT INTO device (mac, owner) VALUES (pggen.arg('mac'), pggen.arg('owner'));
+INSERT INTO device (mac, owner)
+VALUES (pggen.arg('mac'), pggen.arg('owner'));
