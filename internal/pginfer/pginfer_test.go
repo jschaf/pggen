@@ -1,12 +1,16 @@
 package pginfer
 
 import (
+	"context"
 	"errors"
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/jschaf/pggen/internal/ast"
 	"github.com/jschaf/pggen/internal/pg"
 	"github.com/jschaf/pggen/internal/pgtest"
 	"github.com/jschaf/pggen/internal/texts"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"testing"
 )
 
@@ -25,6 +29,11 @@ func TestInferrer_InferTypes(t *testing.T) {
 		);
 	`))
 	defer cleanupFunc()
+	q := pg.NewQuerier(conn)
+	deviceTypeOID, err := q.FindOIDByName(context.Background(), "device_type")
+	require.NoError(t, err)
+	deviceTypeArrOID, err := q.FindOIDByName(context.Background(), "_device_type")
+	require.NoError(t, err)
 
 	tests := []struct {
 		query *ast.SourceQuery
@@ -61,29 +70,42 @@ func TestInferrer_InferTypes(t *testing.T) {
 				},
 			},
 		},
-		// {
-		// 	&ast.SourceQuery{
-		// 		Name:        "UnionEnumArrays",
-		// 		PreparedSQL: texts.Dedent(`
-		// 			SELECT enum_range('phone'::device_type, 'phone'::device_type) AS device_types
-		// 			UNION ALL
-		// 			SELECT enum_range(NULL::device_type) AS device_types;
-		// 		`),
-		// 		ResultKind:  ast.ResultKindMany,
-		// 	},
-		// 	TypedQuery{
-		// 		Name:        "UnionEnumArrays",
-		// 		ResultKind:  ast.ResultKindMany,
-		// 		PreparedSQL: texts.Dedent(`
-		// 			SELECT enum_range('ipad'::device_type, 'iot'::device_type) AS device_types
-		// 			UNION All
-		// 			SELECT enum_range(NULL::device_type) AS device_types;
-		// 		`),
-		// 		Outputs: []OutputColumn{
-		// 			{PgName: "device_types", PgType: pg.Int4, Nullable: true},
-		// 		},
-		// 	},
-		// },
+		{
+			&ast.SourceQuery{
+				Name: "UnionEnumArrays",
+				PreparedSQL: texts.Dedent(`
+					SELECT enum_range('phone'::device_type, 'phone'::device_type) AS device_types
+					UNION ALL
+					SELECT enum_range(NULL::device_type) AS device_types;
+				`),
+				ResultKind: ast.ResultKindMany,
+			},
+			TypedQuery{
+				Name:       "UnionEnumArrays",
+				ResultKind: ast.ResultKindMany,
+				PreparedSQL: texts.Dedent(`
+					SELECT enum_range('phone'::device_type, 'phone'::device_type) AS device_types
+					UNION ALL
+					SELECT enum_range(NULL::device_type) AS device_types;
+				`),
+				Outputs: []OutputColumn{
+					{
+						PgName: "device_types",
+						PgType: pg.ArrayType{
+							ID:   deviceTypeArrOID,
+							Name: "_device_type",
+							ElemType: pg.EnumType{
+								ID:     deviceTypeOID,
+								Name:   "device_type",
+								Labels: []string{"phone", "laptop"},
+								Orders: []float32{1, 2},
+							},
+						},
+						Nullable: true,
+					},
+				},
+			},
+		},
 		{
 			&ast.SourceQuery{
 				Name:        "FindByFirstName",
@@ -208,7 +230,12 @@ func TestInferrer_InferTypes(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			assert.Equal(t, tt.want, got, "typed query should match")
+			opts := cmp.Options{
+				cmpopts.IgnoreFields(pg.EnumType{}, "ChildOIDs"),
+			}
+			if diff := cmp.Diff(tt.want, got, opts); diff != "" {
+				t.Errorf("mismatch (-want +got):\n%s", diff)
+			}
 		})
 	}
 }
