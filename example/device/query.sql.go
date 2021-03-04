@@ -155,7 +155,7 @@ func (q *DBQuerier) FindDevicesByUser(ctx context.Context, id int) ([]FindDevice
 		items = append(items, item)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("close FindDevicesByUser rows: %w", err)
 	}
 	return items, err
 }
@@ -183,7 +183,7 @@ func (q *DBQuerier) FindDevicesByUserScan(results pgx.BatchResults) ([]FindDevic
 		items = append(items, item)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("close FindDevicesByUserBatch rows: %w", err)
 	}
 	return items, err
 }
@@ -225,7 +225,7 @@ func (q *DBQuerier) CompositeUser(ctx context.Context) ([]CompositeUserRow, erro
 		items = append(items, item)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("close CompositeUser rows: %w", err)
 	}
 	return items, err
 }
@@ -259,7 +259,7 @@ func (q *DBQuerier) CompositeUserScan(results pgx.BatchResults) ([]CompositeUser
 		items = append(items, item)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("close CompositeUserBatch rows: %w", err)
 	}
 	return items, err
 }
@@ -373,7 +373,7 @@ func (q *DBQuerier) CompositeUserMany(ctx context.Context) ([]User, error) {
 		items = append(items, item)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("close CompositeUserMany rows: %w", err)
 	}
 	return items, err
 }
@@ -407,7 +407,7 @@ func (q *DBQuerier) CompositeUserManyScan(results pgx.BatchResults) ([]User, err
 		items = append(items, item)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("close CompositeUserManyBatch rows: %w", err)
 	}
 	return items, err
 }

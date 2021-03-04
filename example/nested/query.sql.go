@@ -111,7 +111,7 @@ func (q *DBQuerier) Nested3(ctx context.Context) ([]Qux, error) {
 		items = append(items, item)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("close Nested3 rows: %w", err)
 	}
 	return items, err
 }
@@ -151,7 +151,7 @@ func (q *DBQuerier) Nested3Scan(results pgx.BatchResults) ([]Qux, error) {
 		items = append(items, item)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("close Nested3Batch rows: %w", err)
 	}
 	return items, err
 }

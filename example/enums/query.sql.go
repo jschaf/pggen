@@ -134,7 +134,7 @@ func (q *DBQuerier) FindAllDevices(ctx context.Context) ([]FindAllDevicesRow, er
 		items = append(items, item)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("close FindAllDevices rows: %w", err)
 	}
 	return items, err
 }
@@ -162,7 +162,7 @@ func (q *DBQuerier) FindAllDevicesScan(results pgx.BatchResults) ([]FindAllDevic
 		items = append(items, item)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("close FindAllDevicesBatch rows: %w", err)
 	}
 	return items, err
 }
@@ -248,7 +248,7 @@ func (q *DBQuerier) FindManyDeviceArray(ctx context.Context) ([][]DeviceType, er
 		items = append(items, item)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("close FindManyDeviceArray rows: %w", err)
 	}
 	return items, err
 }
@@ -278,7 +278,7 @@ func (q *DBQuerier) FindManyDeviceArrayScan(results pgx.BatchResults) ([][]Devic
 		items = append(items, item)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("close FindManyDeviceArrayBatch rows: %w", err)
 	}
 	return items, err
 }
@@ -312,7 +312,7 @@ func (q *DBQuerier) FindManyDeviceArrayWithNum(ctx context.Context) ([]FindManyD
 		items = append(items, item)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("close FindManyDeviceArrayWithNum rows: %w", err)
 	}
 	return items, err
 }
@@ -342,7 +342,7 @@ func (q *DBQuerier) FindManyDeviceArrayWithNumScan(results pgx.BatchResults) ([]
 		items = append(items, item)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("close FindManyDeviceArrayWithNumBatch rows: %w", err)
 	}
 	return items, err
 }

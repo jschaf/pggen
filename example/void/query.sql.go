@@ -218,7 +218,7 @@ func (q *DBQuerier) VoidThree2(ctx context.Context) ([]string, error) {
 		items = append(items, item)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("close VoidThree2 rows: %w", err)
 	}
 	return items, err
 }
@@ -246,7 +246,7 @@ func (q *DBQuerier) VoidThree2Scan(results pgx.BatchResults) ([]string, error) {
 		items = append(items, item)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("close VoidThree2Batch rows: %w", err)
 	}
 	return items, err
 }

@@ -96,7 +96,7 @@ func (q *DBQuerier) FindOrdersByCustomer(ctx context.Context, customerID int32) 
 		items = append(items, item)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("close FindOrdersByCustomer rows: %w", err)
 	}
 	return items, err
 }
@@ -124,7 +124,7 @@ func (q *DBQuerier) FindOrdersByCustomerScan(results pgx.BatchResults) ([]FindOr
 		items = append(items, item)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("close FindOrdersByCustomerBatch rows: %w", err)
 	}
 	return items, err
 }
@@ -159,7 +159,7 @@ func (q *DBQuerier) FindProductsInOrder(ctx context.Context, orderID int32) ([]F
 		items = append(items, item)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("close FindProductsInOrder rows: %w", err)
 	}
 	return items, err
 }
@@ -187,7 +187,7 @@ func (q *DBQuerier) FindProductsInOrderScan(results pgx.BatchResults) ([]FindPro
 		items = append(items, item)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("close FindProductsInOrderBatch rows: %w", err)
 	}
 	return items, err
 }

@@ -105,7 +105,7 @@ func (q *DBQuerier) FindTopScienceChildren(ctx context.Context) ([]pgtype.Text, 
 		items = append(items, item)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("close FindTopScienceChildren rows: %w", err)
 	}
 	return items, err
 }
@@ -133,7 +133,7 @@ func (q *DBQuerier) FindTopScienceChildrenScan(results pgx.BatchResults) ([]pgty
 		items = append(items, item)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("close FindTopScienceChildrenBatch rows: %w", err)
 	}
 	return items, err
 }

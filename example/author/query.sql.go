@@ -181,7 +181,7 @@ func (q *DBQuerier) FindAuthors(ctx context.Context, firstName string) ([]FindAu
 		items = append(items, item)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("close FindAuthors rows: %w", err)
 	}
 	return items, err
 }
@@ -209,7 +209,7 @@ func (q *DBQuerier) FindAuthorsScan(results pgx.BatchResults) ([]FindAuthorsRow,
 		items = append(items, item)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("close FindAuthorsBatch rows: %w", err)
 	}
 	return items, err
 }
@@ -239,7 +239,7 @@ func (q *DBQuerier) FindAuthorNames(ctx context.Context, authorID int32) ([]Find
 		items = append(items, item)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("close FindAuthorNames rows: %w", err)
 	}
 	return items, err
 }
@@ -267,7 +267,7 @@ func (q *DBQuerier) FindAuthorNamesScan(results pgx.BatchResults) ([]FindAuthorN
 		items = append(items, item)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("close FindAuthorNamesBatch rows: %w", err)
 	}
 	return items, err
 }

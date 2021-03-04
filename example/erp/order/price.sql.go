@@ -36,7 +36,7 @@ func (q *DBQuerier) FindOrdersByPrice(ctx context.Context, minTotal pgtype.Numer
 		items = append(items, item)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("close FindOrdersByPrice rows: %w", err)
 	}
 	return items, err
 }
@@ -64,7 +64,7 @@ func (q *DBQuerier) FindOrdersByPriceScan(results pgx.BatchResults) ([]FindOrder
 		items = append(items, item)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("close FindOrdersByPriceBatch rows: %w", err)
 	}
 	return items, err
 }
@@ -96,7 +96,7 @@ func (q *DBQuerier) FindOrdersMRR(ctx context.Context) ([]FindOrdersMRRRow, erro
 		items = append(items, item)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("close FindOrdersMRR rows: %w", err)
 	}
 	return items, err
 }
@@ -124,7 +124,7 @@ func (q *DBQuerier) FindOrdersMRRScan(results pgx.BatchResults) ([]FindOrdersMRR
 		items = append(items, item)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("close FindOrdersMRRBatch rows: %w", err)
 	}
 	return items, err
 }

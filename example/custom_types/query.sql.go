@@ -155,7 +155,7 @@ func (q *DBQuerier) IntArray(ctx context.Context) ([][]int32, error) {
 		items = append(items, item)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("close IntArray rows: %w", err)
 	}
 	return items, err
 }
@@ -183,7 +183,7 @@ func (q *DBQuerier) IntArrayScan(results pgx.BatchResults) ([][]int32, error) {
 		items = append(items, item)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("close IntArrayBatch rows: %w", err)
 	}
 	return items, err
 }

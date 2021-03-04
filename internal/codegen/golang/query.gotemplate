@@ -111,7 +111,7 @@ func (q *DBQuerier) {{ $q.Name }}(ctx context.Context {{- $q.EmitParams }}) ({{ 
 		items = append(items, {{ $q.EmitResultExpr "item" }})
 	}
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("close {{ $q.Name }} rows: %w", err)
 	}
 	return items, err
 {{- else if eq $q.ResultKind ":exec" }}
@@ -162,7 +162,7 @@ func (q *DBQuerier) {{.Name}}Scan(results pgx.BatchResults) ({{ $q.EmitResultTyp
 		items = append(items, {{ $q.EmitResultExpr "item" }})
 	}
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("close {{ $q.Name }}Batch rows: %w", err)
 	}
 	return items, err
 {{- else if eq $q.ResultKind ":exec" }}

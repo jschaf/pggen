@@ -181,7 +181,7 @@ func (q *DBQuerier) FindEnumTypes(ctx context.Context, oids []uint32) ([]FindEnu
 		items = append(items, item)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("close FindEnumTypes rows: %w", err)
 	}
 	return items, err
 }
@@ -209,7 +209,7 @@ func (q *DBQuerier) FindEnumTypesScan(results pgx.BatchResults) ([]FindEnumTypes
 		items = append(items, item)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("close FindEnumTypesBatch rows: %w", err)
 	}
 	return items, err
 }
@@ -268,7 +268,7 @@ func (q *DBQuerier) FindArrayTypes(ctx context.Context, oids []uint32) ([]FindAr
 		items = append(items, item)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("close FindArrayTypes rows: %w", err)
 	}
 	return items, err
 }
@@ -296,7 +296,7 @@ func (q *DBQuerier) FindArrayTypesScan(results pgx.BatchResults) ([]FindArrayTyp
 		items = append(items, item)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("close FindArrayTypesBatch rows: %w", err)
 	}
 	return items, err
 }
@@ -360,7 +360,7 @@ func (q *DBQuerier) FindCompositeTypes(ctx context.Context, oids []uint32) ([]Fi
 		items = append(items, item)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("close FindCompositeTypes rows: %w", err)
 	}
 	return items, err
 }
@@ -388,7 +388,7 @@ func (q *DBQuerier) FindCompositeTypesScan(results pgx.BatchResults) ([]FindComp
 		items = append(items, item)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("close FindCompositeTypesBatch rows: %w", err)
 	}
 	return items, err
 }
@@ -438,7 +438,7 @@ func (q *DBQuerier) FindDescendantOIDs(ctx context.Context, oids []uint32) ([]pg
 		items = append(items, item)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("close FindDescendantOIDs rows: %w", err)
 	}
 	return items, err
 }
@@ -466,7 +466,7 @@ func (q *DBQuerier) FindDescendantOIDsScan(results pgx.BatchResults) ([]pgtype.O
 		items = append(items, item)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("close FindDescendantOIDsBatch rows: %w", err)
 	}
 	return items, err
 }
@@ -559,7 +559,7 @@ func (q *DBQuerier) FindOIDNames(ctx context.Context, oid []uint32) ([]FindOIDNa
 		items = append(items, item)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("close FindOIDNames rows: %w", err)
 	}
 	return items, err
 }
@@ -587,7 +587,7 @@ func (q *DBQuerier) FindOIDNamesScan(results pgx.BatchResults) ([]FindOIDNamesRo
 		items = append(items, item)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("close FindOIDNamesBatch rows: %w", err)
 	}
 	return items, err
 }

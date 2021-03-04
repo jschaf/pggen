@@ -146,7 +146,7 @@ func (q *DBQuerier) GenSeries(ctx context.Context) ([]*int, error) {
 		items = append(items, &item)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("close GenSeries rows: %w", err)
 	}
 	return items, err
 }
@@ -174,7 +174,7 @@ func (q *DBQuerier) GenSeriesScan(results pgx.BatchResults) ([]*int, error) {
 		items = append(items, &item)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("close GenSeriesBatch rows: %w", err)
 	}
 	return items, err
 }
@@ -228,7 +228,7 @@ func (q *DBQuerier) GenSeriesArr(ctx context.Context) ([][]int, error) {
 		items = append(items, item)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("close GenSeriesArr rows: %w", err)
 	}
 	return items, err
 }
@@ -256,7 +256,7 @@ func (q *DBQuerier) GenSeriesArrScan(results pgx.BatchResults) ([][]int, error) 
 		items = append(items, item)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("close GenSeriesArrBatch rows: %w", err)
 	}
 	return items, err
 }
@@ -311,7 +311,7 @@ func (q *DBQuerier) GenSeriesStr(ctx context.Context) ([]*string, error) {
 		items = append(items, &item)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("close GenSeriesStr rows: %w", err)
 	}
 	return items, err
 }
@@ -339,7 +339,7 @@ func (q *DBQuerier) GenSeriesStrScan(results pgx.BatchResults) ([]*string, error
 		items = append(items, &item)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("close GenSeriesStrBatch rows: %w", err)
 	}
 	return items, err
 }
