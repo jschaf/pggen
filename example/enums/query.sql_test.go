@@ -51,7 +51,7 @@ func TestQuerier(t *testing.T) {
 
 	{
 		devices, err := q.FindOneDeviceArray(ctx)
-		require.Nil(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, allDeviceTypes, devices)
 	}
 
@@ -60,14 +60,14 @@ func TestQuerier(t *testing.T) {
 		q.FindOneDeviceArrayBatch(batch)
 		results := conn.SendBatch(ctx, batch)
 		devices, err := q.FindOneDeviceArrayScan(results)
-		require.Nil(t, err)
-		require.Nil(t, results.Close())
+		require.NoError(t, err)
+		require.NoError(t, results.Close())
 		assert.Equal(t, allDeviceTypes, devices)
 	}
 
 	{
 		devices, err := q.FindOneDeviceArray(ctx)
-		require.Nil(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, allDeviceTypes, devices)
 	}
 
@@ -76,14 +76,14 @@ func TestQuerier(t *testing.T) {
 		q.FindOneDeviceArrayBatch(batch)
 		results := conn.SendBatch(ctx, batch)
 		devices, err := q.FindOneDeviceArrayScan(results)
-		require.Nil(t, err)
-		require.Nil(t, results.Close())
+		require.NoError(t, err)
+		require.NoError(t, results.Close())
 		assert.Equal(t, allDeviceTypes, devices)
 	}
 
 	{
 		devices, err := q.FindManyDeviceArray(ctx)
-		require.Nil(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, [][]DeviceType{allDeviceTypes[3:], allDeviceTypes}, devices)
 	}
 
@@ -92,14 +92,14 @@ func TestQuerier(t *testing.T) {
 		q.FindManyDeviceArrayBatch(batch)
 		results := conn.SendBatch(ctx, batch)
 		devices, err := q.FindManyDeviceArrayScan(results)
-		require.Nil(t, err)
-		require.Nil(t, results.Close())
+		require.NoError(t, err)
+		require.NoError(t, results.Close())
 		assert.Equal(t, [][]DeviceType{allDeviceTypes[3:], allDeviceTypes}, devices)
 	}
 
 	{
 		devices, err := q.FindManyDeviceArrayWithNum(ctx)
-		require.Nil(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, []FindManyDeviceArrayWithNumRow{
 			{Num: pgtype.Int4{Int: 1, Status: pgtype.Present}, DeviceTypes: allDeviceTypes[3:]},
 			{Num: pgtype.Int4{Int: 2, Status: pgtype.Present}, DeviceTypes: allDeviceTypes},
@@ -111,8 +111,8 @@ func TestQuerier(t *testing.T) {
 		q.FindManyDeviceArrayWithNumBatch(batch)
 		results := conn.SendBatch(ctx, batch)
 		devices, err := q.FindManyDeviceArrayWithNumScan(results)
-		require.Nil(t, err)
-		require.Nil(t, results.Close())
+		require.NoError(t, err)
+		require.NoError(t, results.Close())
 		assert.Equal(t, []FindManyDeviceArrayWithNumRow{
 			{Num: pgtype.Int4{Int: 1, Status: pgtype.Present}, DeviceTypes: allDeviceTypes[3:]},
 			{Num: pgtype.Int4{Int: 2, Status: pgtype.Present}, DeviceTypes: allDeviceTypes},

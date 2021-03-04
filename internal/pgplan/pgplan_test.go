@@ -136,7 +136,7 @@ func TestParseNode_DB(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.sql, func(t *testing.T) {
 			got, err := ExplainQuery(conn, tt.sql)
-			require.Nil(t, err)
+			require.NoError(t, err)
 
 			opts := cmp.Options{
 				cmpopts.IgnoreFields(Plan{},

@@ -19,7 +19,7 @@ func TestQuerier_GenSeries1(t *testing.T) {
 
 	t.Run("GenSeries1", func(t *testing.T) {
 		got, err := q.GenSeries1(ctx)
-		require.Nil(t, err)
+		require.NoError(t, err)
 		zero := 0
 		assert.Equal(t, &zero, got)
 	})
@@ -30,7 +30,7 @@ func TestQuerier_GenSeries1(t *testing.T) {
 		results := conn.SendBatch(ctx, batch)
 		defer errs.CaptureT(t, results.Close, "close batch")
 		got, err := q.GenSeries1Scan(results)
-		require.Nil(t, err)
+		require.NoError(t, err)
 		zero := 0
 		assert.Equal(t, &zero, got)
 	})
@@ -58,7 +58,7 @@ func TestQuerier_GenSeries(t *testing.T) {
 		results := conn.SendBatch(ctx, batch)
 		defer errs.CaptureT(t, results.Close, "close batch")
 		got, err := q.GenSeriesScan(results)
-		require.Nil(t, err)
+		require.NoError(t, err)
 		zero, one, two := 0, 1, 2
 		assert.Equal(t, []*int{&zero, &one, &two}, got)
 	})
@@ -73,7 +73,7 @@ func TestQuerier_GenSeriesArr1(t *testing.T) {
 
 	t.Run("GenSeriesArr1", func(t *testing.T) {
 		got, err := q.GenSeriesArr1(ctx)
-		require.Nil(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, []int{0, 1, 2}, got)
 	})
 
@@ -99,7 +99,7 @@ func TestQuerier_GenSeriesArr(t *testing.T) {
 
 	t.Run("GenSeriesArr", func(t *testing.T) {
 		got, err := q.GenSeriesArr(ctx)
-		require.Nil(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, [][]int{{0, 1, 2}}, got)
 	})
 
@@ -125,7 +125,7 @@ func TestQuerier_GenSeriesStr(t *testing.T) {
 
 	t.Run("GenSeriesStr1", func(t *testing.T) {
 		got, err := q.GenSeriesStr1(ctx)
-		require.Nil(t, err)
+		require.NoError(t, err)
 		zero := "0"
 		assert.Equal(t, &zero, got)
 	})
@@ -136,14 +136,14 @@ func TestQuerier_GenSeriesStr(t *testing.T) {
 		results := conn.SendBatch(ctx, batch)
 		defer errs.CaptureT(t, results.Close, "close batch")
 		got, err := q.GenSeriesStr1Scan(results)
-		require.Nil(t, err)
+		require.NoError(t, err)
 		zero := "0"
 		assert.Equal(t, &zero, got)
 	})
 
 	t.Run("GenSeriesStr", func(t *testing.T) {
 		got, err := q.GenSeriesStr(ctx)
-		require.Nil(t, err)
+		require.NoError(t, err)
 		zero, one, two := "0", "1", "2"
 		assert.Equal(t, []*string{&zero, &one, &two}, got)
 	})
@@ -154,7 +154,7 @@ func TestQuerier_GenSeriesStr(t *testing.T) {
 		results := conn.SendBatch(ctx, batch)
 		defer errs.CaptureT(t, results.Close, "close batch")
 		got, err := q.GenSeriesStrScan(results)
-		require.Nil(t, err)
+		require.NoError(t, err)
 		zero, one, two := "0", "1", "2"
 		assert.Equal(t, []*string{&zero, &one, &two}, got)
 	})

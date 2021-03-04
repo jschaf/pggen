@@ -22,7 +22,7 @@ func TestQuerier(t *testing.T) {
 
 	{
 		rows, err := q.FindTopScienceChildren(ctx)
-		require.Nil(t, err)
+		require.NoError(t, err)
 		want := []pgtype.Text{
 			{String: "Top.Science", Status: pgtype.Present},
 			{String: "Top.Science.Astronomy", Status: pgtype.Present},
@@ -34,7 +34,7 @@ func TestQuerier(t *testing.T) {
 
 	{
 		rows, err := q.FindTopScienceChildrenAgg(ctx)
-		require.Nil(t, err)
+		require.NoError(t, err)
 		want := pgtype.TextArray{
 			Elements: []pgtype.Text{
 				{String: "Top.Science", Status: pgtype.Present},
@@ -53,7 +53,7 @@ func TestQuerier(t *testing.T) {
 		in2 := []string{"qux", "qux"}
 		in2Txt := newTextArray(in2)
 		rows, err := q.FindLtreeInput(ctx, in1, in2)
-		require.Nil(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, FindLtreeInputRow{
 			Ltree:   in1,
 			TextArr: in2Txt,
