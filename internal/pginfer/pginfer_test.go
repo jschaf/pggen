@@ -27,6 +27,8 @@ func TestInferrer_InferTypes(t *testing.T) {
 			'phone',
 			'laptop'
 		);
+
+		CREATE DOMAIN us_postal_code AS TEXT;
 	`))
 	defer cleanupFunc()
 	q := pg.NewQuerier(conn)
@@ -68,6 +70,23 @@ func TestInferrer_InferTypes(t *testing.T) {
 				Outputs: []OutputColumn{
 					{PgName: "num", PgType: pg.Int4, Nullable: true},
 				},
+			},
+		},
+		{
+			&ast.SourceQuery{
+				Name:        "Domain",
+				PreparedSQL: "SELECT '94109'::us_postal_code",
+				ResultKind:  ast.ResultKindOne,
+			},
+			TypedQuery{
+				Name:        "Domain",
+				ResultKind:  ast.ResultKindOne,
+				PreparedSQL: "SELECT '94109'::us_postal_code",
+				Outputs: []OutputColumn{{
+					PgName:   "us_postal_code",
+					PgType:   pg.Text,
+					Nullable: false,
+				}},
 			},
 		},
 		{
