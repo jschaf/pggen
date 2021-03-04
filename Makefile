@@ -13,6 +13,9 @@ start:
 stop:
 	docker-compose down
 
+.PHONY: restart
+restart: stop start
+
 .PHONY: statik
 statik:
 	statik -m -dest=internal -src=internal/codegen -include='*.gotemplate'
