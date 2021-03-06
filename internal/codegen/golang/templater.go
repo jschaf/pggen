@@ -377,50 +377,52 @@ func (tq TemplatedQuery) EmitRowScanArgs() (string, error) {
 	case ast.ResultKindExec:
 		return "", fmt.Errorf("cannot EmitRowScanArgs for :exec query %s", tq.Name)
 	case ast.ResultKindMany, ast.ResultKindOne:
-		hasOnlyOneNonVoid := len(removeVoidColumns(tq.Outputs)) == 1
-		sb := strings.Builder{}
-		sb.Grow(15 * len(tq.Outputs))
-		for i, out := range tq.Outputs {
-			switch typ := out.Type.(type) {
-			case gotype.ArrayType:
-				if isEnumArray(out.Type) {
-					sb.WriteString(out.LowerName)
-					sb.WriteString("Array")
-				} else {
-					if hasOnlyOneNonVoid {
-						sb.WriteString("&item")
-					} else {
-						sb.WriteString("&item.")
-						sb.WriteString(out.UpperName)
-					}
-				}
+		break // okay
+	default:
+		return "", fmt.Errorf("unhandled EmitRowScanArgs type: %s", tq.ResultKind)
+	}
 
-			case gotype.CompositeType:
+	hasOnlyOneNonVoid := len(removeVoidColumns(tq.Outputs)) == 1
+	sb := strings.Builder{}
+	sb.Grow(15 * len(tq.Outputs))
+	for i, out := range tq.Outputs {
+		switch typ := out.Type.(type) {
+		case gotype.ArrayType:
+			if isEnumArray(out.Type) {
 				sb.WriteString(out.LowerName)
-				sb.WriteString("Row")
-
-			case gotype.VoidType:
-				sb.WriteString("nil")
-
-			case gotype.EnumType, gotype.OpaqueType:
+				sb.WriteString("Array")
+			} else {
 				if hasOnlyOneNonVoid {
 					sb.WriteString("&item")
 				} else {
 					sb.WriteString("&item.")
 					sb.WriteString(out.UpperName)
 				}
+			}
 
-			default:
-				return "", fmt.Errorf("unhandled type to emit row scan: %s %T", typ.BaseName(), typ)
+		case gotype.CompositeType:
+			sb.WriteString(out.LowerName)
+			sb.WriteString("Row")
+
+		case gotype.VoidType:
+			sb.WriteString("nil")
+
+		case gotype.EnumType, gotype.OpaqueType:
+			if hasOnlyOneNonVoid {
+				sb.WriteString("&item")
+			} else {
+				sb.WriteString("&item.")
+				sb.WriteString(out.UpperName)
 			}
-			if i < len(tq.Outputs)-1 {
-				sb.WriteString(", ")
-			}
+
+		default:
+			return "", fmt.Errorf("unhandled type to emit row scan: %s %T", typ.BaseName(), typ)
 		}
-		return sb.String(), nil
-	default:
-		return "", fmt.Errorf("unhandled EmitRowScanArgs type: %s", tq.ResultKind)
+		if i < len(tq.Outputs)-1 {
+			sb.WriteString(", ")
+		}
 	}
+	return sb.String(), nil
 }
 
 // EmitResultType returns the string representing the overall query result type,
