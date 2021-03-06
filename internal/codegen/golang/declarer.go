@@ -19,7 +19,7 @@ type Declarer interface {
 }
 
 // FindDeclarers finds all necessary Declarers for a type or nil if no
-// declarers are needed. Composite type might depends on enums or other
+// declarers are needed. Composite types might depend on enums or other
 // composite types.
 func FindDeclarers(typ gotype.Type) []Declarer {
 	return findDeclsHelper(typ, make(map[string]struct{}, 4))
@@ -48,6 +48,9 @@ func findDeclsHelper(typ gotype.Type, visited map[string]struct{}) []Declarer {
 			decls = append(decls, childDecls...)
 		}
 		return decls
+
+	case gotype.ArrayType:
+		return findDeclsHelper(typ.Elem, visited)
 
 	default:
 		return nil

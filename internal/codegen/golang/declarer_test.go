@@ -86,6 +86,32 @@ func TestFindDeclarer_Declare(t *testing.T) {
 			},
 		},
 		{
+			name: "composite - array",
+			typ: gotype.ArrayType{
+				PkgPath: "example.com/arr",
+				Pkg:     "bar",
+				Name:    "SomeArray",
+				Elem: gotype.CompositeType{
+					PgComposite: pg.CompositeType{Name: "some_table", ColumnNames: []string{"foo", "bar_baz"}},
+					PkgPath:     "example.com/foo",
+					Pkg:         "foo",
+					Name:        "SomeTable",
+					FieldNames:  []string{"Foo", "BarBaz"},
+					FieldTypes:  []gotype.Type{gotype.Int16, gotype.PgText},
+				},
+			},
+			pkgPath: "example.com/foo",
+			want: []string{
+				texts.Dedent(`
+					// SomeTable represents the Postgres composite type "some_table".
+					type SomeTable struct {
+						Foo    int16       ` + "`json:\"foo\"`" + `
+						BarBaz pgtype.Text ` + "`json:\"bar_baz\"`" + `
+					}
+			`),
+			},
+		},
+		{
 			name: "nested composite",
 			typ: gotype.CompositeType{
 				PgComposite: pg.CompositeType{
