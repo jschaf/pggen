@@ -203,12 +203,10 @@ const voidThree2SQL = `SELECT 'foo' as foo, void_fn(), void_fn();`
 // VoidThree2 implements Querier.VoidThree2.
 func (q *DBQuerier) VoidThree2(ctx context.Context) ([]string, error) {
 	rows, err := q.conn.Query(ctx, voidThree2SQL)
-	if rows != nil {
-		defer rows.Close()
-	}
 	if err != nil {
 		return nil, fmt.Errorf("query VoidThree2: %w", err)
 	}
+	defer rows.Close()
 	items := []string{}
 	for rows.Next() {
 		var item string
@@ -231,12 +229,10 @@ func (q *DBQuerier) VoidThree2Batch(batch *pgx.Batch) {
 // VoidThree2Scan implements Querier.VoidThree2Scan.
 func (q *DBQuerier) VoidThree2Scan(results pgx.BatchResults) ([]string, error) {
 	rows, err := results.Query()
-	if rows != nil {
-		defer rows.Close()
-	}
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("query VoidThree2Batch: %w", err)
 	}
+	defer rows.Close()
 	items := []string{}
 	for rows.Next() {
 		var item string

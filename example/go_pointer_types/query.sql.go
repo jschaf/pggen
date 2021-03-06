@@ -131,12 +131,10 @@ FROM generate_series(0, 2) n;`
 // GenSeries implements Querier.GenSeries.
 func (q *DBQuerier) GenSeries(ctx context.Context) ([]*int, error) {
 	rows, err := q.conn.Query(ctx, genSeriesSQL)
-	if rows != nil {
-		defer rows.Close()
-	}
 	if err != nil {
 		return nil, fmt.Errorf("query GenSeries: %w", err)
 	}
+	defer rows.Close()
 	items := []*int{}
 	for rows.Next() {
 		var item int
@@ -159,12 +157,10 @@ func (q *DBQuerier) GenSeriesBatch(batch *pgx.Batch) {
 // GenSeriesScan implements Querier.GenSeriesScan.
 func (q *DBQuerier) GenSeriesScan(results pgx.BatchResults) ([]*int, error) {
 	rows, err := results.Query()
-	if rows != nil {
-		defer rows.Close()
-	}
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("query GenSeriesBatch: %w", err)
 	}
+	defer rows.Close()
 	items := []*int{}
 	for rows.Next() {
 		var item int
@@ -213,12 +209,10 @@ FROM generate_series(0, 2) n;`
 // GenSeriesArr implements Querier.GenSeriesArr.
 func (q *DBQuerier) GenSeriesArr(ctx context.Context) ([][]int, error) {
 	rows, err := q.conn.Query(ctx, genSeriesArrSQL)
-	if rows != nil {
-		defer rows.Close()
-	}
 	if err != nil {
 		return nil, fmt.Errorf("query GenSeriesArr: %w", err)
 	}
+	defer rows.Close()
 	items := [][]int{}
 	for rows.Next() {
 		var item []int
@@ -241,12 +235,10 @@ func (q *DBQuerier) GenSeriesArrBatch(batch *pgx.Batch) {
 // GenSeriesArrScan implements Querier.GenSeriesArrScan.
 func (q *DBQuerier) GenSeriesArrScan(results pgx.BatchResults) ([][]int, error) {
 	rows, err := results.Query()
-	if rows != nil {
-		defer rows.Close()
-	}
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("query GenSeriesArrBatch: %w", err)
 	}
+	defer rows.Close()
 	items := [][]int{}
 	for rows.Next() {
 		var item []int
@@ -296,12 +288,10 @@ FROM generate_series(0, 2) n;`
 // GenSeriesStr implements Querier.GenSeriesStr.
 func (q *DBQuerier) GenSeriesStr(ctx context.Context) ([]*string, error) {
 	rows, err := q.conn.Query(ctx, genSeriesStrSQL)
-	if rows != nil {
-		defer rows.Close()
-	}
 	if err != nil {
 		return nil, fmt.Errorf("query GenSeriesStr: %w", err)
 	}
+	defer rows.Close()
 	items := []*string{}
 	for rows.Next() {
 		var item string
@@ -324,12 +314,10 @@ func (q *DBQuerier) GenSeriesStrBatch(batch *pgx.Batch) {
 // GenSeriesStrScan implements Querier.GenSeriesStrScan.
 func (q *DBQuerier) GenSeriesStrScan(results pgx.BatchResults) ([]*string, error) {
 	rows, err := results.Query()
-	if rows != nil {
-		defer rows.Close()
-	}
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("query GenSeriesStrBatch: %w", err)
 	}
+	defer rows.Close()
 	items := []*string{}
 	for rows.Next() {
 		var item string

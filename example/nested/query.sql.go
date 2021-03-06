@@ -84,12 +84,10 @@ const nested3SQL = `SELECT ROW (ROW ('item_name', ROW ('sku_id')::sku)::inventor
 // Nested3 implements Querier.Nested3.
 func (q *DBQuerier) Nested3(ctx context.Context) ([]Qux, error) {
 	rows, err := q.conn.Query(ctx, nested3SQL)
-	if rows != nil {
-		defer rows.Close()
-	}
 	if err != nil {
 		return nil, fmt.Errorf("query Nested3: %w", err)
 	}
+	defer rows.Close()
 	items := []Qux{}
 	quxRow := pgtype.CompositeFields{
 		pgtype.CompositeFields{
@@ -124,12 +122,10 @@ func (q *DBQuerier) Nested3Batch(batch *pgx.Batch) {
 // Nested3Scan implements Querier.Nested3Scan.
 func (q *DBQuerier) Nested3Scan(results pgx.BatchResults) ([]Qux, error) {
 	rows, err := results.Query()
-	if rows != nil {
-		defer rows.Close()
-	}
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("query Nested3Batch: %w", err)
 	}
+	defer rows.Close()
 	items := []Qux{}
 	quxRow := pgtype.CompositeFields{
 		pgtype.CompositeFields{

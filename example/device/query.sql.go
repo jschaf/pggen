@@ -140,12 +140,10 @@ type FindDevicesByUserRow struct {
 // FindDevicesByUser implements Querier.FindDevicesByUser.
 func (q *DBQuerier) FindDevicesByUser(ctx context.Context, id int) ([]FindDevicesByUserRow, error) {
 	rows, err := q.conn.Query(ctx, findDevicesByUserSQL, id)
-	if rows != nil {
-		defer rows.Close()
-	}
 	if err != nil {
 		return nil, fmt.Errorf("query FindDevicesByUser: %w", err)
 	}
+	defer rows.Close()
 	items := []FindDevicesByUserRow{}
 	for rows.Next() {
 		var item FindDevicesByUserRow
@@ -168,12 +166,10 @@ func (q *DBQuerier) FindDevicesByUserBatch(batch *pgx.Batch, id int) {
 // FindDevicesByUserScan implements Querier.FindDevicesByUserScan.
 func (q *DBQuerier) FindDevicesByUserScan(results pgx.BatchResults) ([]FindDevicesByUserRow, error) {
 	rows, err := results.Query()
-	if rows != nil {
-		defer rows.Close()
-	}
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("query FindDevicesByUserBatch: %w", err)
 	}
+	defer rows.Close()
 	items := []FindDevicesByUserRow{}
 	for rows.Next() {
 		var item FindDevicesByUserRow
@@ -204,12 +200,10 @@ type CompositeUserRow struct {
 // CompositeUser implements Querier.CompositeUser.
 func (q *DBQuerier) CompositeUser(ctx context.Context) ([]CompositeUserRow, error) {
 	rows, err := q.conn.Query(ctx, compositeUserSQL)
-	if rows != nil {
-		defer rows.Close()
-	}
 	if err != nil {
 		return nil, fmt.Errorf("query CompositeUser: %w", err)
 	}
+	defer rows.Close()
 	items := []CompositeUserRow{}
 	userRow := pgtype.CompositeFields{
 		&pgtype.Int8{},
@@ -238,12 +232,10 @@ func (q *DBQuerier) CompositeUserBatch(batch *pgx.Batch) {
 // CompositeUserScan implements Querier.CompositeUserScan.
 func (q *DBQuerier) CompositeUserScan(results pgx.BatchResults) ([]CompositeUserRow, error) {
 	rows, err := results.Query()
-	if rows != nil {
-		defer rows.Close()
-	}
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("query CompositeUserBatch: %w", err)
 	}
+	defer rows.Close()
 	items := []CompositeUserRow{}
 	userRow := pgtype.CompositeFields{
 		&pgtype.Int8{},
@@ -352,12 +344,10 @@ const compositeUserManySQL = `SELECT ROW (15, 'qux')::"user" AS "user";`
 // CompositeUserMany implements Querier.CompositeUserMany.
 func (q *DBQuerier) CompositeUserMany(ctx context.Context) ([]User, error) {
 	rows, err := q.conn.Query(ctx, compositeUserManySQL)
-	if rows != nil {
-		defer rows.Close()
-	}
 	if err != nil {
 		return nil, fmt.Errorf("query CompositeUserMany: %w", err)
 	}
+	defer rows.Close()
 	items := []User{}
 	userRow := pgtype.CompositeFields{
 		&pgtype.Int8{},
@@ -386,12 +376,10 @@ func (q *DBQuerier) CompositeUserManyBatch(batch *pgx.Batch) {
 // CompositeUserManyScan implements Querier.CompositeUserManyScan.
 func (q *DBQuerier) CompositeUserManyScan(results pgx.BatchResults) ([]User, error) {
 	rows, err := results.Query()
-	if rows != nil {
-		defer rows.Close()
-	}
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("query CompositeUserManyBatch: %w", err)
 	}
+	defer rows.Close()
 	items := []User{}
 	userRow := pgtype.CompositeFields{
 		&pgtype.Int8{},

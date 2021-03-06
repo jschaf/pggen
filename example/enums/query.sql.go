@@ -119,12 +119,10 @@ type FindAllDevicesRow struct {
 // FindAllDevices implements Querier.FindAllDevices.
 func (q *DBQuerier) FindAllDevices(ctx context.Context) ([]FindAllDevicesRow, error) {
 	rows, err := q.conn.Query(ctx, findAllDevicesSQL)
-	if rows != nil {
-		defer rows.Close()
-	}
 	if err != nil {
 		return nil, fmt.Errorf("query FindAllDevices: %w", err)
 	}
+	defer rows.Close()
 	items := []FindAllDevicesRow{}
 	for rows.Next() {
 		var item FindAllDevicesRow
@@ -147,12 +145,10 @@ func (q *DBQuerier) FindAllDevicesBatch(batch *pgx.Batch) {
 // FindAllDevicesScan implements Querier.FindAllDevicesScan.
 func (q *DBQuerier) FindAllDevicesScan(results pgx.BatchResults) ([]FindAllDevicesRow, error) {
 	rows, err := results.Query()
-	if rows != nil {
-		defer rows.Close()
-	}
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("query FindAllDevicesBatch: %w", err)
 	}
+	defer rows.Close()
 	items := []FindAllDevicesRow{}
 	for rows.Next() {
 		var item FindAllDevicesRow
@@ -231,12 +227,10 @@ SELECT enum_range(NULL::device_type) AS device_types;`
 // FindManyDeviceArray implements Querier.FindManyDeviceArray.
 func (q *DBQuerier) FindManyDeviceArray(ctx context.Context) ([][]DeviceType, error) {
 	rows, err := q.conn.Query(ctx, findManyDeviceArraySQL)
-	if rows != nil {
-		defer rows.Close()
-	}
 	if err != nil {
 		return nil, fmt.Errorf("query FindManyDeviceArray: %w", err)
 	}
+	defer rows.Close()
 	items := [][]DeviceType{}
 	deviceTypesArray := &pgtype.EnumArray{}
 	for rows.Next() {
@@ -261,12 +255,10 @@ func (q *DBQuerier) FindManyDeviceArrayBatch(batch *pgx.Batch) {
 // FindManyDeviceArrayScan implements Querier.FindManyDeviceArrayScan.
 func (q *DBQuerier) FindManyDeviceArrayScan(results pgx.BatchResults) ([][]DeviceType, error) {
 	rows, err := results.Query()
-	if rows != nil {
-		defer rows.Close()
-	}
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("query FindManyDeviceArrayBatch: %w", err)
 	}
+	defer rows.Close()
 	items := [][]DeviceType{}
 	deviceTypesArray := &pgtype.EnumArray{}
 	for rows.Next() {
@@ -295,12 +287,10 @@ type FindManyDeviceArrayWithNumRow struct {
 // FindManyDeviceArrayWithNum implements Querier.FindManyDeviceArrayWithNum.
 func (q *DBQuerier) FindManyDeviceArrayWithNum(ctx context.Context) ([]FindManyDeviceArrayWithNumRow, error) {
 	rows, err := q.conn.Query(ctx, findManyDeviceArrayWithNumSQL)
-	if rows != nil {
-		defer rows.Close()
-	}
 	if err != nil {
 		return nil, fmt.Errorf("query FindManyDeviceArrayWithNum: %w", err)
 	}
+	defer rows.Close()
 	items := []FindManyDeviceArrayWithNumRow{}
 	deviceTypesArray := &pgtype.EnumArray{}
 	for rows.Next() {
@@ -325,12 +315,10 @@ func (q *DBQuerier) FindManyDeviceArrayWithNumBatch(batch *pgx.Batch) {
 // FindManyDeviceArrayWithNumScan implements Querier.FindManyDeviceArrayWithNumScan.
 func (q *DBQuerier) FindManyDeviceArrayWithNumScan(results pgx.BatchResults) ([]FindManyDeviceArrayWithNumRow, error) {
 	rows, err := results.Query()
-	if rows != nil {
-		defer rows.Close()
-	}
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("query FindManyDeviceArrayWithNumBatch: %w", err)
 	}
+	defer rows.Close()
 	items := []FindManyDeviceArrayWithNumRow{}
 	deviceTypesArray := &pgtype.EnumArray{}
 	for rows.Next() {

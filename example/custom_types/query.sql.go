@@ -140,12 +140,10 @@ const intArraySQL = `SELECT ARRAY ['5', '6', '7']::int[] as ints;`
 // IntArray implements Querier.IntArray.
 func (q *DBQuerier) IntArray(ctx context.Context) ([][]int32, error) {
 	rows, err := q.conn.Query(ctx, intArraySQL)
-	if rows != nil {
-		defer rows.Close()
-	}
 	if err != nil {
 		return nil, fmt.Errorf("query IntArray: %w", err)
 	}
+	defer rows.Close()
 	items := [][]int32{}
 	for rows.Next() {
 		var item []int32
@@ -168,12 +166,10 @@ func (q *DBQuerier) IntArrayBatch(batch *pgx.Batch) {
 // IntArrayScan implements Querier.IntArrayScan.
 func (q *DBQuerier) IntArrayScan(results pgx.BatchResults) ([][]int32, error) {
 	rows, err := results.Query()
-	if rows != nil {
-		defer rows.Close()
-	}
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("query IntArrayBatch: %w", err)
 	}
+	defer rows.Close()
 	items := [][]int32{}
 	for rows.Next() {
 		var item []int32

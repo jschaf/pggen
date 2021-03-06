@@ -166,12 +166,10 @@ type FindEnumTypesRow struct {
 // FindEnumTypes implements Querier.FindEnumTypes.
 func (q *DBQuerier) FindEnumTypes(ctx context.Context, oids []uint32) ([]FindEnumTypesRow, error) {
 	rows, err := q.conn.Query(ctx, findEnumTypesSQL, oids)
-	if rows != nil {
-		defer rows.Close()
-	}
 	if err != nil {
 		return nil, fmt.Errorf("query FindEnumTypes: %w", err)
 	}
+	defer rows.Close()
 	items := []FindEnumTypesRow{}
 	for rows.Next() {
 		var item FindEnumTypesRow
@@ -194,12 +192,10 @@ func (q *DBQuerier) FindEnumTypesBatch(batch *pgx.Batch, oids []uint32) {
 // FindEnumTypesScan implements Querier.FindEnumTypesScan.
 func (q *DBQuerier) FindEnumTypesScan(results pgx.BatchResults) ([]FindEnumTypesRow, error) {
 	rows, err := results.Query()
-	if rows != nil {
-		defer rows.Close()
-	}
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("query FindEnumTypesBatch: %w", err)
 	}
+	defer rows.Close()
 	items := []FindEnumTypesRow{}
 	for rows.Next() {
 		var item FindEnumTypesRow
@@ -253,12 +249,10 @@ type FindArrayTypesRow struct {
 // FindArrayTypes implements Querier.FindArrayTypes.
 func (q *DBQuerier) FindArrayTypes(ctx context.Context, oids []uint32) ([]FindArrayTypesRow, error) {
 	rows, err := q.conn.Query(ctx, findArrayTypesSQL, oids)
-	if rows != nil {
-		defer rows.Close()
-	}
 	if err != nil {
 		return nil, fmt.Errorf("query FindArrayTypes: %w", err)
 	}
+	defer rows.Close()
 	items := []FindArrayTypesRow{}
 	for rows.Next() {
 		var item FindArrayTypesRow
@@ -281,12 +275,10 @@ func (q *DBQuerier) FindArrayTypesBatch(batch *pgx.Batch, oids []uint32) {
 // FindArrayTypesScan implements Querier.FindArrayTypesScan.
 func (q *DBQuerier) FindArrayTypesScan(results pgx.BatchResults) ([]FindArrayTypesRow, error) {
 	rows, err := results.Query()
-	if rows != nil {
-		defer rows.Close()
-	}
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("query FindArrayTypesBatch: %w", err)
 	}
+	defer rows.Close()
 	items := []FindArrayTypesRow{}
 	for rows.Next() {
 		var item FindArrayTypesRow
@@ -345,12 +337,10 @@ type FindCompositeTypesRow struct {
 // FindCompositeTypes implements Querier.FindCompositeTypes.
 func (q *DBQuerier) FindCompositeTypes(ctx context.Context, oids []uint32) ([]FindCompositeTypesRow, error) {
 	rows, err := q.conn.Query(ctx, findCompositeTypesSQL, oids)
-	if rows != nil {
-		defer rows.Close()
-	}
 	if err != nil {
 		return nil, fmt.Errorf("query FindCompositeTypes: %w", err)
 	}
+	defer rows.Close()
 	items := []FindCompositeTypesRow{}
 	for rows.Next() {
 		var item FindCompositeTypesRow
@@ -373,12 +363,10 @@ func (q *DBQuerier) FindCompositeTypesBatch(batch *pgx.Batch, oids []uint32) {
 // FindCompositeTypesScan implements Querier.FindCompositeTypesScan.
 func (q *DBQuerier) FindCompositeTypesScan(results pgx.BatchResults) ([]FindCompositeTypesRow, error) {
 	rows, err := results.Query()
-	if rows != nil {
-		defer rows.Close()
-	}
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("query FindCompositeTypesBatch: %w", err)
 	}
+	defer rows.Close()
 	items := []FindCompositeTypesRow{}
 	for rows.Next() {
 		var item FindCompositeTypesRow
@@ -423,12 +411,10 @@ FROM oid_descs;`
 // FindDescendantOIDs implements Querier.FindDescendantOIDs.
 func (q *DBQuerier) FindDescendantOIDs(ctx context.Context, oids []uint32) ([]pgtype.OID, error) {
 	rows, err := q.conn.Query(ctx, findDescendantOIDsSQL, oids)
-	if rows != nil {
-		defer rows.Close()
-	}
 	if err != nil {
 		return nil, fmt.Errorf("query FindDescendantOIDs: %w", err)
 	}
+	defer rows.Close()
 	items := []pgtype.OID{}
 	for rows.Next() {
 		var item pgtype.OID
@@ -451,12 +437,10 @@ func (q *DBQuerier) FindDescendantOIDsBatch(batch *pgx.Batch, oids []uint32) {
 // FindDescendantOIDsScan implements Querier.FindDescendantOIDsScan.
 func (q *DBQuerier) FindDescendantOIDsScan(results pgx.BatchResults) ([]pgtype.OID, error) {
 	rows, err := results.Query()
-	if rows != nil {
-		defer rows.Close()
-	}
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("query FindDescendantOIDsBatch: %w", err)
 	}
+	defer rows.Close()
 	items := []pgtype.OID{}
 	for rows.Next() {
 		var item pgtype.OID
@@ -544,12 +528,10 @@ type FindOIDNamesRow struct {
 // FindOIDNames implements Querier.FindOIDNames.
 func (q *DBQuerier) FindOIDNames(ctx context.Context, oid []uint32) ([]FindOIDNamesRow, error) {
 	rows, err := q.conn.Query(ctx, findOIDNamesSQL, oid)
-	if rows != nil {
-		defer rows.Close()
-	}
 	if err != nil {
 		return nil, fmt.Errorf("query FindOIDNames: %w", err)
 	}
+	defer rows.Close()
 	items := []FindOIDNamesRow{}
 	for rows.Next() {
 		var item FindOIDNamesRow
@@ -572,12 +554,10 @@ func (q *DBQuerier) FindOIDNamesBatch(batch *pgx.Batch, oid []uint32) {
 // FindOIDNamesScan implements Querier.FindOIDNamesScan.
 func (q *DBQuerier) FindOIDNamesScan(results pgx.BatchResults) ([]FindOIDNamesRow, error) {
 	rows, err := results.Query()
-	if rows != nil {
-		defer rows.Close()
-	}
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("query FindOIDNamesBatch: %w", err)
 	}
+	defer rows.Close()
 	items := []FindOIDNamesRow{}
 	for rows.Next() {
 		var item FindOIDNamesRow

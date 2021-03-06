@@ -92,12 +92,10 @@ func (q *DBQuerier) {{ $q.Name }}(ctx context.Context {{- $q.EmitParams }}) ({{ 
 	return {{ $q.EmitResultExpr "item" }}, nil
 {{- else if eq $q.ResultKind ":many" }}
 	rows, err := q.conn.Query(ctx, {{ $q.SQLVarName }} {{- $q.EmitParamNames }})
-	if rows != nil {
-		defer rows.Close()
-	}
 	if err != nil {
 		return nil, fmt.Errorf("query {{ $q.Name }}: %w", err)
 	}
+	defer rows.Close()
 	{{ $q.EmitResultTypeInit "items" }}
 	{{- $q.EmitResultCompositeInits $.PkgPath -}}
 	{{- $q.EmitResultEnumArrayInits }}
@@ -143,12 +141,10 @@ func (q *DBQuerier) {{.Name}}Scan(results pgx.BatchResults) ({{ $q.EmitResultTyp
 	return {{ $q.EmitResultExpr "item" }}, nil
 {{- else if eq $q.ResultKind ":many" }}
 	rows, err := results.Query()
-	if rows != nil {
-		defer rows.Close()
-	}
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("query {{ $q.Name }}Batch: %w", err)
 	}
+	defer rows.Close()
 	{{ $q.EmitResultTypeInit "items" }}
 	{{- $q.EmitResultCompositeInits $.PkgPath -}}
 	{{- $q.EmitResultEnumArrayInits }}

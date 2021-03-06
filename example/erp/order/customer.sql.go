@@ -81,12 +81,10 @@ type FindOrdersByCustomerRow struct {
 // FindOrdersByCustomer implements Querier.FindOrdersByCustomer.
 func (q *DBQuerier) FindOrdersByCustomer(ctx context.Context, customerID int32) ([]FindOrdersByCustomerRow, error) {
 	rows, err := q.conn.Query(ctx, findOrdersByCustomerSQL, customerID)
-	if rows != nil {
-		defer rows.Close()
-	}
 	if err != nil {
 		return nil, fmt.Errorf("query FindOrdersByCustomer: %w", err)
 	}
+	defer rows.Close()
 	items := []FindOrdersByCustomerRow{}
 	for rows.Next() {
 		var item FindOrdersByCustomerRow
@@ -109,12 +107,10 @@ func (q *DBQuerier) FindOrdersByCustomerBatch(batch *pgx.Batch, customerID int32
 // FindOrdersByCustomerScan implements Querier.FindOrdersByCustomerScan.
 func (q *DBQuerier) FindOrdersByCustomerScan(results pgx.BatchResults) ([]FindOrdersByCustomerRow, error) {
 	rows, err := results.Query()
-	if rows != nil {
-		defer rows.Close()
-	}
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("query FindOrdersByCustomerBatch: %w", err)
 	}
+	defer rows.Close()
 	items := []FindOrdersByCustomerRow{}
 	for rows.Next() {
 		var item FindOrdersByCustomerRow
@@ -144,12 +140,10 @@ type FindProductsInOrderRow struct {
 // FindProductsInOrder implements Querier.FindProductsInOrder.
 func (q *DBQuerier) FindProductsInOrder(ctx context.Context, orderID int32) ([]FindProductsInOrderRow, error) {
 	rows, err := q.conn.Query(ctx, findProductsInOrderSQL, orderID)
-	if rows != nil {
-		defer rows.Close()
-	}
 	if err != nil {
 		return nil, fmt.Errorf("query FindProductsInOrder: %w", err)
 	}
+	defer rows.Close()
 	items := []FindProductsInOrderRow{}
 	for rows.Next() {
 		var item FindProductsInOrderRow
@@ -172,12 +166,10 @@ func (q *DBQuerier) FindProductsInOrderBatch(batch *pgx.Batch, orderID int32) {
 // FindProductsInOrderScan implements Querier.FindProductsInOrderScan.
 func (q *DBQuerier) FindProductsInOrderScan(results pgx.BatchResults) ([]FindProductsInOrderRow, error) {
 	rows, err := results.Query()
-	if rows != nil {
-		defer rows.Close()
-	}
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("query FindProductsInOrderBatch: %w", err)
 	}
+	defer rows.Close()
 	items := []FindProductsInOrderRow{}
 	for rows.Next() {
 		var item FindProductsInOrderRow

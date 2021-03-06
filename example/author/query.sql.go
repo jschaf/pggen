@@ -166,12 +166,10 @@ type FindAuthorsRow struct {
 // FindAuthors implements Querier.FindAuthors.
 func (q *DBQuerier) FindAuthors(ctx context.Context, firstName string) ([]FindAuthorsRow, error) {
 	rows, err := q.conn.Query(ctx, findAuthorsSQL, firstName)
-	if rows != nil {
-		defer rows.Close()
-	}
 	if err != nil {
 		return nil, fmt.Errorf("query FindAuthors: %w", err)
 	}
+	defer rows.Close()
 	items := []FindAuthorsRow{}
 	for rows.Next() {
 		var item FindAuthorsRow
@@ -194,12 +192,10 @@ func (q *DBQuerier) FindAuthorsBatch(batch *pgx.Batch, firstName string) {
 // FindAuthorsScan implements Querier.FindAuthorsScan.
 func (q *DBQuerier) FindAuthorsScan(results pgx.BatchResults) ([]FindAuthorsRow, error) {
 	rows, err := results.Query()
-	if rows != nil {
-		defer rows.Close()
-	}
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("query FindAuthorsBatch: %w", err)
 	}
+	defer rows.Close()
 	items := []FindAuthorsRow{}
 	for rows.Next() {
 		var item FindAuthorsRow
@@ -224,12 +220,10 @@ type FindAuthorNamesRow struct {
 // FindAuthorNames implements Querier.FindAuthorNames.
 func (q *DBQuerier) FindAuthorNames(ctx context.Context, authorID int32) ([]FindAuthorNamesRow, error) {
 	rows, err := q.conn.Query(ctx, findAuthorNamesSQL, authorID)
-	if rows != nil {
-		defer rows.Close()
-	}
 	if err != nil {
 		return nil, fmt.Errorf("query FindAuthorNames: %w", err)
 	}
+	defer rows.Close()
 	items := []FindAuthorNamesRow{}
 	for rows.Next() {
 		var item FindAuthorNamesRow
@@ -252,12 +246,10 @@ func (q *DBQuerier) FindAuthorNamesBatch(batch *pgx.Batch, authorID int32) {
 // FindAuthorNamesScan implements Querier.FindAuthorNamesScan.
 func (q *DBQuerier) FindAuthorNamesScan(results pgx.BatchResults) ([]FindAuthorNamesRow, error) {
 	rows, err := results.Query()
-	if rows != nil {
-		defer rows.Close()
-	}
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("query FindAuthorNamesBatch: %w", err)
 	}
+	defer rows.Close()
 	items := []FindAuthorNamesRow{}
 	for rows.Next() {
 		var item FindAuthorNamesRow

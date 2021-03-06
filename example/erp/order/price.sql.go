@@ -21,12 +21,10 @@ type FindOrdersByPriceRow struct {
 // FindOrdersByPrice implements Querier.FindOrdersByPrice.
 func (q *DBQuerier) FindOrdersByPrice(ctx context.Context, minTotal pgtype.Numeric) ([]FindOrdersByPriceRow, error) {
 	rows, err := q.conn.Query(ctx, findOrdersByPriceSQL, minTotal)
-	if rows != nil {
-		defer rows.Close()
-	}
 	if err != nil {
 		return nil, fmt.Errorf("query FindOrdersByPrice: %w", err)
 	}
+	defer rows.Close()
 	items := []FindOrdersByPriceRow{}
 	for rows.Next() {
 		var item FindOrdersByPriceRow
@@ -49,12 +47,10 @@ func (q *DBQuerier) FindOrdersByPriceBatch(batch *pgx.Batch, minTotal pgtype.Num
 // FindOrdersByPriceScan implements Querier.FindOrdersByPriceScan.
 func (q *DBQuerier) FindOrdersByPriceScan(results pgx.BatchResults) ([]FindOrdersByPriceRow, error) {
 	rows, err := results.Query()
-	if rows != nil {
-		defer rows.Close()
-	}
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("query FindOrdersByPriceBatch: %w", err)
 	}
+	defer rows.Close()
 	items := []FindOrdersByPriceRow{}
 	for rows.Next() {
 		var item FindOrdersByPriceRow
@@ -81,12 +77,10 @@ type FindOrdersMRRRow struct {
 // FindOrdersMRR implements Querier.FindOrdersMRR.
 func (q *DBQuerier) FindOrdersMRR(ctx context.Context) ([]FindOrdersMRRRow, error) {
 	rows, err := q.conn.Query(ctx, findOrdersMRRSQL)
-	if rows != nil {
-		defer rows.Close()
-	}
 	if err != nil {
 		return nil, fmt.Errorf("query FindOrdersMRR: %w", err)
 	}
+	defer rows.Close()
 	items := []FindOrdersMRRRow{}
 	for rows.Next() {
 		var item FindOrdersMRRRow
@@ -109,12 +103,10 @@ func (q *DBQuerier) FindOrdersMRRBatch(batch *pgx.Batch) {
 // FindOrdersMRRScan implements Querier.FindOrdersMRRScan.
 func (q *DBQuerier) FindOrdersMRRScan(results pgx.BatchResults) ([]FindOrdersMRRRow, error) {
 	rows, err := results.Query()
-	if rows != nil {
-		defer rows.Close()
-	}
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("query FindOrdersMRRBatch: %w", err)
 	}
+	defer rows.Close()
 	items := []FindOrdersMRRRow{}
 	for rows.Next() {
 		var item FindOrdersMRRRow

@@ -90,12 +90,10 @@ WHERE path <@ 'Top.Science';`
 // FindTopScienceChildren implements Querier.FindTopScienceChildren.
 func (q *DBQuerier) FindTopScienceChildren(ctx context.Context) ([]pgtype.Text, error) {
 	rows, err := q.conn.Query(ctx, findTopScienceChildrenSQL)
-	if rows != nil {
-		defer rows.Close()
-	}
 	if err != nil {
 		return nil, fmt.Errorf("query FindTopScienceChildren: %w", err)
 	}
+	defer rows.Close()
 	items := []pgtype.Text{}
 	for rows.Next() {
 		var item pgtype.Text
@@ -118,12 +116,10 @@ func (q *DBQuerier) FindTopScienceChildrenBatch(batch *pgx.Batch) {
 // FindTopScienceChildrenScan implements Querier.FindTopScienceChildrenScan.
 func (q *DBQuerier) FindTopScienceChildrenScan(results pgx.BatchResults) ([]pgtype.Text, error) {
 	rows, err := results.Query()
-	if rows != nil {
-		defer rows.Close()
-	}
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("query FindTopScienceChildrenBatch: %w", err)
 	}
+	defer rows.Close()
 	items := []pgtype.Text{}
 	for rows.Next() {
 		var item pgtype.Text
