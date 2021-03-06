@@ -252,24 +252,6 @@ func (tq TemplatedQuery) EmitResultTypeInit(name string) (string, error) {
 	return "var " + name + " " + raw, nil
 }
 
-// EmitResultEnumArrayInits declares all pgtype.EnumArray types for enum arrays
-// in the output columns. pggen uses pgtype.EnumArray as arg to the pgx row scan
-// methods. Emits definitions like:
-//
-//   deviceTypeArray := &pgtype.EnumArray{}
-func (tq TemplatedQuery) EmitResultEnumArrayInits() string {
-	sb := &strings.Builder{}
-	for _, out := range tq.Outputs {
-		if !isEnumArray(out.Type) {
-			continue
-		}
-		sb.WriteString("\n\t") // 1 level indent inside querier method
-		sb.WriteString(out.LowerName)
-		sb.WriteString("Array := &pgtype.EnumArray{}")
-	}
-	return sb.String()
-}
-
 // EmitResultEnumArrayAssigns writes all the assign statements for the
 // pgtype.EnumArray fields representing an array of Postgres enums into the
 // output value.
@@ -296,25 +278,43 @@ func (tq TemplatedQuery) EmitResultEnumArrayAssigns() (string, error) {
 	return sb.String(), nil
 }
 
-// EmitResultCompositeInits declares all pgtype.CompositeFields for composite
-// types in the output columns. pggen uses pgtype.CompositeFields as args to the
-// row scan methods. Emits definitions like:
+// EmitResultInits declares all initialization required for output types.
+//
+// pgtype.CompositeFields for composite types in the output columns. pggen uses
+// pgtype.CompositeFields as args to the row scan methods. Emits definitions
+// like:
 //
 //   userRow := pgtype.CompositeFields{
 //      &pgtype.Int8{},
 //      &pgtype.Text{},
 //   }
-func (tq TemplatedQuery) EmitResultCompositeInits(pkgPath string) (string, error) {
+//
+// Declares pgtype.EnumArray types for enum arrays in the output columns. pggen
+// uses pgtype.EnumArray as arg to the pgx row scan methods. Emits definitions
+// like:
+//
+//   deviceTypeArray := &pgtype.EnumArray{}
+func (tq TemplatedQuery) EmitResultInits(pkgPath string) (string, error) {
 	sb := &strings.Builder{}
+	const indent = "\n\t" // 1 level indent inside querier method
 	for _, out := range tq.Outputs {
-		typ, ok := out.Type.(gotype.CompositeType)
-		if !ok {
+		switch typ := out.Type.(type) {
+		case gotype.CompositeType:
+			sb.WriteString(indent)
+			sb.WriteString(out.LowerName)
+			sb.WriteString("Row := ")
+			tq.appendResultCompositeInit(sb, pkgPath, typ, 0)
+
+		case gotype.ArrayType:
+			if _, ok := typ.Elem.(gotype.EnumType); ok {
+				sb.WriteString(indent)
+				sb.WriteString(out.LowerName)
+				sb.WriteString("Array := &pgtype.EnumArray{}")
+			}
+
+		default:
 			continue
 		}
-		sb.WriteString("\n\t") // 1 level indent inside querier method
-		sb.WriteString(out.LowerName)
-		sb.WriteString("Row := ")
-		tq.appendResultCompositeInit(sb, pkgPath, typ, 0)
 	}
 	return sb.String(), nil
 }
