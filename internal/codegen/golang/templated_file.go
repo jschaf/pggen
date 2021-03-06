@@ -252,32 +252,6 @@ func (tq TemplatedQuery) EmitResultTypeInit(name string) (string, error) {
 	return "var " + name + " " + raw, nil
 }
 
-// EmitResultEnumArrayAssigns writes all the assign statements for the
-// pgtype.EnumArray fields representing an array of Postgres enums into the
-// output value.
-func (tq TemplatedQuery) EmitResultEnumArrayAssigns() (string, error) {
-	sb := &strings.Builder{}
-	for _, out := range tq.Outputs {
-		if !isEnumArray(out.Type) {
-			continue
-		}
-		indent := "\n\t"
-		if tq.ResultKind == ast.ResultKindMany {
-			indent += "\t" // a :many query processes items in a for loop
-		}
-		sb.WriteString(indent)
-		sb.WriteString(out.LowerName)
-		sb.WriteString("Array.AssignTo((*[]string)(unsafe.Pointer(&item")
-		if len(removeVoidColumns(tq.Outputs)) > 1 {
-			sb.WriteRune('.')
-			sb.WriteString(out.UpperName)
-		}
-		sb.WriteString(")))")
-		sb.WriteString(" // safe cast; enum array is []string")
-	}
-	return sb.String(), nil
-}
-
 // EmitResultInits declares all initialization required for output types.
 //
 // pgtype.CompositeFields for composite types in the output columns. pggen uses
@@ -353,32 +327,53 @@ func (tq TemplatedQuery) appendResultCompositeInit(
 	}
 }
 
-// EmitResultCompositeAssigns writes all the assign statements for the
-// pgtype.CompositeFields representing a Postgres composite type into the output
-// struct.
-func (tq TemplatedQuery) EmitResultCompositeAssigns(pkgPath string) (string, error) {
+// EmitResultAssigns writes all the assign statements after scanning the result
+// from pgx.
+//
+// Copies pgtype.CompositeFields representing a Postgres composite type into the
+// output struct.
+//
+// Copies pgtype.EnumArray fields into Go enum array types.
+func (tq TemplatedQuery) EmitResultAssigns(pkgPath string) (string, error) {
 	sb := &strings.Builder{}
 	for _, out := range tq.Outputs {
-		typ, ok := out.Type.(gotype.CompositeType)
-		if !ok {
-			continue
-		}
-		indent := "\n\t"
-		if tq.ResultKind == ast.ResultKindMany {
-			indent += "\t" // a :many query processes items in a for loop
-		}
-		fields := []string{"item"}
-		if len(tq.Outputs) > 1 {
-			// Queries with more than 1 output use a struct to group output columns.
-			fields = append(fields, typ.Name)
-		}
-		exprs := []string{"*" + out.LowerName + "Row"}
-		assigns := tq.buildResultCompositeAssigns(typ, pkgPath, fields, exprs)
-		for _, assign := range assigns {
+		switch typ := out.Type.(type) {
+		case gotype.CompositeType:
+			indent := "\n\t"
+			if tq.ResultKind == ast.ResultKindMany {
+				indent += "\t" // a :many query processes items in a for loop
+			}
+			fields := []string{"item"}
+			if len(tq.Outputs) > 1 {
+				// Queries with more than 1 output use a struct to group output columns.
+				fields = append(fields, typ.Name)
+			}
+			exprs := []string{"*" + out.LowerName + "Row"}
+			assigns := tq.buildResultCompositeAssigns(typ, pkgPath, fields, exprs)
+			for _, assign := range assigns {
+				sb.WriteString(indent)
+				sb.WriteString(strings.Join(assign.fields, "."))
+				sb.WriteString(" = ")
+				sb.WriteString(strings.Join(assign.exprs, ""))
+			}
+		case gotype.ArrayType:
+			// Only enum arrays need custom init code.
+			if _, ok := typ.Elem.(gotype.EnumType); !ok {
+				continue
+			}
+			indent := "\n\t"
+			if tq.ResultKind == ast.ResultKindMany {
+				indent += "\t" // a :many query processes items in a for loop
+			}
 			sb.WriteString(indent)
-			sb.WriteString(strings.Join(assign.fields, "."))
-			sb.WriteString(" = ")
-			sb.WriteString(strings.Join(assign.exprs, ""))
+			sb.WriteString(out.LowerName)
+			sb.WriteString("Array.AssignTo((*[]string)(unsafe.Pointer(&item")
+			if len(removeVoidColumns(tq.Outputs)) > 1 {
+				sb.WriteRune('.')
+				sb.WriteString(out.UpperName)
+			}
+			sb.WriteString(")))")
+			sb.WriteString(" // safe cast; enum array is []string")
 		}
 	}
 	return sb.String(), nil
