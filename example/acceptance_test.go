@@ -39,6 +39,16 @@ func TestExamples(t *testing.T) {
 			},
 		},
 		{
+			name: "example/composite",
+			args: []string{
+				"--schema-glob", "example/composite/schema.sql",
+				"--query-glob", "example/composite/query.sql",
+				"--go-type", "int8=int",
+				"--go-type", "int4=int",
+				"--go-type", "text=string",
+			},
+		},
+		{
 			name: "example/enums",
 			args: []string{
 				"--schema-glob", "example/enums/schema.sql",

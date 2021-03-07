@@ -254,44 +254,116 @@ func (tq TemplatedQuery) EmitResultTypeInit(name string) (string, error) {
 }
 
 // EmitResultInits declares all initialization required for output types.
-//
-// pgtype.CompositeFields for composite types in the output columns. pggen uses
-// pgtype.CompositeFields as args to the row scan methods. Emits definitions
-// like:
-//
-//   userRow := pgtype.CompositeFields{
-//      &pgtype.Int8{},
-//      &pgtype.Text{},
-//   }
-//
-// Declares pgtype.EnumArray types for enum arrays in the output columns. pggen
-// uses pgtype.EnumArray as arg to the pgx row scan methods. Emits definitions
-// like:
-//
-//   deviceTypeArray := &pgtype.EnumArray{}
 func (tq TemplatedQuery) EmitResultInits(pkgPath string) (string, error) {
 	sb := &strings.Builder{}
 	const indent = "\n\t" // 1 level indent inside querier method
 	for _, out := range tq.Outputs {
 		switch typ := out.Type.(type) {
 		case gotype.CompositeType:
+			// Declares pgtype.CompositeFields types for composite types in the output
+			// columns. pggen uses pgtype.CompositeFields as args to the row scan
+			// methods. Emits definitions like:
+			//   userRow := pgtype.CompositeFields{
+			//      &pgtype.Int8{},
+			//      &pgtype.Text{},
+			//   }
 			sb.WriteString(indent)
 			sb.WriteString(out.LowerName)
 			sb.WriteString("Row := ")
 			tq.appendResultCompositeInit(sb, pkgPath, typ, 0)
-
 		case gotype.ArrayType:
-			if _, ok := typ.Elem.(gotype.EnumType); ok {
+			switch elem := typ.Elem.(type) {
+			case gotype.EnumType:
+				// Declares pgtype.EnumArray types for enum arrays in the output columns.
+				// pggen uses pgtype.EnumArray as arg to the pgx row scan methods. Emits
+				// definitions like:
+				//   deviceTypeArray := &pgtype.EnumArray{}
 				sb.WriteString(indent)
 				sb.WriteString(out.LowerName)
 				sb.WriteString("Array := &pgtype.EnumArray{}")
-			}
 
+			case gotype.CompositeType:
+				// Declares a composite type and an array type like:
+				//   blockRow, _ := pgtype.NewCompositeTypeValues("blocks", []pgtype.CompositeTypeField{
+				//   	{Name: "id", OID: pgtype.Int4OID},
+				//   }, []pgtype.ValueTranscoder{
+				//   	&pgtype.Int4{},
+				//   })
+				//   blockArray := pgtype.NewArrayType("_block", ignoredOID, func() pgtype.ValueTranscoder {
+				//   	return blockRow.NewTypeValue().(*pgtype.CompositeType)
+				//   })
+				sb.WriteString(indent)
+				rowName := out.LowerName + "Row"
+				sb.WriteString(rowName)
+				sb.WriteString(out.LowerName)
+				sb.WriteString("Row, _ := ")
+				err := tq.appendResultCompositeTypeInit(sb, pkgPath, elem, 0)
+				if err != nil {
+					return "", err
+				}
+				sb.WriteString(indent)
+				sb.WriteString(out.LowerName)
+				sb.WriteString("Array := ")
+				tq.appendResultArrayComposite(sb, typ, rowName)
+			}
 		default:
 			continue
 		}
 	}
 	return sb.String(), nil
+}
+
+func (tq TemplatedQuery) appendResultCompositeTypeInit(
+	sb *strings.Builder,
+	pkgPath string,
+	typ gotype.CompositeType,
+	indent int,
+) error {
+	sb.WriteString("pgtype.NewCompositeTypeValues(")
+	sb.WriteString(typ.PgComposite.Name)
+	sb.WriteString("[]pgtype.CompositeTypeField{")
+	for _, name := range typ.FieldNames {
+		sb.WriteString("\n")
+		sb.WriteString(strings.Repeat("\t", indent+2)) // indent for method and slice literal
+		sb.WriteString(`{Name: "`)
+		sb.WriteString(name)
+		sb.WriteString(`", OID: ignoredOID},`)
+	}
+	sb.WriteString(strings.Repeat("\t", indent+1))
+	sb.WriteString("}, []pgtype.ValueTranscoder{")
+	for _, fieldType := range typ.FieldTypes {
+		sb.WriteString("\n")
+		sb.WriteString(strings.Repeat("\t", indent+2)) // indent for method and slice literal
+		switch fieldType.(type) {
+		case gotype.CompositeType:
+			return fmt.Errorf("unsupported codgen: array of composite type with nested composites %q", typ.PgComposite.Name)
+		case gotype.VoidType:
+			// skip
+		default:
+			sb.WriteString("&") // pgx needs pointers to types
+			// TODO: support builtin types and builtin wrappers that use a different
+			// initialization syntax.
+			sb.WriteString(fieldType.QualifyRel(pkgPath))
+			sb.WriteString("{},")
+		}
+	}
+	sb.WriteString("\n")
+	return nil
+}
+
+func (tq TemplatedQuery) appendResultArrayComposite(
+	sb *strings.Builder,
+	arr gotype.ArrayType,
+	elemVarName string,
+) {
+	sb.WriteString(`pgtype.NewArrayType("`)
+	sb.WriteString(arr.PgArray.Name)
+	sb.WriteString(`", ignoredOID, func() pgtype.ValueTranscoder {`)
+	sb.WriteString("\n\t\t")
+	sb.WriteString("return ")
+	sb.WriteString(elemVarName)
+	sb.WriteString(".NewTypeValue().(*pgtype.CompositeType)\n\t")
+	sb.WriteString("})\n")
 }
 
 // appendResultCompositeInit appends the pgtype.CompositeFields declaration to
