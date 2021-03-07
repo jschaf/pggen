@@ -2,11 +2,12 @@ package custom_types
 
 import (
 	"context"
+	"github.com/jackc/pgtype"
 	"github.com/jackc/pgx/v4"
 	"github.com/jschaf/pggen/internal/pgtest"
+	"github.com/jschaf/pggen/internal/texts"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"reflect"
 	"testing"
 )
 
@@ -41,13 +42,26 @@ func TestQuerier_CustomTypes(t *testing.T) {
 }
 
 func TestQuerier_CustomMyInt(t *testing.T) {
-	t.SkipNow() // TODO: https://github.com/jackc/pgx/issues/953
 	conn, cleanup := pgtest.NewPostgresSchema(t, []string{"schema.sql"})
 	defer cleanup()
-	val := 0
-	conn.ConnInfo().RegisterDefaultPgType(val, "my_int")
-	valueType := reflect.TypeOf(val)
-	conn.ConnInfo().RegisterDefaultPgType(reflect.New(valueType).Interface(), "my_int")
+	row := conn.QueryRow(context.Background(), texts.Dedent(`
+		SELECT pt.oid
+		FROM pg_type pt
+			JOIN pg_namespace pn ON pt.typnamespace = pn.oid
+		WHERE typname = 'my_int'
+			AND pn.nspname = current_schema()
+		LIMIT 1;
+	`))
+	oidVal := pgtype.OIDValue{}
+	err := row.Scan(&oidVal)
+	require.NoError(t, err)
+	t.Logf("my_int oid: %d", oidVal.Uint)
+
+	conn.ConnInfo().RegisterDataType(pgtype.DataType{
+		Value: &pgtype.Int2{},
+		Name:  "my_int",
+		OID:   oidVal.Uint,
+	})
 
 	q := NewQuerier(conn)
 	ctx := context.Background()
