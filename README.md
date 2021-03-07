@@ -7,22 +7,28 @@
 pggen is a tool that generates Go code to provide a typesafe wrapper around
 Postgres queries. If Postgres can run the query, pggen can generate code for it.
 
-1.  Write SQL queries with a name and `:one`, `:many`, or `:exec` annotation.
+1.  Write arbitrarily complex SQL queries with a name and a `:one`, `:many`, or
+    `:exec` annotation. Declare inputs with `pggen.arg('input_name')`.
 
     ```sql
-    -- FindAuthors finds authors by first name.
-    -- name: FindAuthors :many
-    SELECT * FROM author WHERE first_name = pggen.arg('first_name');
+    -- name: SearchScreenshots :many
+    SELECT ss.id, array_agg(bl) AS blocks
+    FROM screenshots ss
+      JOIN blocks bl ON bl.screenshot_id = ss.id
+    WHERE bl.body LIKE pggen.arg('body') || '%'
+    GROUP BY ss.id
+    ORDER BY ss.id
+    LIMIT pggen.arg('limit') OFFSET pggen.arg('offset');
     ```
 
-2.  Run pggen to generate Go code to create type-safe methods for each 
-    query.
+2.  Run pggen to generate Go code to create type-safe methods for each query.
    
     ```bash
     pggen gen go \
         --schema-glob author/schema.sql \
-        --query-glob 'author/*.sql' \
-        --go-type 'text=*string'
+        --query-glob 'screenshots/*.sql' \
+        --go-type 'int8=int' \
+        --go-type 'text=string'
     ```
     
 3.  Use the generated code.
@@ -30,7 +36,11 @@ Postgres queries. If Postgres can run the query, pggen can generate code for it.
     ```go
     var conn *pgx.Conn
 	q := NewQuerier(conn)
-	aliceAuthors, err := q.FindAuthors(ctx, "alice")
+    rows, err := q.SearchScreenshots(ctx, SearchScreenshotsParams{
+        Body:   "some_prefix",
+        Limit:  50,
+        Offset: 200,
+    })
     ```
 
 ## Pitch
@@ -197,7 +207,7 @@ Examples embedded in the repo:
 # Features
 
 -   **JSON struct tags**: All `<query_name>Row` structs include JSON struct tags
-    using the Postgres column name. To change the struct tag, use a SQL column 
+    using the Postgres column name. To change the struct tag, use an SQL column 
     alias.
   
     ```sql
