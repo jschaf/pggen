@@ -12,7 +12,7 @@ Postgres queries. If Postgres can run the query, pggen can generate code for it.
     ```sql
     -- FindAuthors finds authors by first name.
     -- name: FindAuthors :many
-    SELECT * FROM author WHERE first_name = pggen.arg('FirstName');
+    SELECT * FROM author WHERE first_name = pggen.arg('first_name');
     ```
 
 2.  Run pggen to generate Go code to create type-safe methods for each 
@@ -166,6 +166,7 @@ Examples embedded in the repo:
 
 - [./example/acceptance_test.go] - End-to-end examples of how to call pggen.
 - [./example/author] - A single table schema with simple queries.
+- [./example/composite] - Arrays of composite (aka row or table) types.
 - [./example/custom_types] - Mapping new Postgres types to Go types.
 - [./example/device] - Complex queries with a 1:many relationship between a 
   `user` table and `device` table.
@@ -181,6 +182,7 @@ Examples embedded in the repo:
 
 [./example/acceptance_test.go]: ./example/acceptance_test.go
 [./example/author]: ./example/author
+[./example/composite]: ./example/composite
 [./example/custom_types]: ./example/custom_types
 [./example/device]: ./example/device
 [./example/enums]: ./example/enums
@@ -195,7 +197,7 @@ Examples embedded in the repo:
 # Features
 
 -   **JSON struct tags**: All `<query_name>Row` structs include JSON struct tags
-    using the Postgres column name. To change the struct tag, use an SQL column 
+    using the Postgres column name. To change the struct tag, use a SQL column 
     alias.
   
     ```sql
@@ -256,7 +258,10 @@ Examples embedded in the repo:
         --schema-glob example/custom_types/schema.sql \
         --query-glob example/custom_types/query.sql \
         --go-type 'int8=*int' \
-        --go-type 'text=github.com/jschaf/pggen/example/custom_types/mytype.String' \
+        --go-type 'int4=int' \
+        --go-type '_int4=[]int' \
+        --go-type 'text=*github.com/jschaf/pggen/mytype.String' \
+        --go-type '_text=[]*github.com/jschaf/pggen/mytype.String'
     ```
     
     pgx must be able to decode the Postgres type using the given Go type. That 
@@ -313,7 +318,7 @@ Examples embedded in the repo:
 [`ConnInfo.RegisterDataType`]: https://pkg.go.dev/github.com/jackc/pgtype#ConnInfo.RegisterDataType
 [`sql.Scanner`]: https://golang.org/pkg/database/sql/#Scanner
 [composite types]: https://www.postgresql.org/docs/current/rowtypes.html
-[example/custom_types test]: ./example/custom_types/query.sql_test.go#L56
+[example/custom_types test]: ./example/custom_types/query.sql_test.go
 
 # Tutorial
 
@@ -335,7 +340,7 @@ rows, `:one` row, or `:exec` for update, insert, and delete queries.
 ```sql
 -- FindAuthors finds authors by first name.
 -- name: FindAuthors :many
-SELECT * FROM author WHERE first_name = pggen.arg('FirstName');
+SELECT * FROM author WHERE first_name = pggen.arg('first_name');
 ```
 
 Second, use pggen to generate Go code to `author/query.sql.go`:
@@ -411,7 +416,7 @@ We'll walk through the generated file `author/query.sql.go`:
     
 -   pggen embeds the SQL query formatted for a Postgres `PREPARE` statement with
     parameters indicated by `$1`, `$2`, etc. instead of 
-    `pggen.arg('FirstName')`.
+    `pggen.arg('first_name')`.
 
     ```sql
     const findAuthorsSQL = `SELECT * FROM author WHERE first_name = $1;`
@@ -500,10 +505,11 @@ We'll walk through the generated file `author/query.sql.go`:
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) and [ARCHITECTURE.md](ARCHITECTURE.md).
 
-# Comparison to sqlc
+# Acknowledgments
 
-The primary difference between pggen and sqlc is how each tool infers the type
-and nullability of the input parameters and output columns for SQL queries.
+pggen was directly inspired by [sqlc]. The primary difference between pggen and
+sqlc is how each tool infers the type and nullability of the input parameters
+and output columns for SQL queries.
 
 sqlc parses the queries in Go code, using Cgo to call the Postgres `parser.c` 
 library. After parsing, sqlc infers the types of the query parameters and result
