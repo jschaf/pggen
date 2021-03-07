@@ -23,6 +23,13 @@ type Querier interface {
 	// SearchScreenshotsScan scans the result of an executed SearchScreenshotsBatch query.
 	SearchScreenshotsScan(results pgx.BatchResults) ([]SearchScreenshotsRow, error)
 
+	SearchScreenshotsOneCol(ctx context.Context, params SearchScreenshotsOneColParams) ([][]Blocks, error)
+	// SearchScreenshotsOneColBatch enqueues a SearchScreenshotsOneCol query into batch to be executed
+	// later by the batch.
+	SearchScreenshotsOneColBatch(batch *pgx.Batch, params SearchScreenshotsOneColParams)
+	// SearchScreenshotsOneColScan scans the result of an executed SearchScreenshotsOneColBatch query.
+	SearchScreenshotsOneColScan(results pgx.BatchResults) ([][]Blocks, error)
+
 	InsertScreenshotBlocks(ctx context.Context, screenshotID int, body string) (InsertScreenshotBlocksRow, error)
 	// InsertScreenshotBlocksBatch enqueues a InsertScreenshotBlocks query into batch to be executed
 	// later by the batch.
@@ -83,13 +90,13 @@ type Blocks struct {
 }
 
 const searchScreenshotsSQL = `SELECT
-  screenshots.id,
-  array_agg(blocks) AS blocks
-FROM screenshots
-  JOIN blocks ON blocks.screenshot_id = screenshots.id
-WHERE  blocks.body LIKE $1 || '%'
-GROUP BY screenshots.id
-ORDER BY id
+  ss.id,
+  array_agg(bl) AS blocks
+FROM screenshots ss
+  JOIN blocks bl ON bl.screenshot_id = ss.id
+WHERE bl.body LIKE $1 || '%'
+GROUP BY ss.id
+ORDER BY ss.id
 LIMIT $2 OFFSET $3;`
 
 type SearchScreenshotsParams struct {
@@ -172,6 +179,94 @@ func (q *DBQuerier) SearchScreenshotsScan(results pgx.BatchResults) ([]SearchScr
 	}
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("close SearchScreenshotsBatch rows: %w", err)
+	}
+	return items, err
+}
+
+const searchScreenshotsOneColSQL = `SELECT
+  array_agg(bl) AS blocks
+FROM screenshots ss
+  JOIN blocks bl ON bl.screenshot_id = ss.id
+WHERE bl.body LIKE $1 || '%'
+GROUP BY ss.id
+ORDER BY ss.id
+LIMIT $2 OFFSET $3;`
+
+type SearchScreenshotsOneColParams struct {
+	Body   string
+	Limit  int
+	Offset int
+}
+
+// SearchScreenshotsOneCol implements Querier.SearchScreenshotsOneCol.
+func (q *DBQuerier) SearchScreenshotsOneCol(ctx context.Context, params SearchScreenshotsOneColParams) ([][]Blocks, error) {
+	rows, err := q.conn.Query(ctx, searchScreenshotsOneColSQL, params.Body, params.Limit, params.Offset)
+	if err != nil {
+		return nil, fmt.Errorf("query SearchScreenshotsOneCol: %w", err)
+	}
+	defer rows.Close()
+	items := [][]Blocks{}
+	blocksRow, _ := pgtype.NewCompositeTypeValues("blocks", []pgtype.CompositeTypeField{
+		{Name: "ID", OID: ignoredOID},
+		{Name: "ScreenshotID", OID: ignoredOID},
+		{Name: "Body", OID: ignoredOID},
+	}, []pgtype.ValueTranscoder{
+		&pgtype.Int4{},
+		&pgtype.Int8{},
+		&pgtype.Text{},
+	})
+	blocksArray := pgtype.NewArrayType("_blocks", ignoredOID, func() pgtype.ValueTranscoder {
+		return blocksRow.NewTypeValue().(*pgtype.CompositeType)
+	})
+	for rows.Next() {
+		var item []Blocks
+		if err := rows.Scan(blocksArray); err != nil {
+			return nil, fmt.Errorf("scan SearchScreenshotsOneCol row: %w", err)
+		}
+		blocksArray.AssignTo(&item)
+		items = append(items, item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("close SearchScreenshotsOneCol rows: %w", err)
+	}
+	return items, err
+}
+
+// SearchScreenshotsOneColBatch implements Querier.SearchScreenshotsOneColBatch.
+func (q *DBQuerier) SearchScreenshotsOneColBatch(batch *pgx.Batch, params SearchScreenshotsOneColParams) {
+	batch.Queue(searchScreenshotsOneColSQL, params.Body, params.Limit, params.Offset)
+}
+
+// SearchScreenshotsOneColScan implements Querier.SearchScreenshotsOneColScan.
+func (q *DBQuerier) SearchScreenshotsOneColScan(results pgx.BatchResults) ([][]Blocks, error) {
+	rows, err := results.Query()
+	if err != nil {
+		return nil, fmt.Errorf("query SearchScreenshotsOneColBatch: %w", err)
+	}
+	defer rows.Close()
+	items := [][]Blocks{}
+	blocksRow, _ := pgtype.NewCompositeTypeValues("blocks", []pgtype.CompositeTypeField{
+		{Name: "ID", OID: ignoredOID},
+		{Name: "ScreenshotID", OID: ignoredOID},
+		{Name: "Body", OID: ignoredOID},
+	}, []pgtype.ValueTranscoder{
+		&pgtype.Int4{},
+		&pgtype.Int8{},
+		&pgtype.Text{},
+	})
+	blocksArray := pgtype.NewArrayType("_blocks", ignoredOID, func() pgtype.ValueTranscoder {
+		return blocksRow.NewTypeValue().(*pgtype.CompositeType)
+	})
+	for rows.Next() {
+		var item []Blocks
+		if err := rows.Scan(blocksArray); err != nil {
+			return nil, fmt.Errorf("scan SearchScreenshotsOneColBatch row: %w", err)
+		}
+		blocksArray.AssignTo(&item)
+		items = append(items, item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("close SearchScreenshotsOneColBatch rows: %w", err)
 	}
 	return items, err
 }

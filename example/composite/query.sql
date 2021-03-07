@@ -1,14 +1,23 @@
 -- name: SearchScreenshots :many
 SELECT
-  screenshots.id,
-  array_agg(blocks) AS blocks
-FROM screenshots
-  JOIN blocks ON blocks.screenshot_id = screenshots.id
-WHERE  blocks.body LIKE pggen.arg('Body') || '%'
-GROUP BY screenshots.id
-ORDER BY id
+  ss.id,
+  array_agg(bl) AS blocks
+FROM screenshots ss
+  JOIN blocks bl ON bl.screenshot_id = ss.id
+WHERE bl.body LIKE pggen.arg('Body') || '%'
+GROUP BY ss.id
+ORDER BY ss.id
 LIMIT pggen.arg('Limit') OFFSET pggen.arg('Offset');
 
+-- name: SearchScreenshotsOneCol :many
+SELECT
+  array_agg(bl) AS blocks
+FROM screenshots ss
+  JOIN blocks bl ON bl.screenshot_id = ss.id
+WHERE bl.body LIKE pggen.arg('Body') || '%'
+GROUP BY ss.id
+ORDER BY ss.id
+LIMIT pggen.arg('Limit') OFFSET pggen.arg('Offset');
 
 -- name: InsertScreenshotBlocks :one
 WITH screens AS (

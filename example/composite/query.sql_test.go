@@ -59,6 +59,30 @@ func TestNewQuerier_SearchScreenshots(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, want, rows)
 	})
+
+	t.Run("SearchScreenshotsOneCol", func(t *testing.T) {
+		rows, err := q.SearchScreenshotsOneCol(context.Background(), SearchScreenshotsOneColParams{
+			Body:   "body",
+			Limit:  5,
+			Offset: 0,
+		})
+		require.NoError(t, err)
+		assert.Equal(t, [][]Blocks{want[0].Blocks}, rows)
+	})
+
+	t.Run("SearchScreenshotsOneColBatch", func(t *testing.T) {
+		batch := &pgx.Batch{}
+		q.SearchScreenshotsOneColBatch(batch, SearchScreenshotsOneColParams{
+			Body:   "body",
+			Limit:  5,
+			Offset: 0,
+		})
+		results := conn.SendBatch(context.Background(), batch)
+		defer errs.CaptureT(t, results.Close, "close batch results")
+		rows, err := q.SearchScreenshotsOneColScan(results)
+		require.NoError(t, err)
+		assert.Equal(t, [][]Blocks{want[0].Blocks}, rows)
+	})
 }
 
 func insertScreenshotBlock(t *testing.T, q *DBQuerier, screenID int, body string) InsertScreenshotBlocksRow {
