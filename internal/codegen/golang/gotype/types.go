@@ -102,7 +102,7 @@ func (o OpaqueType) QualifyRel(pkgPath string) string { return qualifyRel(o, pkg
 func (o OpaqueType) Import() string                   { return o.PkgPath }
 func (o OpaqueType) Package() string                  { return o.Pkg }
 func (o OpaqueType) BaseName() string                 { return o.Name }
-func (o OpaqueType) PgType() pg.Type                  { return nil }
+func (o OpaqueType) PgType() pg.Type                  { return o.PgTyp }
 
 func (c CompositeType) QualifyRel(pkgPath string) string { return qualifyRel(c, pkgPath) }
 func (c CompositeType) Import() string                   { return c.PkgPath }
