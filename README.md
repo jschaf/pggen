@@ -166,19 +166,31 @@ Examples embedded in the repo:
 
 - [./example/acceptance_test.go] - End-to-end examples of how to call pggen.
 - [./example/author] - A single table schema with simple queries.
+- [./example/custom_types] - Mapping new Postgres types to Go types.
+- [./example/device] - Complex queries with a 1:many relationship between a 
+  `user` table and `device` table.
 - [./example/enums] - Postgres and Go enums.
 - [./example/erp] - A few tables with mildly complex queries.
-- [./example/syntax] - A smoke test of interesting SQL syntax.
+- [./example/go_pointer_types] - Mapping to pointer types like `*int` instead
+  of `pgtype.Int8`.
+- [./example/ltree] - Support for the ltree Postgres extension.
+- [./example/nested] - Complex, nested composite (aka row or table) types.
 - [./example/pgcrypto] - pgcrypto Postgres extension.
-- [./example/nested] - Nested composite types.
+- [./example/syntax] - A smoke test of interesting SQL syntax.
+- [./example/void] - Support for void in select columns.
 
 [./example/acceptance_test.go]: ./example/acceptance_test.go
 [./example/author]: ./example/author
+[./example/custom_types]: ./example/custom_types
+[./example/device]: ./example/device
 [./example/enums]: ./example/enums
 [./example/erp]: ./example/erp
+[./example/go_pointer_types]: ./example/go_pointer_types
+[./example/ltree]: ./example/ltree
+[./example/nested]: ./example/nested
 [./example/syntax]: ./example/syntax
 [./example/pgcrypto]: ./example/pgcrypto
-[./example/nested]: ./example/nested
+[./example/void]: ./example/void
 
 # Features
 
@@ -251,22 +263,23 @@ Examples embedded in the repo:
     means the Go type must fulfill at least one of following:
     
     - The Go type is a wrapper around primitive type, like `type AuthorID int`.
-      pgx will use the decode methods on the primitive type.
+      pgx will use the decode methods on the underlying primitive type.
 
     - The Go type implements both [`pgtype.BinaryDecoder`] and 
       [`pgtype.TextDecoder`]. pgx will use the correct decoder based on the wire
       format. See the [pgtype repo] for many example types.
       
     - The pgx connection executing the query must have registered a data type 
-      using the Go type with [`ConnInfo.RegisterDataType`].
+      using the Go type with [`ConnInfo.RegisterDataType`]. See the 
+      [example/custom_types test] for an example.
       
       ```go
       ci := conn.ConnInfo()
       
       ci.RegisterDataType(pgtype.DataType{
-      	Value: new(mytype.Numeric),
-      	Name: "numeric",
-      	OID: pgtype.NumericOID,
+      	Value: new(pgtype.Int2),
+      	Name:  "my_int",
+      	OID:   myIntOID,
       })
       ```
       
@@ -300,6 +313,7 @@ Examples embedded in the repo:
 [`ConnInfo.RegisterDataType`]: https://pkg.go.dev/github.com/jackc/pgtype#ConnInfo.RegisterDataType
 [`sql.Scanner`]: https://golang.org/pkg/database/sql/#Scanner
 [composite types]: https://www.postgresql.org/docs/current/rowtypes.html
+[example/custom_types test]: ./example/custom_types/query.sql_test.go#L56
 
 # Tutorial
 
