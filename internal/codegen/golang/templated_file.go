@@ -163,10 +163,11 @@ func (tq TemplatedQuery) EmitRowScanArgs() (string, error) {
 	for i, out := range tq.Outputs {
 		switch typ := out.Type.(type) {
 		case gotype.ArrayType:
-			if isEnumArray(out.Type) {
+			switch typ.Elem.(type) {
+			case gotype.EnumType, gotype.CompositeType:
 				sb.WriteString(out.LowerName)
 				sb.WriteString("Array")
-			} else {
+			default:
 				if hasOnlyOneNonVoid {
 					sb.WriteString("&item")
 				} else {
