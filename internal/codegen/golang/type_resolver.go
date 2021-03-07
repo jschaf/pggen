@@ -29,12 +29,31 @@ func NewTypeResolver(c casing.Caser, overrides map[string]string) TypeResolver {
 func (tr TypeResolver) Resolve(pgt pg.Type, nullable bool, pkgPath string) (gotype.Type, error) {
 	// Custom user override.
 	if goType, ok := tr.overrides[pgt.String()]; ok {
-		return gotype.NewOpaqueType(goType), nil
+		opaque := gotype.NewOpaqueType(goType)
+		opaque.PgTyp = pgt
+		return opaque, nil
 	}
 
 	// Known type.
 	if typ, ok := gotype.FindKnownTypeByOID(pgt.OID(), nullable); ok {
-		return typ, nil
+		switch typ := typ.(type) {
+		case gotype.ArrayType:
+			typ.PgArray = pgt.(pg.ArrayType)
+			return typ, nil
+		case gotype.CompositeType:
+			typ.PgComposite = pgt.(pg.CompositeType)
+			return typ, nil
+		case gotype.EnumType:
+			typ.PgEnum = pgt.(pg.EnumType)
+			return typ, nil
+		case gotype.OpaqueType:
+			typ.PgTyp = pgt
+			return typ, nil
+		case gotype.VoidType:
+			return gotype.VoidType{}, nil
+		default:
+			return nil, fmt.Errorf("resolve unhandled known postgres type %T", pgt)
+		}
 	}
 
 	// New type that pggen will define in generated source code.

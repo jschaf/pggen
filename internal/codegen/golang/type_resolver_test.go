@@ -57,6 +57,7 @@ func TestTypeResolver_Resolve(t *testing.T) {
 			overrides: map[string]string{"custom_type": "example.com/custom.QualType"},
 			pgType:    pg.BaseType{Name: "custom_type"},
 			want: gotype.OpaqueType{
+				PgTyp:   pg.BaseType{Name: "custom_type"},
 				PkgPath: "example.com/custom",
 				Pkg:     "custom",
 				Name:    "QualType",
@@ -67,6 +68,7 @@ func TestTypeResolver_Resolve(t *testing.T) {
 			overrides: map[string]string{"custom_type": "*example.com/custom.QualType"},
 			pgType:    pg.BaseType{Name: "custom_type"},
 			want: gotype.OpaqueType{
+				PgTyp:   pg.BaseType{Name: "custom_type"},
 				PkgPath: "example.com/custom",
 				Pkg:     "custom",
 				Name:    "*QualType",
@@ -77,6 +79,7 @@ func TestTypeResolver_Resolve(t *testing.T) {
 			overrides: map[string]string{"custom_type": "[]*example.com/custom.QualType"},
 			pgType:    pg.BaseType{Name: "custom_type"},
 			want: gotype.OpaqueType{
+				PgTyp:   pg.BaseType{Name: "custom_type"},
 				PkgPath: "example.com/custom",
 				Pkg:     "custom",
 				Name:    "[]*QualType",
@@ -87,6 +90,7 @@ func TestTypeResolver_Resolve(t *testing.T) {
 			pgType:   pg.BaseType{Name: "text", ID: pgtype.PointOID},
 			nullable: false,
 			want: gotype.OpaqueType{
+				PgTyp:   pg.BaseType{Name: "text", ID: pgtype.PointOID},
 				PkgPath: "github.com/jackc/pgtype",
 				Pkg:     "pgtype",
 				Name:    "Point",
@@ -97,6 +101,7 @@ func TestTypeResolver_Resolve(t *testing.T) {
 			pgType:   pg.BaseType{Name: "text", ID: pgtype.PointOID},
 			nullable: true,
 			want: gotype.OpaqueType{
+				PgTyp:   pg.BaseType{Name: "text", ID: pgtype.PointOID},
 				PkgPath: "github.com/jackc/pgtype",
 				Pkg:     "pgtype",
 				Name:    "Point",
@@ -107,6 +112,7 @@ func TestTypeResolver_Resolve(t *testing.T) {
 			overrides: map[string]string{"bigint": "example.com/custom.QualType"},
 			pgType:    pg.BaseType{Name: "int8", ID: pgtype.Int8OID},
 			want: gotype.OpaqueType{
+				PgTyp:   pg.BaseType{Name: "int8", ID: pgtype.Int8OID},
 				PkgPath: "example.com/custom",
 				Pkg:     "custom",
 				Name:    "QualType",
@@ -117,6 +123,7 @@ func TestTypeResolver_Resolve(t *testing.T) {
 			overrides: map[string]string{"_bigint": "[]uint16"},
 			pgType:    pg.BaseType{Name: "_int8", ID: pgtype.Int8ArrayOID},
 			want: gotype.OpaqueType{
+				PgTyp:   pg.BaseType{Name: "_int8", ID: pgtype.Int8ArrayOID},
 				PkgPath: "",
 				Pkg:     "",
 				Name:    "[]uint16",
@@ -127,6 +134,7 @@ func TestTypeResolver_Resolve(t *testing.T) {
 			overrides: map[string]string{"_real": "[]example.com/custom.F32"},
 			pgType:    pg.BaseType{Name: "_float4", ID: pgtype.Float8OID},
 			want: gotype.OpaqueType{
+				PgTyp:   pg.BaseType{Name: "_float4", ID: pgtype.Float8OID},
 				PkgPath: "example.com/custom",
 				Pkg:     "custom",
 				Name:    "[]F32",
@@ -150,7 +158,10 @@ func TestTypeResolver_Resolve(t *testing.T) {
 				Pkg:        "test_resolve",
 				Name:       "Qux",
 				FieldNames: []string{"ID", "Foo"},
-				FieldTypes: []gotype.Type{gotype.PgText, gotype.PgInt8},
+				FieldTypes: []gotype.Type{
+					withPgType(gotype.PgText, pg.Text),
+					withPgType(gotype.PgInt8, pg.Int8),
+				},
 			},
 		},
 	}
@@ -251,4 +262,9 @@ func TestCreateCompositeType(t *testing.T) {
 			assert.Equal(t, tt.want, got)
 		})
 	}
+}
+
+func withPgType(typ gotype.OpaqueType, pgType pg.Type) gotype.OpaqueType {
+	typ.PgTyp = pgType
+	return typ
 }

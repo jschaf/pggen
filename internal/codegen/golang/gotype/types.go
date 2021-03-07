@@ -25,6 +25,8 @@ type Type interface {
 	// The base name of the type, like the "Foo" in:
 	//   type Foo int
 	BaseName() string
+	// PgType returns the Postgres type this type represents, or nil if not known.
+	PgType() pg.Type
 }
 
 type (
@@ -60,6 +62,7 @@ type (
 	// OpaqueType is a type where only the name is known, as with a user-provided
 	// custom type.
 	OpaqueType struct {
+		PgTyp   pg.Type // original Postgres type
 		PkgPath string
 		Pkg     string
 		Name    string
@@ -81,26 +84,31 @@ func (e VoidType) QualifyRel(pkgPath string) string { return qualifyRel(e, pkgPa
 func (e VoidType) Import() string                   { return "" }
 func (e VoidType) Package() string                  { return "" }
 func (e VoidType) BaseName() string                 { return "" }
+func (e VoidType) PgType() pg.Type                  { return pg.VoidType{} }
 
 func (a ArrayType) QualifyRel(pkgPath string) string { return qualifyRel(a, pkgPath) }
 func (a ArrayType) Import() string                   { return a.PkgPath }
 func (a ArrayType) Package() string                  { return a.Pkg }
 func (a ArrayType) BaseName() string                 { return a.Name }
+func (a ArrayType) PgType() pg.Type                  { return a.PgArray }
 
 func (e EnumType) QualifyRel(pkgPath string) string { return qualifyRel(e, pkgPath) }
 func (e EnumType) Import() string                   { return e.PkgPath }
 func (e EnumType) Package() string                  { return e.Pkg }
 func (e EnumType) BaseName() string                 { return e.Name }
+func (e EnumType) PgType() pg.Type                  { return e.PgEnum }
 
 func (o OpaqueType) QualifyRel(pkgPath string) string { return qualifyRel(o, pkgPath) }
 func (o OpaqueType) Import() string                   { return o.PkgPath }
 func (o OpaqueType) Package() string                  { return o.Pkg }
 func (o OpaqueType) BaseName() string                 { return o.Name }
+func (o OpaqueType) PgType() pg.Type                  { return nil }
 
 func (c CompositeType) QualifyRel(pkgPath string) string { return qualifyRel(c, pkgPath) }
 func (c CompositeType) Import() string                   { return c.PkgPath }
 func (c CompositeType) Package() string                  { return c.Pkg }
 func (c CompositeType) BaseName() string                 { return c.Name }
+func (c CompositeType) PgType() pg.Type                  { return c.PgComposite }
 
 func qualifyRel(typ Type, otherPkgPath string) string {
 	if typ.Import() == otherPkgPath || typ.Import() == "" || typ.Package() == "" {
