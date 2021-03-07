@@ -69,6 +69,19 @@ func (q *DBQuerier) WithTx(tx pgx.Tx) (*DBQuerier, error) {
 	return &DBQuerier{conn: tx}, nil
 }
 
+// ignoredOID means we don't know or care about the OID for a type. This is okay
+// because pgx only uses the OID to encode values and lookup a decoder. We only
+// use ignoredOID for decoding and we always specify a concrete decoder for scan
+// methods.
+const ignoredOID = 0
+
+// Blocks represents the Postgres composite type "blocks".
+type Blocks struct {
+	ID           int    `json:"id"`
+	ScreenshotID int    `json:"screenshot_id"`
+	Body         string `json:"body"`
+}
+
 const searchScreenshotsSQL = `SELECT
   screenshots.id,
   array_agg(blocks) AS blocks
@@ -90,46 +103,32 @@ type SearchScreenshotsRow struct {
 	Blocks []Blocks `json:"blocks"`
 }
 
-// Blocks represents the Postgres composite type "blocks".
-type Blocks struct {
-	ID           int    `json:"id"`
-	ScreenshotID int    `json:"screenshot_id"`
-	Body         string `json:"body"`
-}
-
-// ignoredOID means we don't know or care about the OID for a type. This is
-// typically okay because we only need the OID when encoding values or when
-// relying on pgx to figure out how decode a Postgres query response.
-const ignoredOID = 0
-
 // SearchScreenshots implements Querier.SearchScreenshots.
 func (q *DBQuerier) SearchScreenshots(ctx context.Context, params SearchScreenshotsParams) ([]SearchScreenshotsRow, error) {
 	rows, err := q.conn.Query(ctx, searchScreenshotsSQL, params.Body, params.Limit, params.Offset)
-	if rows != nil {
-		defer rows.Close()
-	}
 	if err != nil {
 		return nil, fmt.Errorf("query SearchScreenshots: %w", err)
 	}
+	defer rows.Close()
 	items := []SearchScreenshotsRow{}
-	blockRow, _ := pgtype.NewCompositeTypeValues("blocks", []pgtype.CompositeTypeField{
-		{Name: "id", OID: pgtype.Int4OID},
-		{Name: "screenshot_id", OID: pgtype.Int8OID},
-		{Name: "body", OID: pgtype.TextOID},
+	blocksRow, _ := pgtype.NewCompositeTypeValues("blocks", []pgtype.CompositeTypeField{
+		{Name: "ID", OID: ignoredOID},
+		{Name: "ScreenshotID", OID: ignoredOID},
+		{Name: "Body", OID: ignoredOID},
 	}, []pgtype.ValueTranscoder{
 		&pgtype.Int4{},
 		&pgtype.Int8{},
 		&pgtype.Text{},
 	})
-	blockArray := pgtype.NewArrayType("_block", ignoredOID, func() pgtype.ValueTranscoder {
-		return blockRow.NewTypeValue().(*pgtype.CompositeType)
+	blocksArray := pgtype.NewArrayType("_blocks", ignoredOID, func() pgtype.ValueTranscoder {
+		return blocksRow.NewTypeValue().(*pgtype.CompositeType)
 	})
 	for rows.Next() {
 		var item SearchScreenshotsRow
-		if err := rows.Scan(&item.ID, blockArray); err != nil {
+		if err := rows.Scan(&item.ID, blocksArray); err != nil {
 			return nil, fmt.Errorf("scan SearchScreenshots row: %w", err)
 		}
-		blockArray.AssignTo(&item.Blocks)
+		blocksArray.AssignTo(&item.Blocks)
 		items = append(items, item)
 	}
 	if err := rows.Err(); err != nil {
@@ -146,18 +145,29 @@ func (q *DBQuerier) SearchScreenshotsBatch(batch *pgx.Batch, params SearchScreen
 // SearchScreenshotsScan implements Querier.SearchScreenshotsScan.
 func (q *DBQuerier) SearchScreenshotsScan(results pgx.BatchResults) ([]SearchScreenshotsRow, error) {
 	rows, err := results.Query()
-	if rows != nil {
-		defer rows.Close()
-	}
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("query SearchScreenshotsBatch: %w", err)
 	}
+	defer rows.Close()
 	items := []SearchScreenshotsRow{}
+	blocksRow, _ := pgtype.NewCompositeTypeValues("blocks", []pgtype.CompositeTypeField{
+		{Name: "ID", OID: ignoredOID},
+		{Name: "ScreenshotID", OID: ignoredOID},
+		{Name: "Body", OID: ignoredOID},
+	}, []pgtype.ValueTranscoder{
+		&pgtype.Int4{},
+		&pgtype.Int8{},
+		&pgtype.Text{},
+	})
+	blocksArray := pgtype.NewArrayType("_blocks", ignoredOID, func() pgtype.ValueTranscoder {
+		return blocksRow.NewTypeValue().(*pgtype.CompositeType)
+	})
 	for rows.Next() {
 		var item SearchScreenshotsRow
-		if err := rows.Scan(&item.ID, &item.Blocks); err != nil {
+		if err := rows.Scan(&item.ID, blocksArray); err != nil {
 			return nil, fmt.Errorf("scan SearchScreenshotsBatch row: %w", err)
 		}
+		blocksArray.AssignTo(&item.Blocks)
 		items = append(items, item)
 	}
 	if err := rows.Err(); err != nil {

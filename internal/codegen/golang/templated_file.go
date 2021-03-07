@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/jschaf/pggen/internal/ast"
 	"github.com/jschaf/pggen/internal/codegen/golang/gotype"
+	"github.com/jschaf/pggen/internal/pg"
 	"strconv"
 	"strings"
 )
@@ -295,8 +296,7 @@ func (tq TemplatedQuery) EmitResultInits(pkgPath string) (string, error) {
 				sb.WriteString(indent)
 				rowName := out.LowerName + "Row"
 				sb.WriteString(rowName)
-				sb.WriteString(out.LowerName)
-				sb.WriteString("Row, _ := ")
+				sb.WriteString(", _ := ")
 				err := tq.appendResultCompositeTypeInit(sb, pkgPath, elem, 0)
 				if err != nil {
 					return "", err
@@ -319,9 +319,9 @@ func (tq TemplatedQuery) appendResultCompositeTypeInit(
 	typ gotype.CompositeType,
 	indent int,
 ) error {
-	sb.WriteString("pgtype.NewCompositeTypeValues(")
+	sb.WriteString(`pgtype.NewCompositeTypeValues("`)
 	sb.WriteString(typ.PgComposite.Name)
-	sb.WriteString("[]pgtype.CompositeTypeField{")
+	sb.WriteString(`", []pgtype.CompositeTypeField{`)
 	for _, name := range typ.FieldNames {
 		sb.WriteString("\n")
 		sb.WriteString(strings.Repeat("\t", indent+2)) // indent for method and slice literal
@@ -329,6 +329,7 @@ func (tq TemplatedQuery) appendResultCompositeTypeInit(
 		sb.WriteString(name)
 		sb.WriteString(`", OID: ignoredOID},`)
 	}
+	sb.WriteString("\n")
 	sb.WriteString(strings.Repeat("\t", indent+1))
 	sb.WriteString("}, []pgtype.ValueTranscoder{")
 	for _, fieldType := range typ.FieldTypes {
@@ -343,11 +344,22 @@ func (tq TemplatedQuery) appendResultCompositeTypeInit(
 			sb.WriteString("&") // pgx needs pointers to types
 			// TODO: support builtin types and builtin wrappers that use a different
 			// initialization syntax.
-			sb.WriteString(fieldType.QualifyRel(pkgPath))
-			sb.WriteString("{},")
+			pgType := fieldType.PgType()
+			if pgType == nil || pgType == (pg.VoidType{}) {
+				sb.WriteString("nil,")
+			} else {
+				// Nullable so we get the pgtype variant.
+				if decoderType, ok := gotype.FindKnownTypeByOID(pgType.OID() /* nullable */, true); ok {
+					fieldType = decoderType
+				}
+				sb.WriteString(fieldType.QualifyRel(pkgPath))
+				sb.WriteString("{},")
+			}
 		}
 	}
 	sb.WriteString("\n")
+	sb.WriteString(strings.Repeat("\t", indent+1))
+	sb.WriteString("})")
 	return nil
 }
 
@@ -363,7 +375,7 @@ func (tq TemplatedQuery) appendResultArrayComposite(
 	sb.WriteString("return ")
 	sb.WriteString(elemVarName)
 	sb.WriteString(".NewTypeValue().(*pgtype.CompositeType)\n\t")
-	sb.WriteString("})\n")
+	sb.WriteString("})")
 }
 
 // appendResultCompositeInit appends the pgtype.CompositeFields declaration to
@@ -409,13 +421,13 @@ func (tq TemplatedQuery) appendResultCompositeInit(
 // Copies pgtype.EnumArray fields into Go enum array types.
 func (tq TemplatedQuery) EmitResultAssigns(pkgPath string) (string, error) {
 	sb := &strings.Builder{}
+	indent := "\n\t"
+	if tq.ResultKind == ast.ResultKindMany {
+		indent += "\t" // a :many query processes items in a for loop
+	}
 	for _, out := range tq.Outputs {
 		switch typ := out.Type.(type) {
 		case gotype.CompositeType:
-			indent := "\n\t"
-			if tq.ResultKind == ast.ResultKindMany {
-				indent += "\t" // a :many query processes items in a for loop
-			}
 			fields := []string{"item"}
 			if len(tq.Outputs) > 1 {
 				// Queries with more than 1 output use a struct to group output columns.
@@ -430,23 +442,28 @@ func (tq TemplatedQuery) EmitResultAssigns(pkgPath string) (string, error) {
 				sb.WriteString(strings.Join(assign.exprs, ""))
 			}
 		case gotype.ArrayType:
-			// Only enum arrays need custom init code.
-			if _, ok := typ.Elem.(gotype.EnumType); !ok {
-				continue
+			switch typ.Elem.(type) {
+			case gotype.EnumType:
+				sb.WriteString(indent)
+				sb.WriteString(out.LowerName)
+				sb.WriteString("Array.AssignTo((*[]string)(unsafe.Pointer(&item")
+				if len(removeVoidColumns(tq.Outputs)) > 1 {
+					sb.WriteRune('.')
+					sb.WriteString(out.UpperName)
+				}
+				sb.WriteString(")))")
+				sb.WriteString(" // safe cast; enum array is []string")
+
+			case gotype.CompositeType:
+				sb.WriteString(indent)
+				sb.WriteString(out.LowerName)
+				sb.WriteString("Array.AssignTo(&item")
+				if len(removeVoidColumns(tq.Outputs)) > 1 {
+					sb.WriteRune('.')
+					sb.WriteString(out.UpperName)
+				}
+				sb.WriteString(")")
 			}
-			indent := "\n\t"
-			if tq.ResultKind == ast.ResultKindMany {
-				indent += "\t" // a :many query processes items in a for loop
-			}
-			sb.WriteString(indent)
-			sb.WriteString(out.LowerName)
-			sb.WriteString("Array.AssignTo((*[]string)(unsafe.Pointer(&item")
-			if len(removeVoidColumns(tq.Outputs)) > 1 {
-				sb.WriteRune('.')
-				sb.WriteString(out.UpperName)
-			}
-			sb.WriteString(")))")
-			sb.WriteString(" // safe cast; enum array is []string")
 		}
 	}
 	return sb.String(), nil

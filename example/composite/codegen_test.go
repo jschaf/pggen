@@ -21,6 +21,11 @@ func TestGenerate_Go_Example_Composite(t *testing.T) {
 			OutputDir:  tmpDir,
 			GoPackage:  "composite",
 			Language:   pggen.LangGo,
+			TypeOverrides: map[string]string{
+				"int4": "int",
+				"int8": "int",
+				"text": "string",
+			},
 		})
 	if err != nil {
 		t.Fatalf("Generate(): %s", err)

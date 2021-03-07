@@ -177,6 +177,9 @@ func (tm Templater) templateFile(file codegen.QueryFile) (TemplatedFile, []Decla
 			if isEnumArray(goType) {
 				imports.AddPackage("unsafe") // used to cast []string to []EnumType
 			}
+			if isCompositeArray(goType) {
+				imports.AddPackage("github.com/jackc/pgtype") // needed for decoder types
+			}
 			outputs[i] = TemplatedColumn{
 				PgName:    out.PgName,
 				UpperName: tm.chooseUpperName(out.PgName, "UnnamedColumn", i, len(query.Outputs)),
@@ -239,6 +242,15 @@ func isEnumArray(typ gotype.Type) bool {
 	if typ, ok := typ.(gotype.ArrayType); !ok {
 		return false
 	} else if _, ok := typ.Elem.(gotype.EnumType); !ok {
+		return false
+	}
+	return true
+}
+
+func isCompositeArray(typ gotype.Type) bool {
+	if typ, ok := typ.(gotype.ArrayType); !ok {
+		return false
+	} else if _, ok := typ.Elem.(gotype.CompositeType); !ok {
 		return false
 	}
 	return true

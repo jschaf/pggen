@@ -251,7 +251,10 @@ func TestCreateCompositeType(t *testing.T) {
 				Pkg:        "foo",
 				Name:       "Qux",
 				FieldNames: []string{"One", "TwoA"},
-				FieldTypes: []gotype.Type{gotype.PgText, gotype.PgInt8},
+				FieldTypes: []gotype.Type{
+					withPgType(gotype.PgText, pg.Text),
+					withPgType(gotype.PgInt8, pg.Int8),
+				},
 			},
 		},
 	}
