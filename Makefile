@@ -5,6 +5,9 @@ SHELL := bash
 MAKEFLAGS += --warn-undefined-variables
 MAKEFLAGS += --no-builtin-rules
 
+.PHONY: all
+all: lint test acceptance-test
+
 .PHONY: start
 start:
 	docker-compose up -d
@@ -40,6 +43,3 @@ update-acceptance-test: statik
 .PHONY: lint
 lint:
 	golangci-lint run
-
-.PHONY: all
-all: lint test acceptance-test
