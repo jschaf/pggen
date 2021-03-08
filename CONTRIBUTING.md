@@ -121,3 +121,25 @@ pggen has tests at most parts of the testing hierarchy.
 [casing_test.go]: internal/casing/casing_test.go
 [pginfer_test.go]: internal/pginfer/pginfer_test.go
 [example/nested/codegen_test.go]: example/nested/codegen_test.go
+
+## Debugging
+
+For unit-testable things, like type resolution, there should be a test you can 
+debug.
+
+For debugging codegen bugs, the best place to start is the `codegen_test.go`
+file in each folder in ./example.
+
+To debug generated query execution, start with the `query.sql_test.go` file in 
+each example. I've structured the tests (at least the recent ones like 
+`example/author`) so that every generated query has an isolated sub-test you can
+debug.
+
+For tests that use a Postgres instance, you can find the schema used in the test
+in the test output. You can connect to that schema with:
+
+```
+PGPASSWORD=hunter2 psql --host=127.0.0.1 --port=5555 --username=postgres pggen
+
+postgres> set search_path to 'pggen_test_<SOME_NUMBER>'
+```
