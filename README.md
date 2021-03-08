@@ -36,7 +36,8 @@ How to use pggen in three steps:
         --go-type 'text=string'
     ```
     
-    That command generates methods and type definitions like:
+    That command generates methods and type definitions like below. The full
+    example is in [./example/composite/query.sql.go].
     
     ```go
     type SearchScreenshotsParams struct {
@@ -76,6 +77,7 @@ How to use pggen in three steps:
         Offset: 200,
     })
     ```
+[./example/composite/query.sql.go]: ./example/composite/query.sql.go
 
 ## Pitch
 
