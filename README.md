@@ -83,12 +83,16 @@ How to use pggen in three steps:
 
 Why should you use `pggen` instead of the [myriad] of Go SQL bindings?
 
-- pggen generates code using the database as a source of truth, so you can 
-  unleash the full power of SQL.
+- pggen generates code by introspecting the database system catalogs, so you 
+  can use *any* database extensions or custom methods and it will just work™.
+  For database types that pggen doesn't recognize, you can provide your own
+  type mappings.
 
-- pggen is narrowly tailored to only generate code for queries you write in SQL.
-  pggen will not create a model for every database object. Instead, pggen only
-  generates structs necessary to run the queries you specify.
+- pggen scales to Postgres databases of any size and supports incremental 
+  adoption. pggen is narrowly tailored to only generate code for queries you 
+  write in SQL. pggen will not create a model for every database object. 
+  Instead, pggen only generates structs necessary to run the queries you 
+  specify.
 
 - pggen works with any Postgres database with any extensions. Under the hood, 
   pggen runs each query and uses the Postgres catalog tables, `pg_type`, 
@@ -101,10 +105,12 @@ Why should you use `pggen` instead of the [myriad] of Go SQL bindings?
 - pggen uses [pgx], a faster replacement for [lib/pq], the original Go Postgres
   library that's now in maintenance mode.
 
-- pggen provides a batch interface for each generated query with [`pgx.Batch`]. 
-  Using a batch enables sending multiple queries in a single network round-trip
-  instead of one network round-trip per query.
+- pggen provides a batch (aka query pipelining) interface for each generated 
+  query with [`pgx.Batch`]. Query pipelining is the reason Postgres sits atop
+  the [TechEmpower benchmarks]. Using a batch enables sending multiple queries
+  in a single network round-trip instead of one network round-trip per query.
   
+[TechEmpower benchmarks]: https://www.techempower.com/benchmarks/#section=data-r20&hw=ph&test=query
 [pgx]: https://github.com/jackc/pgx
 [lib/pq]: https://github.com/lib/pq
 
