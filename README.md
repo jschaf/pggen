@@ -4,8 +4,13 @@
 
 # pggen - generate type safe Go methods from Postgres SQL queries
 
-pggen is a tool that generates Go code to provide a typesafe wrapper around
-Postgres queries. If Postgres can run the query, pggen can generate code for it.
+pggen generates Go code to provide a typesafe wrapper to run Postgres queries.
+If Postgres can run the query, pggen can generate code for it. The generated 
+code is strongly-typed with rich mappings between Postgres types and Go types
+without relying on `interface{}`. pggen uses prepared queries, so you don't 
+have to worry about SQL injection attacks. 
+
+How to use pggen in three steps:
 
 1.  Write arbitrarily complex SQL queries with a name and a `:one`, `:many`, or
     `:exec` annotation. Declare inputs with `pggen.arg('input_name')`.
@@ -25,10 +30,39 @@ Postgres queries. If Postgres can run the query, pggen can generate code for it.
    
     ```bash
     pggen gen go \
-        --schema-glob author/schema.sql \
+        --schema-glob schema.sql \
         --query-glob 'screenshots/*.sql' \
         --go-type 'int8=int' \
         --go-type 'text=string'
+    ```
+    
+    That command generates methods and type definitions like:
+    
+    ```go
+    type SearchScreenshotsParams struct {
+        Body   string
+        Limit  int
+        Offset int
+    }
+
+    type SearchScreenshotsRow struct {
+        ID     int      `json:"id"`
+        Blocks []Blocks `json:"blocks"`
+    }
+    
+    // Blocks represents the Postgres composite type "blocks".
+    type Blocks struct {
+        ID           int    `json:"id"`
+        ScreenshotID int    `json:"screenshot_id"`
+        Body         string `json:"body"`
+    }
+    
+    func (q *DBQuerier) SearchScreenshots(
+        ctx context.Context,
+        params SearchScreenshotsParams,
+    ) ([]SearchScreenshotsRow, error) {
+        /* omitted */
+    }
     ```
     
 3.  Use the generated code.
