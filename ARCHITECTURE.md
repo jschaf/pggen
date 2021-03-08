@@ -26,16 +26,18 @@ in the following steps.
     input parameters types by using a `PREPARE` statement and querying the 
     [`pg_prepared_statement`] table to get type information for each parameter.
 
-    pggen determines output columns by executing the query and reading the field
-    descriptions returned with the query result rows. The field descriptions
-    contain the type ID for each output column. The type ID is a Postgres object
-    ID (OID), the primary key to identify a row in the [`pg_type`] catalog table.
+    pggen determines output columns types and names by executing the query and
+    reading the field descriptions returned with the query result rows. The 
+    field descriptions contain the type ID for each output column. The type ID 
+    is a Postgres object ID (OID), the primary key to identify a row in the 
+    [`pg_type`] catalog table.
 
     pggen determines if an output column can be null using heuristics. If a column
     cannot be null, pggen uses more ergonomic types to represent the output like
     `string` instead of `pgtype.Text`. The heuristics are quite simple; see
-    [internal/pginfer/nullability.go]. A proper approach requires a full Postgres
-    SQL syntax parser with control flow analysis to determine nullability.
+    [internal/pginfer/nullability.go]. A proper approach requires a control 
+    flow analysis to determine nullability. I've started down that road in 
+    [pgplan.go](./internal/pgplan/pgplan.go).
 
 1.  Transform each `*ast.File` into `codegen.QueryFile` in [generate.go]
     `parseQueries`.
@@ -44,7 +46,7 @@ in the following steps.
     into a `golang.TemplatedFile` like with [internal/codegen/golang/templater.go].
 
 1.  Emit the generated code from `golang.TemplateFile` in
-    [internal/codegen/golang/emitter.go]
+    [internal/codegen/golang/templated_file.go]
     
 [cmd/pggen/pggen.go]: cmd/pggen/pggen.go
 [internal/parser/interface.go]: internal/parser/interface.go
@@ -53,7 +55,7 @@ in the following steps.
 [internal/pg/query.sql]: internal/pg/query.sql
 [generate.go]: ./generate.go
 [internal/codegen/golang/templater.go]: internal/codegen/golang/templater.go
-[internal/codegen/golang/emitter.go]: internal/codegen/golang/emitter.go
+[internal/codegen/golang/templated_file.go]: internal/codegen/golang/templated_file.go
 [`pg_prepared_statement`]: https://www.postgresql.org/docs/current/view-pg-prepared-statements.html
 [`pg_type`]: https://www.postgresql.org/docs/13/catalog-pg-type.html
 
