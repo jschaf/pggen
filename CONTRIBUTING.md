@@ -18,9 +18,13 @@ make start
 # Commit changes
 
 # Validate changes
-make lint && make test && make acceptance-test
+make lint && make test && make acceptance-test 
+# make all - equivalent
+# make     - equivalent
 
-# Send PR
+# Send PR to GitHub. Check that tests and lints passed.
+
+# Stop docker.
 make stop
 ```
 
@@ -39,7 +43,7 @@ make stop
     be null. `pgtext.Text` has a state field that encodes null values.
     
 -   Generated code should look like a human wrote it. The generated code should
-    be near perfect.
+    be near perfect, including formatting. pggen doesn't depend on gofmt.
 
 ## Setup
 
@@ -87,7 +91,7 @@ To run the acceptance tests to validate that pggen produces the same code as
 the checked-in example code:
 
 ```shell
-# Acceptance tests check that there's no Git diffs.
+# Acceptance tests check that there's no Git diffs so commit code first.
 git commit -m "some message" 
 
 make acceptance-test
@@ -108,7 +112,7 @@ pggen has tests at most parts of the testing hierarchy.
     
 -   Integration tests like the [pginfer_test.go] to test that the code works
     (integrates) with different subsystems like Postgres, Docker, or other Go
-    packages. Run with `make test`.
+    packages. As with unit tests, run with `make test`.
     
 -   Acceptance tests like [example/nested/codegen_test.go] to test that pggen
     produces the exact same output as the checked-in examples. Run with 
