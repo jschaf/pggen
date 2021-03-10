@@ -26,18 +26,29 @@ for target in "${targets[@]}"; do
 done
 popd >/dev/null
 
+# Download github-release if necessary.
+GH_REL_BIN='github-release'
+if ! command -v "$GH_REL_BIN"; then
+  echo 'downloading github-release'
+  GH_REL_BIN="$(mktemp)"
+  url=https://github.com/github-release/github-release/releases/download/v0.10.0/linux-amd64-github-release.bz2
+  curl -L --fail --silent "${url}" | bzip2 -dc >"$GH_REL_BIN"
+  chmod +x "$GH_REL_BIN"
+fi
+echo "!!! $GH_REL_BIN"
+
 # Delete any existing releases. We only support 1 release per day.
 # Ignore errors if we try to delete a release that doesn't exist.
-github-release delete --user jschaf --repo pggen --tag "$day" 2>/dev/null || true
+"${GH_REL_BIN}" delete --user jschaf --repo pggen --tag "$day" 2>/dev/null || true
 
 echo
 echo "creating release $day"
-github-release release --user jschaf --repo pggen --tag "$day" --name "$day"
+"${GH_REL_BIN}" release --user jschaf --repo pggen --tag "$day" --name "$day"
 
 # Upload each of the zipped binaries.
 for target in "${targets[@]}"; do
   echo -n "uploading pggen-${target}.zip ... "
-  github-release upload \
+  "${GH_REL_BIN}" upload \
     --user jschaf \
     --repo pggen \
     --tag "$day" \

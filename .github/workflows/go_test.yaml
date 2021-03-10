@@ -1,7 +1,7 @@
 name: Test
 on: [push, pull_request]
 jobs:
-  checks:
+  test:
     name: go test
     runs-on: ubuntu-latest
     services:

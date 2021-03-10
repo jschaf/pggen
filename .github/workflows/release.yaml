@@ -7,12 +7,11 @@ on:
       - v*
 jobs:
   release:
+    needs: [lint, test]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - name: Create a Release
-        uses: elgohr/Github-Release-Action@20210211111401
+      - name: Create release
+        run: make release
         env:
           GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
-        with:
-          args: ${{ github.sha }}
