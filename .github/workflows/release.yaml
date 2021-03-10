@@ -1,13 +1,13 @@
 name: Release
 on:
-  push:
-    branches:
-      - main
-    tags:
-      - v*
+  workflow_run:
+    workflows: ["Test", "Lint"]
+    branches: [main]
+    types:
+      - completed
 jobs:
   release:
-    needs: [lint, test]
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
