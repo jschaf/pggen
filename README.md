@@ -149,6 +149,54 @@ is far more revealing than the pitch.
 
 # Install
 
+Precompiled binaries. Change the last line if you want to install somewhere 
+other than `~/bin/pggen`.
+
+```shell
+# MacOS Apple Silicon (arm64)
+curl --silent --location --fail https://github.com/jschaf/pggen/releases/latest/download/pggen-darwin-arm64.zip --output "$TMPDIR/pggen.zip" &&
+  unzip -p "$TMPDIR/pggen.zip" pggen-darwin-arm64 > pggen && 
+  chmod +x pggen &&
+  mv pggen ~/bin/pggen
+  
+# Make sure pggen works.
+pggen gen go --help
+```
+
+```shell
+# MacOS Intel (amd64)
+curl --silent --location --fail https://github.com/jschaf/pggen/releases/latest/download/pggen-darwin-amd64.zip --output "$TMPDIR/pggen.zip" &&
+  unzip -p "$TMPDIR/pggen.zip" pggen-darwin-amd64 > pggen && 
+  chmod +x pggen &&
+  mv pggen ~/bin/pggen
+  
+# Make sure pggen works.
+pggen gen go --help
+```
+
+```shell
+# Linux (amd64)
+curl --silent --location --fail https://github.com/jschaf/pggen/releases/latest/download/pggen-linux-amd64.zip --output "$TMPDIR/pggen.zip" &&
+  unzip -p "$TMPDIR/pggen.zip" pggen-linux-amd64 > pggen && 
+  chmod +x pggen &&
+  mv pggen ~/bin/pggen
+  
+# Make sure pggen works.
+pggen gen go --help
+```
+
+```shell
+# Windows (amd64)
+curl --silent --location --fail https://github.com/jschaf/pggen/releases/latest/download/pggen-windows-amd64.zip --output "$TMPDIR/pggen.zip" &&
+  unzip -p "$TMPDIR/pggen.zip" pggen-windows-amd64.exe > pggen.exe && 
+  chmod +x pggen.exe &&
+  mv pggen.exe ~/bin/pggen.exe
+  
+# Make sure pggen works.
+pggen gen go --help
+```
+
+From source code:
 ```bash
 go get github.com/jschaf/pggen
 
