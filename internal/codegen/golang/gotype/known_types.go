@@ -43,9 +43,9 @@ func FindKnownTypeNonNullable(oid pgtype.OID) (Type, bool) {
 	return typ.pgNative, true
 }
 
+// Native go types are not prefixed.
 //goland:noinspection GoUnusedGlobalVariable
 var (
-	// Native go types are not prefixed.
 	Bool          = NewOpaqueType("bool")
 	Boolp         = NewOpaqueType("*bool")
 	Int           = NewOpaqueType("int")
@@ -85,8 +85,10 @@ var (
 	Float64Slice  = NewOpaqueType("[]float64")
 	Float64pSlice = NewOpaqueType("[]*float64")
 	ByteSlice     = NewOpaqueType("[]byte")
+)
 
-	// pgtype types prefixed with "pg".
+// pgtype types prefixed with "pg".
+var (
 	PgBool             = NewOpaqueType("github.com/jackc/pgtype.Bool")
 	PgQChar            = NewOpaqueType("github.com/jackc/pgtype.QChar")
 	PgName             = NewOpaqueType("github.com/jackc/pgtype.Name")

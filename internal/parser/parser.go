@@ -232,7 +232,6 @@ func (p *parser) parseQuery() ast.Query {
 			// the fragment might contain the start of another pggen.arg.
 			continue
 		}
-
 		p.next()
 	}
 
