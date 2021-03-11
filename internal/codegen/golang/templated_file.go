@@ -322,11 +322,11 @@ func (tq TemplatedQuery) appendResultCompositeTypeInit(
 	sb.WriteString(`pgtype.NewCompositeTypeValues("`)
 	sb.WriteString(typ.PgComposite.Name)
 	sb.WriteString(`", []pgtype.CompositeTypeField{`)
-	for _, name := range typ.FieldNames {
+	for i := range typ.FieldNames {
 		sb.WriteString("\n")
 		sb.WriteString(strings.Repeat("\t", indent+2)) // indent for method and slice literal
 		sb.WriteString(`{Name: "`)
-		sb.WriteString(name)
+		sb.WriteString(typ.PgComposite.ColumnNames[i])
 		sb.WriteString(`", OID: ignoredOID},`)
 	}
 	sb.WriteString("\n")

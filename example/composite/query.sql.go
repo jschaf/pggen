@@ -119,9 +119,9 @@ func (q *DBQuerier) SearchScreenshots(ctx context.Context, params SearchScreensh
 	defer rows.Close()
 	items := []SearchScreenshotsRow{}
 	blocksRow, _ := pgtype.NewCompositeTypeValues("blocks", []pgtype.CompositeTypeField{
-		{Name: "ID", OID: ignoredOID},
-		{Name: "ScreenshotID", OID: ignoredOID},
-		{Name: "Body", OID: ignoredOID},
+		{Name: "id", OID: ignoredOID},
+		{Name: "screenshot_id", OID: ignoredOID},
+		{Name: "body", OID: ignoredOID},
 	}, []pgtype.ValueTranscoder{
 		&pgtype.Int4{},
 		&pgtype.Int8{},
@@ -158,9 +158,9 @@ func (q *DBQuerier) SearchScreenshotsScan(results pgx.BatchResults) ([]SearchScr
 	defer rows.Close()
 	items := []SearchScreenshotsRow{}
 	blocksRow, _ := pgtype.NewCompositeTypeValues("blocks", []pgtype.CompositeTypeField{
-		{Name: "ID", OID: ignoredOID},
-		{Name: "ScreenshotID", OID: ignoredOID},
-		{Name: "Body", OID: ignoredOID},
+		{Name: "id", OID: ignoredOID},
+		{Name: "screenshot_id", OID: ignoredOID},
+		{Name: "body", OID: ignoredOID},
 	}, []pgtype.ValueTranscoder{
 		&pgtype.Int4{},
 		&pgtype.Int8{},
@@ -207,9 +207,9 @@ func (q *DBQuerier) SearchScreenshotsOneCol(ctx context.Context, params SearchSc
 	defer rows.Close()
 	items := [][]Blocks{}
 	blocksRow, _ := pgtype.NewCompositeTypeValues("blocks", []pgtype.CompositeTypeField{
-		{Name: "ID", OID: ignoredOID},
-		{Name: "ScreenshotID", OID: ignoredOID},
-		{Name: "Body", OID: ignoredOID},
+		{Name: "id", OID: ignoredOID},
+		{Name: "screenshot_id", OID: ignoredOID},
+		{Name: "body", OID: ignoredOID},
 	}, []pgtype.ValueTranscoder{
 		&pgtype.Int4{},
 		&pgtype.Int8{},
@@ -246,9 +246,9 @@ func (q *DBQuerier) SearchScreenshotsOneColScan(results pgx.BatchResults) ([][]B
 	defer rows.Close()
 	items := [][]Blocks{}
 	blocksRow, _ := pgtype.NewCompositeTypeValues("blocks", []pgtype.CompositeTypeField{
-		{Name: "ID", OID: ignoredOID},
-		{Name: "ScreenshotID", OID: ignoredOID},
-		{Name: "Body", OID: ignoredOID},
+		{Name: "id", OID: ignoredOID},
+		{Name: "screenshot_id", OID: ignoredOID},
+		{Name: "body", OID: ignoredOID},
 	}, []pgtype.ValueTranscoder{
 		&pgtype.Int4{},
 		&pgtype.Int8{},
