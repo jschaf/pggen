@@ -12,7 +12,6 @@ import (
 	"github.com/jschaf/pggen/internal/parser"
 	"github.com/jschaf/pggen/internal/pgdocker"
 	"github.com/jschaf/pggen/internal/pginfer"
-	_ "github.com/jschaf/pggen/internal/statik" // bundled template files
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	gotok "go/token"

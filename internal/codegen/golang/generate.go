@@ -1,11 +1,10 @@
 package golang
 
 import (
+	_ "embed"
 	"fmt"
 	"github.com/jschaf/pggen/internal/casing"
 	"github.com/jschaf/pggen/internal/codegen"
-	"github.com/rakyll/statik/fs"
-	"io/ioutil"
 	"path/filepath"
 	"text/template"
 )
@@ -52,21 +51,11 @@ func Generate(opts GenerateOptions, queryFiles []codegen.QueryFile) error {
 	return nil
 }
 
-func parseQueryTemplate() (*template.Template, error) {
-	statikFS, err := fs.New()
-	if err != nil {
-		return nil, fmt.Errorf("create statik filesystem: %w", err)
-	}
-	tmplFile, err := statikFS.Open("/golang/query.gotemplate")
-	if err != nil {
-		return nil, fmt.Errorf("open embedded template file: %w", err)
-	}
-	tmplBytes, err := ioutil.ReadAll(tmplFile)
-	if err != nil {
-		return nil, fmt.Errorf("read embedded template file: %w", err)
-	}
+//go:embed query.gotemplate
+var queryTemplate string
 
-	tmpl, err := template.New("gen_query").Parse(string(tmplBytes))
+func parseQueryTemplate() (*template.Template, error) {
+	tmpl, err := template.New("gen_query").Parse(queryTemplate)
 	if err != nil {
 		return nil, fmt.Errorf("parse query.gotemplate: %w", err)
 	}

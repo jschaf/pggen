@@ -19,11 +19,6 @@ stop:
 .PHONY: restart
 restart: stop start
 
-.PHONY: statik
-statik:
-	statik -m -dest=internal -src=internal/codegen -include='*.gotemplate'
-	gofmt -w internal/statik/statik.go
-
 .PHONY: psql
 psql:
 	PGPASSWORD=hunter2 psql --host=127.0.0.1 --port=5555 --username=postgres pggen
@@ -37,7 +32,7 @@ acceptance-test:
 	DOCKER_API_VERSION=1.39 go test ./example/acceptance_test.go
 
 .PHONY: update-acceptance-test
-update-acceptance-test: statik
+update-acceptance-test:
 	DOCKER_API_VERSION=1.39 go test ./example/acceptance_test.go -update
 
 .PHONY: lint
