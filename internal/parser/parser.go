@@ -213,11 +213,26 @@ func (p *parser) parseQuery() ast.Query {
 	sql := &strings.Builder{}
 	pos := p.pos
 
+	names := make([]argPos, 0, 4) // all pggen.arg names in order, can be duplicated
 	for p.tok != token.Semicolon {
 		if p.tok == token.EOF || p.tok == token.Illegal {
 			p.error(p.pos, "unterminated query (no semicolon): "+string(p.src[pos:p.pos]))
 			return &ast.BadQuery{From: pos, To: p.pos}
 		}
+		if p.tok == token.QueryFragment && strings.HasSuffix(p.lit, "pggen.arg(") {
+			arg, ok := p.parsePggenArg()
+			if !ok {
+				return &ast.BadQuery{From: pos, To: p.pos}
+			}
+			arg.lo -= int(pos) - 1 // adjust lo,hi to be relative to query start
+			arg.hi -= int(pos) - 1 // subtract 1 because pos is 1-based
+
+			names = append(names, arg)
+			// Don't consume last query fragment that has closing paren ")" because
+			// the fragment might contain the start of another pggen.arg.
+			continue
+		}
+
 		p.next()
 	}
 
@@ -238,7 +253,7 @@ func (p *parser) parseQuery() ast.Query {
 	}
 
 	templateSQL := sql.String()
-	preparedSQL, params := prepareSQL(templateSQL)
+	preparedSQL, params := prepareSQL(templateSQL, names)
 
 	return &ast.SourceQuery{
 		Name:        annotations[1],
@@ -252,38 +267,72 @@ func (p *parser) parseQuery() ast.Query {
 	}
 }
 
-var argRegexp = regexp.MustCompile(`pggen[.]arg\('([^']*?)'\)`)
+// argPos is the name and position of expression like pggen.arg('foo').
+type argPos struct {
+	lo, hi int
+	name   string
+}
+
+// parsePggenArg parses the name from: pggen.arg('foo') and pos for the start
+// and end.
+func (p *parser) parsePggenArg() (argPos, bool) {
+	lo := int(p.pos) + len(p.lit) - len("pggen.arg(") - 1
+	p.next() // consume query fragment that contains "pggen.arg("
+	if p.tok != token.String {
+		p.error(p.pos, `expected string literal after "pggen.arg("`)
+		return argPos{}, false
+	}
+	if len(p.lit) < 3 || p.lit[0] != '\'' || p.lit[len(p.lit)-1] != '\'' {
+		p.error(p.pos, `expected single-quoted string literal after "pggen.arg("`)
+		return argPos{}, false
+	}
+	name := p.lit[1 : len(p.lit)-1]
+	p.next() // consume string literal
+	if p.tok != token.QueryFragment {
+		p.error(p.pos, `expected query fragment after parsing pggen.arg string`)
+		return argPos{}, false
+	}
+	if !strings.HasPrefix(p.lit, ")") {
+		p.error(p.pos, `expected closing paren ")" after parsing pggen.arg string`)
+		return argPos{}, false
+	}
+	hi := int(p.pos)
+	return argPos{lo: lo, hi: hi, name: name}, true
+}
 
 // prepareSQL replaces each pggen.arg with the $n, reflecting the order that the
 // arg first appeared. Args with the same name use the same $n.
-func prepareSQL(sql string) (string, []string) {
-	matches := argRegexp.FindAllStringSubmatch(sql, -1)
-	if len(matches) == 0 {
+func prepareSQL(sql string, args []argPos) (string, []string) {
+	if len(args) == 0 {
 		return sql, nil
 	}
-
-	// Figure out the order of each prepare arg.
-	params := make([]string, 0, len(matches))
-	paramOrder := make(map[string]int, len(matches))
+	// Figure out order of each params.
+	paramOrders := make(map[string]int, len(args))
+	params := make([]string, 0, len(args))
 	idx := 1
-	for _, match := range matches {
-		name := match[1]
-		if _, ok := paramOrder[name]; !ok {
-			params = append(params, name)
-			paramOrder[name] = idx
+	for _, arg := range args {
+		if _, ok := paramOrders[arg.name]; !ok {
+			params = append(params, arg.name)
+			paramOrders[arg.name] = idx
 			idx++
 		}
 	}
 
-	// Replace each arg with the prepare order, like $1.
-	replacements := make([]string, 0, len(matches)*2)
-	for name, idx := range paramOrder {
-		arg := `pggen.arg('` + name + `')`
-		ord := `$` + strconv.Itoa(idx)
-		replacements = append(replacements, arg, ord)
+	// Replace each pggen.arg with the prepare order, like $1. We're not using
+	// strings.NewReplacer because pggen.arg might appear in a comment.
+	bs := []byte(sql)
+	sb := &strings.Builder{}
+	sb.Grow(len(sql))
+	prev := 0
+	for _, arg := range args {
+		sb.Write(bs[prev:arg.lo])
+		sb.WriteByte('$')
+		sb.WriteString(strconv.Itoa(paramOrders[arg.name]))
+		prev = arg.hi
 	}
-	replacer := strings.NewReplacer(replacements...)
-	return replacer.Replace(sql), params
+	sb.Write(bs[prev:])
+
+	return sb.String(), params
 }
 
 // ----------------------------------------------------------------------------

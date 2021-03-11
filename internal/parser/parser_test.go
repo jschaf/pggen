@@ -74,6 +74,17 @@ func TestParseFile_Queries(t *testing.T) {
 				ResultKind:  ast.ResultKindMany,
 			},
 		},
+		{
+			"-- name: Qux :many\nSELECT /*pggen.arg('Bar'),*/ pggen.arg('Qux'), pggen.arg('Bar');",
+			&ast.SourceQuery{
+				Name:        "Qux",
+				Doc:         &ast.CommentGroup{List: []*ast.LineComment{{Text: "-- name: Qux :many"}}},
+				SourceSQL:   "SELECT /*pggen.arg('Bar'),*/ pggen.arg('Qux'), pggen.arg('Bar');",
+				PreparedSQL: "SELECT /*pggen.arg('Bar'),*/ $1, $2;",
+				ParamNames:  []string{"Qux", "Bar"},
+				ResultKind:  ast.ResultKindMany,
+			},
+		},
 	}
 
 	for _, tt := range tests {
