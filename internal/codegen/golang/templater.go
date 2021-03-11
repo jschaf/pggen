@@ -187,6 +187,13 @@ func (tm Templater) templateFile(file codegen.QueryFile) (TemplatedFile, []Decla
 				Type:      goType,
 				QualType:  goType.QualifyRel(pkgPath),
 			}
+			if gotype.HasArrayType(goType) {
+				declarers = append(declarers, ignoredOIDDeclarer)
+			}
+			if gotype.HasCompositeType(goType) {
+				declarers = append(declarers, ignoredOIDDeclarer)
+				declarers = append(declarers, newCompositeTypeDeclarer)
+			}
 			declarers = append(declarers, FindDeclarers(goType)...)
 		}
 

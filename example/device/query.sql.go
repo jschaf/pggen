@@ -104,17 +104,17 @@ func (q *DBQuerier) WithTx(tx pgx.Tx) (*DBQuerier, error) {
 	return &DBQuerier{conn: tx}, nil
 }
 
-// ignoredOID means we don't know or care about the OID for a type. This is okay
-// because pgx only uses the OID to encode values and lookup a decoder. We only
-// use ignoredOID for decoding and we always specify a concrete decoder for scan
-// methods.
-const ignoredOID = 0
-
 // User represents the Postgres composite type "user".
 type User struct {
 	ID   pgtype.Int8 `json:"id"`
 	Name pgtype.Text `json:"name"`
 }
+
+// ignoredOID means we don't know or care about the OID for a type. This is okay
+// because pgx only uses the OID to encode values and lookup a decoder. We only
+// use ignoredOID for decoding and we always specify a concrete decoder for scan
+// methods.
+const ignoredOID = 0
 
 // DeviceType represents the Postgres enum "device_type".
 type DeviceType string
@@ -129,6 +129,17 @@ const (
 )
 
 func (d DeviceType) String() string { return string(d) }
+
+func newCompositeType(name string, fieldNames []string, vals ...pgtype.ValueTranscoder) *pgtype.CompositeType {
+	fields := make([]pgtype.CompositeTypeField, len(fieldNames))
+	for i, name := range fieldNames {
+		fields[i] = pgtype.CompositeTypeField{Name: name, OID: ignoredOID}
+	}
+	// Okay to ignore error because it's only thrown when the number of field
+	// names does not equal the number of ValueTranscoders.
+	rowType, _ := pgtype.NewCompositeTypeValues(name, fields, vals)
+	return rowType
+}
 
 const findDevicesByUserSQL = `SELECT
   id,

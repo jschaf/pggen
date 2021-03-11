@@ -62,12 +62,6 @@ func (q *DBQuerier) WithTx(tx pgx.Tx) (*DBQuerier, error) {
 	return &DBQuerier{conn: tx}, nil
 }
 
-// ignoredOID means we don't know or care about the OID for a type. This is okay
-// because pgx only uses the OID to encode values and lookup a decoder. We only
-// use ignoredOID for decoding and we always specify a concrete decoder for scan
-// methods.
-const ignoredOID = 0
-
 // InventoryItem represents the Postgres composite type "inventory_item".
 type InventoryItem struct {
 	ItemName pgtype.Text `json:"item_name"`
@@ -83,6 +77,23 @@ type Qux struct {
 // Sku represents the Postgres composite type "sku".
 type Sku struct {
 	SkuID pgtype.Text `json:"sku_id"`
+}
+
+// ignoredOID means we don't know or care about the OID for a type. This is okay
+// because pgx only uses the OID to encode values and lookup a decoder. We only
+// use ignoredOID for decoding and we always specify a concrete decoder for scan
+// methods.
+const ignoredOID = 0
+
+func newCompositeType(name string, fieldNames []string, vals ...pgtype.ValueTranscoder) *pgtype.CompositeType {
+	fields := make([]pgtype.CompositeTypeField, len(fieldNames))
+	for i, name := range fieldNames {
+		fields[i] = pgtype.CompositeTypeField{Name: name, OID: ignoredOID}
+	}
+	// Okay to ignore error because it's only thrown when the number of field
+	// names does not equal the number of ValueTranscoders.
+	rowType, _ := pgtype.NewCompositeTypeValues(name, fields, vals)
+	return rowType
 }
 
 const nested3SQL = `SELECT ROW (ROW ('item_name', ROW ('sku_id')::sku)::inventory_item, 88)::qux AS qux;`
