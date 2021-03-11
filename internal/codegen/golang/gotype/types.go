@@ -19,10 +19,10 @@ type Type interface {
 	// Import returns the full package path, like "github.com/jschaf/pggen/foo".
 	// Empty for builtin types.
 	Import() string
-	// Last part of the package path like "qux" for the package
+	// Package returns the last part of the package path like "qux" in the package
 	// "github.com/jschaf/pggen/qux". Empty for builtin types.
 	Package() string
-	// The base name of the type, like the "Foo" in:
+	// BaseName returns the base name of the type, like "Foo" in:
 	//   type Foo int
 	BaseName() string
 	// PgType returns the Postgres type this type represents, or nil if not known.
