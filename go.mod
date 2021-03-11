@@ -1,6 +1,6 @@
 module github.com/jschaf/pggen
 
-go 1.15
+go 1.16
 
 require (
 	github.com/Microsoft/go-winio v0.4.16 // indirect
@@ -13,7 +13,6 @@ require (
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/google/go-cmp v0.5.4
 	github.com/gorilla/mux v1.8.0 // indirect
-	github.com/hashicorp/go-multierror v1.1.0 // indirect
 	github.com/jackc/pgconn v1.8.0
 	github.com/jackc/pgproto3/v2 v2.0.6
 	github.com/jackc/pgtype v1.6.2
