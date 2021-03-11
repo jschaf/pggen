@@ -271,7 +271,7 @@ func (tq TemplatedQuery) EmitResultInits(pkgPath string) (string, error) {
 			sb.WriteString(indent)
 			sb.WriteString(out.LowerName)
 			sb.WriteString("Row := ")
-			tq.appendResultCompositeInit(sb, pkgPath, typ, 0)
+			tq.appendResultCompositeInit(sb, pkgPath, typ, 1)
 		case gotype.ArrayType:
 			switch elem := typ.Elem.(type) {
 			case gotype.EnumType:
@@ -297,10 +297,7 @@ func (tq TemplatedQuery) EmitResultInits(pkgPath string) (string, error) {
 				rowName := out.LowerName + "Row"
 				sb.WriteString(rowName)
 				sb.WriteString(" := ")
-				err := tq.appendResultCompositeTypeInit(sb, pkgPath, elem, 1)
-				if err != nil {
-					return "", err
-				}
+				tq.appendResultCompositeInit(sb, pkgPath, elem, 1)
 				sb.WriteString(indent)
 				sb.WriteString(out.LowerName)
 				sb.WriteString("Array := ")
@@ -313,12 +310,12 @@ func (tq TemplatedQuery) EmitResultInits(pkgPath string) (string, error) {
 	return sb.String(), nil
 }
 
-func (tq TemplatedQuery) appendResultCompositeTypeInit(
+func (tq TemplatedQuery) appendResultCompositeInit(
 	sb *strings.Builder,
 	pkgPath string,
 	typ gotype.CompositeType,
 	indent int,
-) error {
+) {
 	sb.WriteString("newCompositeType(\n")
 	sb.WriteString(strings.Repeat("\t", indent+1))
 	sb.WriteByte('"')
@@ -338,9 +335,9 @@ func (tq TemplatedQuery) appendResultCompositeTypeInit(
 	for _, fieldType := range typ.FieldTypes {
 		sb.WriteString("\n")
 		sb.WriteString(strings.Repeat("\t", indent+1)) // indent for method and slice literal
-		switch fieldType.(type) {
+		switch fieldType := fieldType.(type) {
 		case gotype.CompositeType:
-			return fmt.Errorf("unsupported codgen: array of composite type with nested composites %q", typ.PgComposite.Name)
+			tq.appendResultCompositeInit(sb, pkgPath, fieldType, indent+1)
 		case gotype.VoidType:
 			// skip
 		default:
@@ -363,7 +360,9 @@ func (tq TemplatedQuery) appendResultCompositeTypeInit(
 	sb.WriteString("\n")
 	sb.WriteString(strings.Repeat("\t", indent))
 	sb.WriteString(")")
-	return nil
+	if indent > 1 {
+		sb.WriteByte(',') // nested call so add trailing comma
+	}
 }
 
 func (tq TemplatedQuery) appendResultArrayComposite(
@@ -381,40 +380,6 @@ func (tq TemplatedQuery) appendResultArrayComposite(
 	sb.WriteString("})")
 }
 
-// appendResultCompositeInit appends the pgtype.CompositeFields declaration to
-// a string builder, recursively appending child fields of the composite type.
-func (tq TemplatedQuery) appendResultCompositeInit(
-	sb *strings.Builder,
-	pkgPath string,
-	typ gotype.CompositeType,
-	indent int,
-) {
-	sb.WriteString("pgtype.CompositeFields{")
-	for _, fieldType := range typ.FieldTypes {
-		sb.WriteString("\n")
-		sb.WriteString(strings.Repeat("\t", indent+2)) // indent for method and slice literal
-		switch child := fieldType.(type) {
-		case gotype.CompositeType:
-			tq.appendResultCompositeInit(sb, pkgPath, child, indent+1)
-		case gotype.VoidType:
-			// skip
-		default:
-			sb.WriteString("&") // pgx needs pointers to types
-			// TODO: support builtin types and builtin wrappers that use a different
-			// initialization syntax.
-			sb.WriteString(fieldType.QualifyRel(pkgPath))
-			sb.WriteString("{},")
-		}
-	}
-	sb.WriteByte('\n')
-	// close CompositeFields and slice literal
-	sb.WriteString(strings.Repeat("\t", indent+1))
-	sb.WriteByte('}')
-	if indent > 0 {
-		sb.WriteByte(',')
-	}
-}
-
 // EmitResultAssigns writes all the assign statements after scanning the result
 // from pgx.
 //
@@ -422,7 +387,7 @@ func (tq TemplatedQuery) appendResultCompositeInit(
 // output struct.
 //
 // Copies pgtype.EnumArray fields into Go enum array types.
-func (tq TemplatedQuery) EmitResultAssigns(pkgPath string) (string, error) {
+func (tq TemplatedQuery) EmitResultAssigns() (string, error) {
 	sb := &strings.Builder{}
 	indent := "\n\t"
 	if tq.ResultKind == ast.ResultKindMany {
@@ -431,19 +396,14 @@ func (tq TemplatedQuery) EmitResultAssigns(pkgPath string) (string, error) {
 	for _, out := range tq.Outputs {
 		switch typ := out.Type.(type) {
 		case gotype.CompositeType:
-			fields := []string{"item"}
-			if len(tq.Outputs) > 1 {
-				// Queries with more than 1 output use a struct to group output columns.
-				fields = append(fields, typ.Name)
+			sb.WriteString(indent)
+			sb.WriteString(out.LowerName)
+			sb.WriteString("Row.AssignTo(&item")
+			if len(removeVoidColumns(tq.Outputs)) > 1 {
+				sb.WriteRune('.')
+				sb.WriteString(out.UpperName)
 			}
-			exprs := []string{"*" + out.LowerName + "Row"}
-			assigns := tq.buildResultCompositeAssigns(typ, pkgPath, fields, exprs)
-			for _, assign := range assigns {
-				sb.WriteString(indent)
-				sb.WriteString(strings.Join(assign.fields, "."))
-				sb.WriteString(" = ")
-				sb.WriteString(strings.Join(assign.exprs, ""))
-			}
+			sb.WriteString(")")
 		case gotype.ArrayType:
 			switch typ.Elem.(type) {
 			case gotype.EnumType:
@@ -470,50 +430,6 @@ func (tq TemplatedQuery) EmitResultAssigns(pkgPath string) (string, error) {
 		}
 	}
 	return sb.String(), nil
-}
-
-type compositeAssign struct {
-	// Assign an expression to the path indicated by field names. Joined with ".".
-	fields []string
-	// Expression to assign to field names. Joined with an empty string.
-	exprs []string
-}
-
-// buildResultCompositeAssigns recursively creates all assignment statements
-// for a composite type using depth first search for nested composite types.
-func (tq TemplatedQuery) buildResultCompositeAssigns(
-	typ gotype.CompositeType,
-	pkgPath string,
-	fieldPath []string,
-	exprPath []string,
-) []compositeAssign {
-	assigns := make([]compositeAssign, 0, len(typ.FieldTypes))
-	for i, field := range typ.FieldTypes {
-		fieldName := typ.FieldNames[i]
-		switch child := field.(type) {
-		case gotype.CompositeType:
-			childAssigns := tq.buildResultCompositeAssigns(
-				child,
-				pkgPath,
-				append(fieldPath, fieldName),
-				append(exprPath, "["+strconv.Itoa(i)+"].(pgtype.CompositeFields)"),
-			)
-			assigns = append(assigns, childAssigns...)
-		case gotype.VoidType:
-			continue
-		default:
-			// Copy since fieldPath and exprPath mutate with each iteration.
-			fields := make([]string, len(fieldPath), len(fieldPath)+1)
-			exprs := make([]string, len(exprPath), len(exprPath)+1)
-			copy(fields, fieldPath)
-			copy(exprs, exprPath)
-			assigns = append(assigns, compositeAssign{
-				fields: append(fields, fieldName),
-				exprs:  append(exprs, "["+strconv.Itoa(i)+"].(*"+child.QualifyRel(pkgPath)+")"),
-			})
-		}
-	}
-	return assigns
 }
 
 // EmitResultElem returns the string representing a single item in the overall
