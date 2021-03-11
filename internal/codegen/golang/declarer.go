@@ -57,7 +57,41 @@ func findDeclsHelper(typ gotype.Type, visited map[string]struct{}) []Declarer {
 	}
 }
 
-// CompositeDeclarer declare a new struct to represent a Postgres composite
+// ConstantDeclarer declares a new string literal.
+type ConstantDeclarer struct {
+	key string
+	str string
+}
+
+func NewConstantDeclarer(key, str string) ConstantDeclarer {
+	return ConstantDeclarer{key, str}
+}
+
+func (c ConstantDeclarer) DedupeKey() string              { return c.key }
+func (c ConstantDeclarer) Declare(string) (string, error) { return c.str, nil }
+
+const ignoredOIDDecl = `// ignoredOID means we don't know or care about the OID for a type. This is okay
+// because pgx only uses the OID to encode values and lookup a decoder. We only
+// use ignoredOID for decoding and we always specify a concrete decoder for scan
+// methods.
+const ignoredOID = 0`
+
+var ignoredOIDDeclarer = NewConstantDeclarer("const::ignoredOID", ignoredOIDDecl)
+
+const newCompositeTypeDecl = `func newCompositeType(name string, fieldNames []string, vals ...pgtype.ValueTranscoder) *pgtype.CompositeType {
+	fields := make([]pgtype.CompositeTypeField, len(fieldNames))
+	for i, name := range fieldNames {
+		fields[i] = pgtype.CompositeTypeField{Name: name, OID: ignoredOID}
+	}
+	// Okay to ignore error because it's only thrown when the number of field
+	// names does not equal the number of ValueTranscoders.
+	rowType, _ := pgtype.NewCompositeTypeValues(name, fields, vals)
+	return rowType
+}`
+
+var newCompositeTypeDeclarer = NewConstantDeclarer("func::newCompositeType", newCompositeTypeDecl)
+
+// CompositeDeclarer declares a new struct to represent a Postgres composite
 // type.
 type CompositeDeclarer struct {
 	comp gotype.CompositeType
