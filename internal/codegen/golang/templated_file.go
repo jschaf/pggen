@@ -296,8 +296,8 @@ func (tq TemplatedQuery) EmitResultInits(pkgPath string) (string, error) {
 				sb.WriteString(indent)
 				rowName := out.LowerName + "Row"
 				sb.WriteString(rowName)
-				sb.WriteString(", _ := ")
-				err := tq.appendResultCompositeTypeInit(sb, pkgPath, elem, 0)
+				sb.WriteString(" := ")
+				err := tq.appendResultCompositeTypeInit(sb, pkgPath, elem, 1)
 				if err != nil {
 					return "", err
 				}
@@ -319,22 +319,25 @@ func (tq TemplatedQuery) appendResultCompositeTypeInit(
 	typ gotype.CompositeType,
 	indent int,
 ) error {
-	sb.WriteString(`pgtype.NewCompositeTypeValues("`)
-	sb.WriteString(typ.PgComposite.Name)
-	sb.WriteString(`", []pgtype.CompositeTypeField{`)
-	for i := range typ.FieldNames {
-		sb.WriteString("\n")
-		sb.WriteString(strings.Repeat("\t", indent+2)) // indent for method and slice literal
-		sb.WriteString(`{Name: "`)
-		sb.WriteString(typ.PgComposite.ColumnNames[i])
-		sb.WriteString(`", OID: ignoredOID},`)
-	}
-	sb.WriteString("\n")
+	sb.WriteString("newCompositeType(\n")
 	sb.WriteString(strings.Repeat("\t", indent+1))
-	sb.WriteString("}, []pgtype.ValueTranscoder{")
+	sb.WriteByte('"')
+	sb.WriteString(typ.PgComposite.Name)
+	sb.WriteString("\",\n")
+	sb.WriteString(strings.Repeat("\t", indent+1))
+	sb.WriteString(`[]string{`)
+	for i := range typ.FieldNames {
+		sb.WriteByte('"')
+		sb.WriteString(typ.PgComposite.ColumnNames[i])
+		sb.WriteByte('"')
+		if i < len(typ.FieldNames)-1 {
+			sb.WriteString(", ")
+		}
+	}
+	sb.WriteString("},")
 	for _, fieldType := range typ.FieldTypes {
 		sb.WriteString("\n")
-		sb.WriteString(strings.Repeat("\t", indent+2)) // indent for method and slice literal
+		sb.WriteString(strings.Repeat("\t", indent+1)) // indent for method and slice literal
 		switch fieldType.(type) {
 		case gotype.CompositeType:
 			return fmt.Errorf("unsupported codgen: array of composite type with nested composites %q", typ.PgComposite.Name)
@@ -358,8 +361,8 @@ func (tq TemplatedQuery) appendResultCompositeTypeInit(
 		}
 	}
 	sb.WriteString("\n")
-	sb.WriteString(strings.Repeat("\t", indent+1))
-	sb.WriteString("})")
+	sb.WriteString(strings.Repeat("\t", indent))
+	sb.WriteString(")")
 	return nil
 }
 

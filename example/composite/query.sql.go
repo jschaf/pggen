@@ -129,15 +129,13 @@ func (q *DBQuerier) SearchScreenshots(ctx context.Context, params SearchScreensh
 	}
 	defer rows.Close()
 	items := []SearchScreenshotsRow{}
-	blocksRow, _ := pgtype.NewCompositeTypeValues("blocks", []pgtype.CompositeTypeField{
-		{Name: "id", OID: ignoredOID},
-		{Name: "screenshot_id", OID: ignoredOID},
-		{Name: "body", OID: ignoredOID},
-	}, []pgtype.ValueTranscoder{
+	blocksRow := newCompositeType(
+		"blocks",
+		[]string{"id", "screenshot_id", "body"},
 		&pgtype.Int4{},
 		&pgtype.Int8{},
 		&pgtype.Text{},
-	})
+	)
 	blocksArray := pgtype.NewArrayType("_blocks", ignoredOID, func() pgtype.ValueTranscoder {
 		return blocksRow.NewTypeValue().(*pgtype.CompositeType)
 	})
@@ -168,15 +166,13 @@ func (q *DBQuerier) SearchScreenshotsScan(results pgx.BatchResults) ([]SearchScr
 	}
 	defer rows.Close()
 	items := []SearchScreenshotsRow{}
-	blocksRow, _ := pgtype.NewCompositeTypeValues("blocks", []pgtype.CompositeTypeField{
-		{Name: "id", OID: ignoredOID},
-		{Name: "screenshot_id", OID: ignoredOID},
-		{Name: "body", OID: ignoredOID},
-	}, []pgtype.ValueTranscoder{
+	blocksRow := newCompositeType(
+		"blocks",
+		[]string{"id", "screenshot_id", "body"},
 		&pgtype.Int4{},
 		&pgtype.Int8{},
 		&pgtype.Text{},
-	})
+	)
 	blocksArray := pgtype.NewArrayType("_blocks", ignoredOID, func() pgtype.ValueTranscoder {
 		return blocksRow.NewTypeValue().(*pgtype.CompositeType)
 	})
@@ -217,15 +213,13 @@ func (q *DBQuerier) SearchScreenshotsOneCol(ctx context.Context, params SearchSc
 	}
 	defer rows.Close()
 	items := [][]Blocks{}
-	blocksRow, _ := pgtype.NewCompositeTypeValues("blocks", []pgtype.CompositeTypeField{
-		{Name: "id", OID: ignoredOID},
-		{Name: "screenshot_id", OID: ignoredOID},
-		{Name: "body", OID: ignoredOID},
-	}, []pgtype.ValueTranscoder{
+	blocksRow := newCompositeType(
+		"blocks",
+		[]string{"id", "screenshot_id", "body"},
 		&pgtype.Int4{},
 		&pgtype.Int8{},
 		&pgtype.Text{},
-	})
+	)
 	blocksArray := pgtype.NewArrayType("_blocks", ignoredOID, func() pgtype.ValueTranscoder {
 		return blocksRow.NewTypeValue().(*pgtype.CompositeType)
 	})
@@ -256,15 +250,13 @@ func (q *DBQuerier) SearchScreenshotsOneColScan(results pgx.BatchResults) ([][]B
 	}
 	defer rows.Close()
 	items := [][]Blocks{}
-	blocksRow, _ := pgtype.NewCompositeTypeValues("blocks", []pgtype.CompositeTypeField{
-		{Name: "id", OID: ignoredOID},
-		{Name: "screenshot_id", OID: ignoredOID},
-		{Name: "body", OID: ignoredOID},
-	}, []pgtype.ValueTranscoder{
+	blocksRow := newCompositeType(
+		"blocks",
+		[]string{"id", "screenshot_id", "body"},
 		&pgtype.Int4{},
 		&pgtype.Int8{},
 		&pgtype.Text{},
-	})
+	)
 	blocksArray := pgtype.NewArrayType("_blocks", ignoredOID, func() pgtype.ValueTranscoder {
 		return blocksRow.NewTypeValue().(*pgtype.CompositeType)
 	})
