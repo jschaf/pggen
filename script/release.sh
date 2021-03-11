@@ -35,8 +35,11 @@ if ! command -v "$GH_REL_BIN"; then
   curl -L --fail --silent "${url}" | bzip2 -dc >"$GH_REL_BIN"
   chmod +x "$GH_REL_BIN"
 fi
-echo "!!! $GH_REL_BIN"
 
+# Delete the remote tag since we're creating a new release tagged today.
+git push origin ":refs/tags/$day" 2>/dev/null
+# Create or move the day tag to the latest commit.
+git tag -f "$day"
 # Delete any existing releases. We only support 1 release per day.
 # Ignore errors if we try to delete a release that doesn't exist.
 "${GH_REL_BIN}" delete --user jschaf --repo pggen --tag "$day" 2>/dev/null || true
