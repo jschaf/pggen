@@ -152,55 +152,57 @@ is far more revealing than the pitch.
 Precompiled binaries. Change the last line if you want to install somewhere 
 other than `~/bin/pggen`.
 
-```shell
-# MacOS Apple Silicon (arm64)
-curl --silent --location --fail https://github.com/jschaf/pggen/releases/latest/download/pggen-darwin-arm64.zip --output "$TMPDIR/pggen.zip" &&
-  unzip -p "$TMPDIR/pggen.zip" pggen-darwin-arm64 > pggen && 
-  chmod +x pggen &&
-  mv pggen ~/bin/pggen
-  
-# Make sure pggen works.
-pggen gen go --help
-```
+## Download and extract binary to $PATH
 
-```shell
-# MacOS Intel (amd64)
-curl --silent --location --fail https://github.com/jschaf/pggen/releases/latest/download/pggen-darwin-amd64.zip --output "$TMPDIR/pggen.zip" &&
-  unzip -p "$TMPDIR/pggen.zip" pggen-darwin-amd64 > pggen && 
-  chmod +x pggen &&
-  mv pggen ~/bin/pggen
-  
-# Make sure pggen works.
-pggen gen go --help
-```
+-   MacOS Apple Silicon (arm64)
 
-```shell
-# Linux (amd64)
-curl --silent --location --fail https://github.com/jschaf/pggen/releases/latest/download/pggen-linux-amd64.zip --output "$TMPDIR/pggen.zip" &&
-  unzip -p "$TMPDIR/pggen.zip" pggen-linux-amd64 > pggen && 
-  chmod +x pggen &&
-  mv pggen ~/bin/pggen
-  
-# Make sure pggen works.
-pggen gen go --help
-```
+    ```shell
+    URL='https://github.com/jschaf/pggen/releases/latest/download/pggen-darwin-arm64.zip' \
+    curl --silent --location --fail "$URL" --output "$TMPDIR/pggen.zip" &&
+      unzip -p "$TMPDIR/pggen.zip" pggen-darwin-arm64 > pggen && 
+      chmod +x pggen &&
+      mv pggen ~/bin/pggen
+    ```
+    
+-   MacOS Intel (amd64)
 
-```shell
-# Windows (amd64)
-curl --silent --location --fail https://github.com/jschaf/pggen/releases/latest/download/pggen-windows-amd64.zip --output "$TMPDIR/pggen.zip" &&
-  unzip -p "$TMPDIR/pggen.zip" pggen-windows-amd64.exe > pggen.exe && 
-  chmod +x pggen.exe &&
-  mv pggen.exe ~/bin/pggen.exe
-  
-# Make sure pggen works.
-pggen gen go --help
-```
+    ```shell
+    URL='https://github.com/jschaf/pggen/releases/latest/download/pggen-darwin-amd64.zip' \
+    curl --silent --location --fail "$URL" --output "$TMPDIR/pggen.zip" &&
+      unzip -p "$TMPDIR/pggen.zip" pggen-darwin-amd64 > pggen && 
+      chmod +x pggen &&
+      mv pggen ~/bin/pggen
+    ```
 
-From source code:
+-   Linux (amd64)
+
+    ```shell
+    URL='https://github.com/jschaf/pggen/releases/latest/download/pggen-linux-amd64.zip' \
+    curl --silent --location --fail "$URL" --output "$TMPDIR/pggen.zip" &&
+      unzip -p "$TMPDIR/pggen.zip" pggen-linux-amd64 > pggen && 
+      chmod +x pggen &&
+      mv pggen ~/bin/pggen
+    ```
+    
+-   Windows (amd64)
+
+    ```shell
+    URL='https://github.com/jschaf/pggen/releases/latest/download/pggen-windows-amd64.zip' \
+    curl --silent --location --fail "$URL" --output "$TMPDIR/pggen.zip" &&
+      unzip -p "$TMPDIR/pggen.zip" pggen-windows-amd64.exe > pggen.exe && 
+      chmod +x pggen.exe &&
+      mv pggen.exe ~/bin/pggen.exe
+    ```
+    
+-   From source code. Requires Go 1.16 because pggen uses `go:embed`.
+
+    ```shell
+    go get github.com/jschaf/pggen
+    ```
+    
+Make sure pggen works:
+
 ```bash
-go get github.com/jschaf/pggen
-
-# Make sure pggen works.
 pggen gen go --help
 ```
 
