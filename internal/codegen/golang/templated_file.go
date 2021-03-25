@@ -9,9 +9,16 @@ import (
 	"strings"
 )
 
+// TemplatedPackage is all templated files in a pggen invocation. The templated
+// files do not necessarily reside in the same directory.
+type TemplatedPackage struct {
+	Files []TemplatedFile // sorted lexicographically by path
+}
+
 // TemplatedFile is the Go version of a SQL query file with all information
 // needed to execute the codegen template.
 type TemplatedFile struct {
+	Pkg     TemplatedPackage // the parent package containing this file
 	PkgPath string           // full package path, like "github.com/foo/bar"
 	GoPkg   string           // the name of the Go package to use for the generated file
 	Path    string           // the path to source SQL file

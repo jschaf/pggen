@@ -19,7 +19,8 @@ import (
 // calling SendBatch on pgx.Conn, pgxpool.Pool, or pgx.Tx, use the Scan methods
 // to parse the results.
 type Querier interface {
-{{- range $i, $q := .Queries }} {{- "\n\t" -}}
+{{- range $pkgFile := .Pkg.Files -}}
+{{- range $i, $q := $pkgFile.Queries }} {{- "\n\t" -}}
 	{{- if $q.Doc }}{{ $q.Doc }}	{{ end -}}
 	{{.Name}}(ctx context.Context {{- $q.EmitParams }}) ({{ $q.EmitResultType }}, error)
 	// {{.Name}}Batch enqueues a {{.Name}} query into batch to be executed
@@ -29,6 +30,7 @@ type Querier interface {
 	{{.Name}}Scan(results pgx.BatchResults) ({{ $q.EmitResultType }}, error)
 	{{- "\n" -}}
 {{end -}}
+{{- end -}}
 }
 
 type DBQuerier struct {

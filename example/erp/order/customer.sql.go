@@ -29,6 +29,34 @@ type Querier interface {
 	FindProductsInOrderBatch(batch *pgx.Batch, orderID int32)
 	// FindProductsInOrderScan scans the result of an executed FindProductsInOrderBatch query.
 	FindProductsInOrderScan(results pgx.BatchResults) ([]FindProductsInOrderRow, error)
+
+	InsertCustomer(ctx context.Context, params InsertCustomerParams) (InsertCustomerRow, error)
+	// InsertCustomerBatch enqueues a InsertCustomer query into batch to be executed
+	// later by the batch.
+	InsertCustomerBatch(batch *pgx.Batch, params InsertCustomerParams)
+	// InsertCustomerScan scans the result of an executed InsertCustomerBatch query.
+	InsertCustomerScan(results pgx.BatchResults) (InsertCustomerRow, error)
+
+	InsertOrder(ctx context.Context, params InsertOrderParams) (InsertOrderRow, error)
+	// InsertOrderBatch enqueues a InsertOrder query into batch to be executed
+	// later by the batch.
+	InsertOrderBatch(batch *pgx.Batch, params InsertOrderParams)
+	// InsertOrderScan scans the result of an executed InsertOrderBatch query.
+	InsertOrderScan(results pgx.BatchResults) (InsertOrderRow, error)
+
+	FindOrdersByPrice(ctx context.Context, minTotal pgtype.Numeric) ([]FindOrdersByPriceRow, error)
+	// FindOrdersByPriceBatch enqueues a FindOrdersByPrice query into batch to be executed
+	// later by the batch.
+	FindOrdersByPriceBatch(batch *pgx.Batch, minTotal pgtype.Numeric)
+	// FindOrdersByPriceScan scans the result of an executed FindOrdersByPriceBatch query.
+	FindOrdersByPriceScan(results pgx.BatchResults) ([]FindOrdersByPriceRow, error)
+
+	FindOrdersMRR(ctx context.Context) ([]FindOrdersMRRRow, error)
+	// FindOrdersMRRBatch enqueues a FindOrdersMRR query into batch to be executed
+	// later by the batch.
+	FindOrdersMRRBatch(batch *pgx.Batch)
+	// FindOrdersMRRScan scans the result of an executed FindOrdersMRRBatch query.
+	FindOrdersMRRScan(results pgx.BatchResults) ([]FindOrdersMRRRow, error)
 }
 
 type DBQuerier struct {
@@ -69,7 +97,9 @@ func (q *DBQuerier) WithTx(tx pgx.Tx) (*DBQuerier, error) {
 	return &DBQuerier{conn: tx}, nil
 }
 
-const findOrdersByCustomerSQL = `SELECT * FROM orders WHERE customer_id = $1;`
+const findOrdersByCustomerSQL = `SELECT *
+FROM orders
+WHERE customer_id = $1;`
 
 type FindOrdersByCustomerRow struct {
 	OrderID    int32              `json:"order_id"`
@@ -182,4 +212,88 @@ func (q *DBQuerier) FindProductsInOrderScan(results pgx.BatchResults) ([]FindPro
 		return nil, fmt.Errorf("close FindProductsInOrderBatch rows: %w", err)
 	}
 	return items, err
+}
+
+const insertCustomerSQL = `INSERT INTO customer (first_name, last_name, email)
+VALUES ($1, $2, $3)
+RETURNING *;`
+
+type InsertCustomerParams struct {
+	FirstName string
+	LastName  string
+	Email     string
+}
+
+type InsertCustomerRow struct {
+	CustomerID int32  `json:"customer_id"`
+	FirstName  string `json:"first_name"`
+	LastName   string `json:"last_name"`
+	Email      string `json:"email"`
+}
+
+// InsertCustomer implements Querier.InsertCustomer.
+func (q *DBQuerier) InsertCustomer(ctx context.Context, params InsertCustomerParams) (InsertCustomerRow, error) {
+	row := q.conn.QueryRow(ctx, insertCustomerSQL, params.FirstName, params.LastName, params.Email)
+	var item InsertCustomerRow
+	if err := row.Scan(&item.CustomerID, &item.FirstName, &item.LastName, &item.Email); err != nil {
+		return item, fmt.Errorf("query InsertCustomer: %w", err)
+	}
+	return item, nil
+}
+
+// InsertCustomerBatch implements Querier.InsertCustomerBatch.
+func (q *DBQuerier) InsertCustomerBatch(batch *pgx.Batch, params InsertCustomerParams) {
+	batch.Queue(insertCustomerSQL, params.FirstName, params.LastName, params.Email)
+}
+
+// InsertCustomerScan implements Querier.InsertCustomerScan.
+func (q *DBQuerier) InsertCustomerScan(results pgx.BatchResults) (InsertCustomerRow, error) {
+	row := results.QueryRow()
+	var item InsertCustomerRow
+	if err := row.Scan(&item.CustomerID, &item.FirstName, &item.LastName, &item.Email); err != nil {
+		return item, fmt.Errorf("scan InsertCustomerBatch row: %w", err)
+	}
+	return item, nil
+}
+
+const insertOrderSQL = `INSERT INTO orders (order_date, order_total, customer_id)
+VALUES ($1, $2, $3)
+RETURNING *;`
+
+type InsertOrderParams struct {
+	OrderDate  pgtype.Timestamptz
+	OrderTotal pgtype.Numeric
+	CustID     int32
+}
+
+type InsertOrderRow struct {
+	OrderID    int32              `json:"order_id"`
+	OrderDate  pgtype.Timestamptz `json:"order_date"`
+	OrderTotal pgtype.Numeric     `json:"order_total"`
+	CustomerID pgtype.Int4        `json:"customer_id"`
+}
+
+// InsertOrder implements Querier.InsertOrder.
+func (q *DBQuerier) InsertOrder(ctx context.Context, params InsertOrderParams) (InsertOrderRow, error) {
+	row := q.conn.QueryRow(ctx, insertOrderSQL, params.OrderDate, params.OrderTotal, params.CustID)
+	var item InsertOrderRow
+	if err := row.Scan(&item.OrderID, &item.OrderDate, &item.OrderTotal, &item.CustomerID); err != nil {
+		return item, fmt.Errorf("query InsertOrder: %w", err)
+	}
+	return item, nil
+}
+
+// InsertOrderBatch implements Querier.InsertOrderBatch.
+func (q *DBQuerier) InsertOrderBatch(batch *pgx.Batch, params InsertOrderParams) {
+	batch.Queue(insertOrderSQL, params.OrderDate, params.OrderTotal, params.CustID)
+}
+
+// InsertOrderScan implements Querier.InsertOrderScan.
+func (q *DBQuerier) InsertOrderScan(results pgx.BatchResults) (InsertOrderRow, error) {
+	row := results.QueryRow()
+	var item InsertOrderRow
+	if err := row.Scan(&item.OrderID, &item.OrderDate, &item.OrderTotal, &item.CustomerID); err != nil {
+		return item, fmt.Errorf("scan InsertOrderBatch row: %w", err)
+	}
+	return item, nil
 }

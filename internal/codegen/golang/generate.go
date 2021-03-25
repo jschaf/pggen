@@ -6,6 +6,7 @@ import (
 	"github.com/jschaf/pggen/internal/casing"
 	"github.com/jschaf/pggen/internal/codegen"
 	"path/filepath"
+	"sort"
 	"text/template"
 )
 
@@ -36,6 +37,18 @@ func Generate(opts GenerateOptions, queryFiles []codegen.QueryFile) error {
 	templatedFiles, err := templater.TemplateAll(queryFiles)
 	if err != nil {
 		return fmt.Errorf("template all: %w", err)
+	}
+
+	// Order for reproducible results.
+	sort.Slice(templatedFiles, func(i, j int) bool {
+		return templatedFiles[i].Path < templatedFiles[j].Path
+	})
+
+	// Link each child to the package. Necessary so the leader can define all
+	// Querier methods.
+	pkg := TemplatedPackage{Files: templatedFiles}
+	for i := range templatedFiles {
+		templatedFiles[i].Pkg = pkg
 	}
 
 	tmpl, err := parseQueryTemplate()
