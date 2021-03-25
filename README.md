@@ -149,10 +149,10 @@ is far more revealing than the pitch.
 
 # Install
 
+### Download precompiled binaries
+
 Precompiled binaries. Change the last line if you want to install somewhere 
 other than `~/bin/pggen`.
-
-## Download and extract binary to $PATH
 
 -   MacOS Apple Silicon (arm64)
 
@@ -194,11 +194,13 @@ other than `~/bin/pggen`.
       mv pggen.exe ~/bin/pggen.exe
     ```
     
--   From source code. Requires Go 1.16 because pggen uses `go:embed`.
+### Install from source    
 
-    ```shell
-    go get github.com/jschaf/pggen
-    ```
+Requires Go 1.16 because pggen uses `go:embed`.
+
+```shell
+go get github.com/jschaf/pggen
+```
     
 Make sure pggen works:
 
