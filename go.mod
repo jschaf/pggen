@@ -22,7 +22,6 @@ require (
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.0.1 // indirect
 	github.com/peterbourgon/ff/v3 v3.0.0
-	github.com/rakyll/statik v0.1.7
 	github.com/stretchr/testify v1.5.1
 	go.uber.org/multierr v1.5.0
 	go.uber.org/zap v1.10.0
