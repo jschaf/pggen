@@ -184,9 +184,23 @@ func (inf *Inferrer) inferOutputTypes(query *ast.SourceQuery) ([]OutputColumn, e
 	haveDescriptions := len(descriptions) > 0 || query.ResultKind == ast.ResultKindExec
 	if err := rows.Err(); err != nil && !haveDescriptions {
 		if pgErr, ok := err.(*pgconn.PgError); ok {
-			return nil, fmt.Errorf(
-				"fetch field descriptions: "+pgErr.Message+"\n"+
-					"    WHERE: "+pgErr.Where+"\n    %w", pgErr)
+			msg := "fetch field descriptions: " + pgErr.Message
+			if pgErr.Where != "" {
+				msg += "\n    WHERE: " + pgErr.Where
+			}
+			if pgErr.Detail != "" {
+				msg += "\n    DETAIL: " + pgErr.Detail
+			}
+			if pgErr.Hint != "" {
+				msg += "\n    HINT: " + pgErr.Hint
+			}
+			if pgErr.DataTypeName != "" {
+				msg += "\n    DataType: " + pgErr.DataTypeName
+			}
+			if pgErr.TableName != "" {
+				msg += "\n    TableName: " + pgErr.TableName
+			}
+			return nil, fmt.Errorf(msg+"\n    %w", pgErr)
 		}
 		return nil, fmt.Errorf("fetch field descriptions: %w", err)
 	}
