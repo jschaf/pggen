@@ -1,3 +1,8 @@
+-- name: CreateTenant :one
+INSERT INTO tenant (tenant_id, name)
+VALUES (base36_decode(pggen.arg('key')::text)::tenant_id, pggen.arg('name')::text)
+RETURNING *;
+
 -- name: FindOrdersByCustomer :many
 SELECT *
 FROM orders

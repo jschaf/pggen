@@ -25,6 +25,16 @@ func TestGenerate_Golang_Error(t *testing.T) {
 			-- name: Foo :many
 			SELECT 1;
 			`),
+			wantErrMsg: `duplicate query name Foo`,
+		},
+		{
+			name:   "type error",
+			schema: "",
+			queries: texts.Dedent(`
+			-- name: Foo :one
+			SELECT encode(123, 'foo'::text);
+			`),
+			wantErrMsg: `function encode(integer, text) does not exist`,
 		},
 	}
 	for _, tt := range tests {

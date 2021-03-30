@@ -16,6 +16,13 @@ import (
 // calling SendBatch on pgx.Conn, pgxpool.Pool, or pgx.Tx, use the Scan methods
 // to parse the results.
 type Querier interface {
+	CreateTenant(ctx context.Context, key string, name string) (CreateTenantRow, error)
+	// CreateTenantBatch enqueues a CreateTenant query into batch to be executed
+	// later by the batch.
+	CreateTenantBatch(batch *pgx.Batch, key string, name string)
+	// CreateTenantScan scans the result of an executed CreateTenantBatch query.
+	CreateTenantScan(results pgx.BatchResults) (CreateTenantRow, error)
+
 	FindOrdersByCustomer(ctx context.Context, customerID int32) ([]FindOrdersByCustomerRow, error)
 	// FindOrdersByCustomerBatch enqueues a FindOrdersByCustomer query into batch to be executed
 	// later by the batch.
@@ -95,6 +102,41 @@ func NewQuerier(conn genericConn) *DBQuerier {
 // WithTx creates a new DBQuerier that uses the transaction to run all queries.
 func (q *DBQuerier) WithTx(tx pgx.Tx) (*DBQuerier, error) {
 	return &DBQuerier{conn: tx}, nil
+}
+
+const createTenantSQL = `INSERT INTO tenant (tenant_id, name)
+VALUES (base36_decode($1::text)::tenant_id, $2::text)
+RETURNING *;`
+
+type CreateTenantRow struct {
+	TenantID int         `json:"tenant_id"`
+	Rname    pgtype.Text `json:"rname"`
+	Name     string      `json:"name"`
+}
+
+// CreateTenant implements Querier.CreateTenant.
+func (q *DBQuerier) CreateTenant(ctx context.Context, key string, name string) (CreateTenantRow, error) {
+	row := q.conn.QueryRow(ctx, createTenantSQL, key, name)
+	var item CreateTenantRow
+	if err := row.Scan(&item.TenantID, &item.Rname, &item.Name); err != nil {
+		return item, fmt.Errorf("query CreateTenant: %w", err)
+	}
+	return item, nil
+}
+
+// CreateTenantBatch implements Querier.CreateTenantBatch.
+func (q *DBQuerier) CreateTenantBatch(batch *pgx.Batch, key string, name string) {
+	batch.Queue(createTenantSQL, key, name)
+}
+
+// CreateTenantScan implements Querier.CreateTenantScan.
+func (q *DBQuerier) CreateTenantScan(results pgx.BatchResults) (CreateTenantRow, error) {
+	row := results.QueryRow()
+	var item CreateTenantRow
+	if err := row.Scan(&item.TenantID, &item.Rname, &item.Name); err != nil {
+		return item, fmt.Errorf("scan CreateTenantBatch row: %w", err)
+	}
+	return item, nil
 }
 
 const findOrdersByCustomerSQL = `SELECT *

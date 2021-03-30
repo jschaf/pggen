@@ -77,6 +77,7 @@ func TestExamples(t *testing.T) {
 				"--schema-glob", "example/erp/*.sql",
 				"--query-glob", "example/erp/order/*.sql",
 				"--acronym", "mrr",
+				"--go-type", "tenant_id=int",
 			},
 		},
 		{
@@ -85,6 +86,7 @@ func TestExamples(t *testing.T) {
 				"--schema-glob", "example/erp/??_schema.sql",
 				"--query-glob", "example/erp/order/*.sql",
 				"--acronym", "mrr",
+				"--go-type", "tenant_id=int",
 			},
 		},
 		{

@@ -3,6 +3,7 @@ package pginfer
 import (
 	"context"
 	"fmt"
+	"github.com/jackc/pgconn"
 	"strings"
 	"time"
 
@@ -176,6 +177,19 @@ func (inf *Inferrer) inferOutputTypes(query *ast.SourceQuery) ([]OutputColumn, e
 	descriptions := make([]pgproto3.FieldDescription, len(rows.FieldDescriptions()))
 	copy(descriptions, rows.FieldDescriptions()) // pgx reuses row objects
 	rows.Close()
+	// We can ignore the error if we got the field descriptions. Most queries
+	// will error with a not-null constraint violation since we use null for all
+	// parameters in createParamArgs. For :exec queries, ignore the error since we
+	// don't need the field descriptions.
+	haveDescriptions := len(descriptions) > 0 || query.ResultKind == ast.ResultKindExec
+	if err := rows.Err(); err != nil && !haveDescriptions {
+		if pgErr, ok := err.(*pgconn.PgError); ok {
+			return nil, fmt.Errorf(
+				"fetch field descriptions: "+pgErr.Message+"\n"+
+					"    WHERE: "+pgErr.Where+"\n    %w", pgErr)
+		}
+		return nil, fmt.Errorf("fetch field descriptions: %w", err)
+	}
 
 	// Resolve type names of output column data type OIDs.
 	oids := make([]uint32, len(descriptions))

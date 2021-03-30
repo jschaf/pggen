@@ -24,10 +24,11 @@ func TestGenerate_Go_Example_Order(t *testing.T) {
 				"customer.sql",
 				"price.sql",
 			},
-			OutputDir: tmpDir,
-			GoPackage: "order",
-			Language:  pggen.LangGo,
-			Acronyms:  map[string]string{"mrr": "MRR"},
+			OutputDir:     tmpDir,
+			GoPackage:     "order",
+			Language:      pggen.LangGo,
+			Acronyms:      map[string]string{"mrr": "MRR"},
+			TypeOverrides: map[string]string{"tenant_id": "int"},
 		})
 	if err != nil {
 		t.Fatalf("Generate() example/erp/order: %s", err)
