@@ -54,7 +54,7 @@ func Start(ctx context.Context, initScripts []string, l *zap.SugaredLogger) (cli
 	// Enrich logs with Docker container logs.
 	defer func() {
 		if mErr != nil {
-			logs, err := c.getContainerLogs()
+			logs, err := c.GetContainerLogs()
 			if err != nil {
 				mErr = multierr.Append(mErr, err)
 			} else {
@@ -82,10 +82,10 @@ func Start(ctx context.Context, initScripts []string, l *zap.SugaredLogger) (cli
 	return c, nil
 }
 
-// getContainerLogs returns a string of all stderr and stdout logs for a
+// GetContainerLogs returns a string of all stderr and stdout logs for a
 // container. Useful to enrich output when pggen fails to start the Docker
 // container.
-func (c *Client) getContainerLogs() (logs string, mErr error) {
+func (c *Client) GetContainerLogs() (logs string, mErr error) {
 	if c.containerID == "" {
 		return "", nil
 	}

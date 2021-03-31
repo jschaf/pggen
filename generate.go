@@ -12,6 +12,7 @@ import (
 	"github.com/jschaf/pggen/internal/parser"
 	"github.com/jschaf/pggen/internal/pgdocker"
 	"github.com/jschaf/pggen/internal/pginfer"
+	"go.uber.org/multierr"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	gotok "go/token"
@@ -91,7 +92,7 @@ func Generate(opts GenerateOptions) (mErr error) {
 	// Postgres connection.
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
-	pgConn, cleanup, err := connectPostgres(ctx, opts, l)
+	pgConn, errEnricher, cleanup, err := connectPostgres(ctx, opts, l)
 	if err != nil {
 		return fmt.Errorf("connect postgres: %w", err)
 	}
@@ -101,7 +102,7 @@ func Generate(opts GenerateOptions) (mErr error) {
 	inferrer := pginfer.NewInferrer(pgConn)
 	queryFiles, err := parseQueryFiles(opts.QueryFiles, inferrer)
 	if err != nil {
-		return err
+		return errEnricher(err)
 	}
 
 	// Codegen.
@@ -128,47 +129,62 @@ func Generate(opts GenerateOptions) (mErr error) {
 
 // connectPostgres connects to postgres using connString if given or by
 // running a Docker postgres container and connecting to that.
-func connectPostgres(ctx context.Context, opts GenerateOptions, l *zap.SugaredLogger) (*pgx.Conn, func() error, error) {
+func connectPostgres(
+	ctx context.Context,
+	opts GenerateOptions,
+	l *zap.SugaredLogger,
+) (*pgx.Conn, func(error) error, func() error, error) {
 	// Create connection by starting dockerized Postgres.
 	if opts.ConnString == "" {
 		client, err := pgdocker.Start(ctx, opts.SchemaFiles, l)
 		if err != nil {
-			return nil, nil, fmt.Errorf("start dockerized postgres: %w", err)
+			return nil, nil, nil, fmt.Errorf("start dockerized postgres: %w", err)
 		}
 		stopDocker := func() error { return client.Stop(ctx) }
 		connStr, err := client.ConnString()
 		if err != nil {
-			return nil, nil, fmt.Errorf("get dockerized postgres conn string: %w", err)
+			return nil, nil, nil, fmt.Errorf("get dockerized postgres conn string: %w", err)
 		}
 		pgConn, err := pgx.Connect(ctx, connStr)
 		if err != nil {
-			return nil, nil, fmt.Errorf("connect to pggen dockerized postgres database: %w", err)
+			return nil, nil, nil, fmt.Errorf("connect to pggen dockerized postgres database: %w", err)
 		}
-		return pgConn, stopDocker, nil
+		errEnricher := func(e error) error {
+			if e == nil {
+				return e
+			}
+			logs, err := client.GetContainerLogs()
+			if err != nil {
+				return multierr.Append(e, err)
+			}
+			return fmt.Errorf("Container logs for Postgres container:\n\n%s\n\n%w", logs, e)
+		}
+		return pgConn, errEnricher, stopDocker, nil
 	}
 	// Use existing Postgres.
 	nopCleanup := func() error { return nil }
+	nopErrEnricher := func(e error) error { return e }
 	pgConn, err := pgx.Connect(ctx, opts.ConnString)
 	if err != nil {
-		return nil, nil, fmt.Errorf("connect to pggen postgres database: %w", err)
+		return nil, nil, nil, fmt.Errorf("connect to pggen postgres database: %w", err)
 	}
 	// Run SQL init scripts. pgdocker runs these in the other case by copying
 	// the files into the entrypoint folder. Emulate the behavior for a subset of
 	// supported files.
 	for _, script := range opts.SchemaFiles {
 		if filepath.Ext(script) != ".sql" {
-			return nil, nopCleanup, fmt.Errorf("cannot run non-sql schema file on Postgres "+
+			return nil, nopErrEnricher, nopCleanup, fmt.Errorf("cannot run non-sql schema file on Postgres "+
 				"(*.sh and *.sql.gz files only supported without --postgres-connection): %s", script)
 		}
 		bs, err := ioutil.ReadFile(script)
 		if err != nil {
-			return nil, nopCleanup, fmt.Errorf("read schema file: %w", err)
+			return nil, nil, nopCleanup, fmt.Errorf("read schema file: %w", err)
 		}
 		if _, err := pgConn.Exec(ctx, string(bs)); err != nil {
-			return nil, nopCleanup, fmt.Errorf("load schema file into Postgres: %w", err)
+			return nil, nopErrEnricher, nopCleanup, fmt.Errorf("load schema file into Postgres: %w", err)
 		}
 	}
-	return pgConn, nopCleanup, nil
+	return pgConn, nopErrEnricher, nopCleanup, nil
 }
 
 func parseQueryFiles(queryFiles []string, inferrer *pginfer.Inferrer) ([]codegen.QueryFile, error) {
