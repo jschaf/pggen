@@ -193,6 +193,7 @@ func (tm Templater) templateFile(file codegen.QueryFile) (TemplatedFile, []Decla
 			if gotype.HasCompositeType(goType) {
 				declarers = append(declarers, ignoredOIDDeclarer)
 				declarers = append(declarers, newCompositeTypeDeclarer)
+				imports.AddPackage("github.com/jackc/pgtype") // needed for newCompositeType
 			}
 			declarers = append(declarers, FindDeclarers(goType)...)
 		}

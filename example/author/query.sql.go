@@ -6,7 +6,6 @@ import (
 	"context"
 	"fmt"
 	"github.com/jackc/pgconn"
-	"github.com/jackc/pgtype"
 	"github.com/jackc/pgx/v4"
 )
 
@@ -123,10 +122,10 @@ func (q *DBQuerier) WithTx(tx pgx.Tx) (*DBQuerier, error) {
 const findAuthorByIDSQL = `SELECT * FROM author WHERE author_id = $1;`
 
 type FindAuthorByIDRow struct {
-	AuthorID  int32       `json:"author_id"`
-	FirstName string      `json:"first_name"`
-	LastName  string      `json:"last_name"`
-	Suffix    pgtype.Text `json:"suffix"`
+	AuthorID  int32   `json:"author_id"`
+	FirstName string  `json:"first_name"`
+	LastName  string  `json:"last_name"`
+	Suffix    *string `json:"suffix"`
 }
 
 // FindAuthorByID implements Querier.FindAuthorByID.
@@ -157,10 +156,10 @@ func (q *DBQuerier) FindAuthorByIDScan(results pgx.BatchResults) (FindAuthorByID
 const findAuthorsSQL = `SELECT * FROM author WHERE first_name = $1;`
 
 type FindAuthorsRow struct {
-	AuthorID  int32       `json:"author_id"`
-	FirstName string      `json:"first_name"`
-	LastName  string      `json:"last_name"`
-	Suffix    pgtype.Text `json:"suffix"`
+	AuthorID  int32   `json:"author_id"`
+	FirstName string  `json:"first_name"`
+	LastName  string  `json:"last_name"`
+	Suffix    *string `json:"suffix"`
 }
 
 // FindAuthors implements Querier.FindAuthors.
@@ -213,8 +212,8 @@ func (q *DBQuerier) FindAuthorsScan(results pgx.BatchResults) ([]FindAuthorsRow,
 const findAuthorNamesSQL = `SELECT first_name, last_name FROM author ORDER BY author_id = $1;`
 
 type FindAuthorNamesRow struct {
-	FirstName pgtype.Text `json:"first_name"`
-	LastName  pgtype.Text `json:"last_name"`
+	FirstName *string `json:"first_name"`
+	LastName  *string `json:"last_name"`
 }
 
 // FindAuthorNames implements Querier.FindAuthorNames.
@@ -389,10 +388,10 @@ type InsertAuthorSuffixParams struct {
 }
 
 type InsertAuthorSuffixRow struct {
-	AuthorID  int32       `json:"author_id"`
-	FirstName string      `json:"first_name"`
-	LastName  string      `json:"last_name"`
-	Suffix    pgtype.Text `json:"suffix"`
+	AuthorID  int32   `json:"author_id"`
+	FirstName string  `json:"first_name"`
+	LastName  string  `json:"last_name"`
+	Suffix    *string `json:"suffix"`
 }
 
 // InsertAuthorSuffix implements Querier.InsertAuthorSuffix.

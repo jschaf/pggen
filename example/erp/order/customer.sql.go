@@ -109,9 +109,9 @@ VALUES (base36_decode($1::text)::tenant_id, $2::text)
 RETURNING *;`
 
 type CreateTenantRow struct {
-	TenantID int         `json:"tenant_id"`
-	Rname    pgtype.Text `json:"rname"`
-	Name     string      `json:"name"`
+	TenantID int     `json:"tenant_id"`
+	Rname    *string `json:"rname"`
+	Name     string  `json:"name"`
 }
 
 // CreateTenant implements Querier.CreateTenant.
@@ -147,7 +147,7 @@ type FindOrdersByCustomerRow struct {
 	OrderID    int32              `json:"order_id"`
 	OrderDate  pgtype.Timestamptz `json:"order_date"`
 	OrderTotal pgtype.Numeric     `json:"order_total"`
-	CustomerID pgtype.Int4        `json:"customer_id"`
+	CustomerID *int32             `json:"customer_id"`
 }
 
 // FindOrdersByCustomer implements Querier.FindOrdersByCustomer.
@@ -204,9 +204,9 @@ FROM orders o
 WHERE o.order_id = $1;`
 
 type FindProductsInOrderRow struct {
-	OrderID   pgtype.Int4 `json:"order_id"`
-	ProductID pgtype.Int4 `json:"product_id"`
-	Name      pgtype.Text `json:"name"`
+	OrderID   *int32  `json:"order_id"`
+	ProductID *int32  `json:"product_id"`
+	Name      *string `json:"name"`
 }
 
 // FindProductsInOrder implements Querier.FindProductsInOrder.
@@ -312,7 +312,7 @@ type InsertOrderRow struct {
 	OrderID    int32              `json:"order_id"`
 	OrderDate  pgtype.Timestamptz `json:"order_date"`
 	OrderTotal pgtype.Numeric     `json:"order_total"`
-	CustomerID pgtype.Int4        `json:"customer_id"`
+	CustomerID *int32             `json:"customer_id"`
 }
 
 // InsertOrder implements Querier.InsertOrder.

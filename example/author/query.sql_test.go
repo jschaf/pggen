@@ -7,7 +7,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"testing"
 
-	"github.com/jackc/pgtype"
 	"github.com/jackc/pgx/v4"
 	"github.com/jschaf/pggen/internal/pgtest"
 	"github.com/stretchr/testify/assert"
@@ -28,7 +27,7 @@ func TestNewQuerier_FindAuthorByID(t *testing.T) {
 			AuthorID:  adamsID,
 			FirstName: "john",
 			LastName:  "adams",
-			Suffix:    pgtype.Text{Status: pgtype.Null},
+			Suffix:    nil,
 		}, authorByID)
 	})
 
@@ -52,7 +51,7 @@ func TestNewQuerier_FindAuthorByID(t *testing.T) {
 			AuthorID:  adamsID,
 			FirstName: "john",
 			LastName:  "adams",
-			Suffix:    pgtype.Text{Status: pgtype.Null},
+			Suffix:    nil,
 		}, authors)
 	})
 }
@@ -73,7 +72,7 @@ func TestNewQuerier_FindAuthors(t *testing.T) {
 				AuthorID:  adamsID,
 				FirstName: "john",
 				LastName:  "adams",
-				Suffix:    pgtype.Text{Status: pgtype.Null},
+				Suffix:    nil,
 			},
 		}
 		assert.Equal(t, want, authors)
@@ -83,8 +82,8 @@ func TestNewQuerier_FindAuthors(t *testing.T) {
 		authors, err := q.FindAuthors(context.Background(), "george")
 		require.NoError(t, err)
 		want := []FindAuthorsRow{
-			{AuthorID: washingtonID, FirstName: "george", LastName: "washington", Suffix: pgtype.Text{Status: pgtype.Null}},
-			{AuthorID: carverID, FirstName: "george", LastName: "carver", Suffix: pgtype.Text{Status: pgtype.Null}},
+			{AuthorID: washingtonID, FirstName: "george", LastName: "washington", Suffix: nil},
+			{AuthorID: carverID, FirstName: "george", LastName: "carver", Suffix: nil},
 		}
 		assert.Equal(t, want, authors)
 	})
@@ -103,8 +102,8 @@ func TestNewQuerier_FindAuthors(t *testing.T) {
 		defer errs.CaptureT(t, results.Close, "close batch results")
 		require.NoError(t, err)
 		want := []FindAuthorsRow{
-			{AuthorID: washingtonID, FirstName: "george", LastName: "washington", Suffix: pgtype.Text{Status: pgtype.Null}},
-			{AuthorID: carverID, FirstName: "george", LastName: "carver", Suffix: pgtype.Text{Status: pgtype.Null}},
+			{AuthorID: washingtonID, FirstName: "george", LastName: "washington", Suffix: nil},
+			{AuthorID: carverID, FirstName: "george", LastName: "carver", Suffix: nil},
 		}
 		assert.Equal(t, want, authors)
 	})
@@ -121,12 +120,13 @@ func TestNewQuerier_InsertAuthorSuffix(t *testing.T) {
 			LastName:  "adams",
 			Suffix:    "Jr.",
 		})
+		jr := "Jr."
 		require.NoError(t, err)
 		want := InsertAuthorSuffixRow{
 			AuthorID:  author.AuthorID,
 			FirstName: "john",
 			LastName:  "adams",
-			Suffix:    pgtype.Text{Status: pgtype.Present, String: "Jr."},
+			Suffix:    &jr,
 		}
 		assert.Equal(t, want, author)
 	})
@@ -141,11 +141,12 @@ func TestNewQuerier_InsertAuthorSuffix(t *testing.T) {
 		defer errs.CaptureT(t, results.Close, "close batch results")
 		author, err := q.InsertAuthorSuffixScan(results)
 		require.NoError(t, err)
+		empty := ""
 		want := InsertAuthorSuffixRow{
 			AuthorID:  author.AuthorID,
 			FirstName: "ulysses",
 			LastName:  "grant",
-			Suffix:    pgtype.Text{Status: pgtype.Present, String: ""},
+			Suffix:    &empty, // TODO: should be nil, https://github.com/jschaf/pggen/issues/21
 		}
 		assert.Equal(t, want, author)
 	})
@@ -224,7 +225,7 @@ func TestNewQuerier_DeleteAuthorsByFullName(t *testing.T) {
 				AuthorID:  washingtonID,
 				FirstName: "george",
 				LastName:  "washington",
-				Suffix:    pgtype.Text{Status: pgtype.Null},
+				Suffix:    nil,
 			},
 		}
 		assert.Equal(t, want, authors, "only one author with first name george should remain")
@@ -264,7 +265,7 @@ func TestNewQuerier_DeleteAuthorsByFullNameBatch(t *testing.T) {
 				AuthorID:  washingtonID,
 				FirstName: "george",
 				LastName:  "washington",
-				Suffix:    pgtype.Text{Status: pgtype.Null},
+				Suffix:    nil,
 			},
 		}
 		assert.Equal(t, want, authors, "only one author with first name george should remain")

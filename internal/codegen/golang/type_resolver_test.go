@@ -159,8 +159,8 @@ func TestTypeResolver_Resolve(t *testing.T) {
 				Name:       "Qux",
 				FieldNames: []string{"ID", "Foo"},
 				FieldTypes: []gotype.Type{
-					withPgType(gotype.PgText, pg.Text),
-					withPgType(gotype.PgInt8, pg.Int8),
+					gotype.OpaqueType{PgTyp: pg.Text, Name: "*string"},
+					gotype.OpaqueType{PgTyp: pg.Int8, Name: "*int"},
 				},
 			},
 		},
@@ -252,8 +252,8 @@ func TestCreateCompositeType(t *testing.T) {
 				Name:       "Qux",
 				FieldNames: []string{"One", "TwoA"},
 				FieldTypes: []gotype.Type{
-					withPgType(gotype.PgText, pg.Text),
-					withPgType(gotype.PgInt8, pg.Int8),
+					gotype.OpaqueType{PgTyp: pg.Text, Name: "*string"},
+					gotype.OpaqueType{PgTyp: pg.Int8, Name: "*int"},
 				},
 			},
 		},
@@ -265,9 +265,4 @@ func TestCreateCompositeType(t *testing.T) {
 			assert.Equal(t, tt.want, got)
 		})
 	}
-}
-
-func withPgType(typ gotype.OpaqueType, pgType pg.Type) gotype.OpaqueType {
-	typ.PgTyp = pgType
-	return typ
 }

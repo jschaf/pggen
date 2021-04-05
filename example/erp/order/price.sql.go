@@ -15,7 +15,7 @@ type FindOrdersByPriceRow struct {
 	OrderID    int32              `json:"order_id"`
 	OrderDate  pgtype.Timestamptz `json:"order_date"`
 	OrderTotal pgtype.Numeric     `json:"order_total"`
-	CustomerID pgtype.Int4        `json:"customer_id"`
+	CustomerID *int32             `json:"customer_id"`
 }
 
 // FindOrdersByPrice implements Querier.FindOrdersByPrice.

@@ -74,7 +74,8 @@ func TestQuerier_CompositeUser(t *testing.T) {
 	ctx := context.Background()
 
 	userID := 18
-	_, err := q.InsertUser(ctx, userID, "foo")
+	name := "foo"
+	_, err := q.InsertUser(ctx, userID, name)
 	require.NoError(t, err)
 
 	mac1, _ := net.ParseMAC("11:22:33:44:55:66")
@@ -91,18 +92,12 @@ func TestQuerier_CompositeUser(t *testing.T) {
 			{
 				Mac:  pgtype.Macaddr{Addr: mac1, Status: pgtype.Present},
 				Type: DeviceTypeUndefined,
-				User: User{
-					ID:   pgtype.Int8{Int: int64(userID), Status: pgtype.Present},
-					Name: pgtype.Text{String: "foo", Status: pgtype.Present},
-				},
+				User: User{ID: &userID, Name: &name},
 			},
 			{
 				Mac:  pgtype.Macaddr{Addr: mac2, Status: pgtype.Present},
 				Type: DeviceTypeUndefined,
-				User: User{
-					ID:   pgtype.Int8{Int: int64(userID), Status: pgtype.Present},
-					Name: pgtype.Text{String: "foo", Status: pgtype.Present},
-				},
+				User: User{ID: &userID, Name: &name},
 			},
 		}
 		assert.Equal(t, want, users)
@@ -117,18 +112,12 @@ func TestQuerier_CompositeUser(t *testing.T) {
 			{
 				Mac:  pgtype.Macaddr{Addr: mac1, Status: pgtype.Present},
 				Type: DeviceTypeUndefined,
-				User: User{
-					ID:   pgtype.Int8{Int: int64(userID), Status: pgtype.Present},
-					Name: pgtype.Text{String: "foo", Status: pgtype.Present},
-				},
+				User: User{ID: &userID, Name: &name},
 			},
 			{
 				Mac:  pgtype.Macaddr{Addr: mac2, Status: pgtype.Present},
 				Type: DeviceTypeUndefined,
-				User: User{
-					ID:   pgtype.Int8{Int: int64(userID), Status: pgtype.Present},
-					Name: pgtype.Text{String: "foo", Status: pgtype.Present},
-				},
+				User: User{ID: &userID, Name: &name},
 			},
 		}
 		require.NoError(t, err)
@@ -142,10 +131,9 @@ func TestQuerier_CompositeUserOne(t *testing.T) {
 	defer cleanup()
 	q := NewQuerier(conn)
 	ctx := context.Background()
-	wantUser := User{
-		ID:   pgtype.Int8{Int: 15, Status: pgtype.Present},
-		Name: pgtype.Text{String: "qux", Status: pgtype.Present},
-	}
+	id := 15
+	name := "qux"
+	wantUser := User{ID: &id, Name: &name}
 
 	t.Run("CompositeUserOne", func(t *testing.T) {
 		got, err := q.CompositeUserOne(ctx)

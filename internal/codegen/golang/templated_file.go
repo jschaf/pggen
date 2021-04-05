@@ -355,8 +355,9 @@ func (tq TemplatedQuery) appendResultCompositeInit(
 			if pgType == nil || pgType == (pg.VoidType{}) {
 				sb.WriteString("nil,")
 			} else {
-				// Nullable so we get the pgtype variant.
-				if decoderType, ok := gotype.FindKnownTypeByOID(pgType.OID() /* nullable */, true); ok {
+				// We need the pgx variant because it matches the interface expected by
+				// newCompositeType, pgtype.ValueTranscoder.
+				if decoderType, ok := gotype.FindKnownTypePgx(pgType.OID()); ok {
 					fieldType = decoderType
 				}
 				sb.WriteString(fieldType.QualifyRel(pkgPath))

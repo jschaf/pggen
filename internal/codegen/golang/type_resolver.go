@@ -35,7 +35,14 @@ func (tr TypeResolver) Resolve(pgt pg.Type, nullable bool, pkgPath string) (goty
 	}
 
 	// Known type.
-	if typ, ok := gotype.FindKnownTypeByOID(pgt.OID(), nullable); ok {
+	var typ gotype.Type
+	var isKnownType bool
+	if nullable {
+		typ, isKnownType = gotype.FindKnownTypeNullable(pgt.OID())
+	} else {
+		typ, isKnownType = gotype.FindKnownTypeNonNullable(pgt.OID())
+	}
+	if isKnownType {
 		switch typ := typ.(type) {
 		case gotype.ArrayType:
 			typ.PgArray = pgt.(pg.ArrayType)

@@ -2,7 +2,6 @@ package nested
 
 import (
 	"context"
-	"github.com/jackc/pgtype"
 	"github.com/jackc/pgx/v4"
 	"github.com/jschaf/pggen/internal/pgtest"
 	"github.com/stretchr/testify/assert"
@@ -16,22 +15,13 @@ func TestQuerier(t *testing.T) {
 	q := NewQuerier(conn)
 	ctx := context.Background()
 
+	item := "item_name"
+	sku := "sku_id"
+	foo := 88
 	want := []Qux{
 		{
-			InvItem: InventoryItem{
-				ItemName: pgtype.Text{
-					String: "item_name",
-					Status: pgtype.Present,
-				},
-				Sku: Sku{SkuID: pgtype.Text{
-					String: "sku_id",
-					Status: pgtype.Present,
-				}},
-			},
-			Foo: pgtype.Int8{
-				Int:    88,
-				Status: pgtype.Present,
-			},
+			InvItem: InventoryItem{ItemName: &item, Sku: Sku{SkuID: &sku}},
+			Foo:     &foo,
 		},
 	}
 	{

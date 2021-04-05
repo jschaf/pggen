@@ -64,19 +64,19 @@ func (q *DBQuerier) WithTx(tx pgx.Tx) (*DBQuerier, error) {
 
 // InventoryItem represents the Postgres composite type "inventory_item".
 type InventoryItem struct {
-	ItemName pgtype.Text `json:"item_name"`
-	Sku      Sku         `json:"sku"`
+	ItemName *string `json:"item_name"`
+	Sku      Sku     `json:"sku"`
 }
 
 // Qux represents the Postgres composite type "qux".
 type Qux struct {
 	InvItem InventoryItem `json:"inv_item"`
-	Foo     pgtype.Int8   `json:"foo"`
+	Foo     *int          `json:"foo"`
 }
 
 // Sku represents the Postgres composite type "sku".
 type Sku struct {
-	SkuID pgtype.Text `json:"sku_id"`
+	SkuID *string `json:"sku_id"`
 }
 
 // ignoredOID means we don't know or care about the OID for a type. This is okay

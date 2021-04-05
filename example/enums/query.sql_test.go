@@ -100,9 +100,10 @@ func TestQuerier(t *testing.T) {
 	{
 		devices, err := q.FindManyDeviceArrayWithNum(ctx)
 		require.NoError(t, err)
+		one, two := int32(1), int32(2)
 		assert.Equal(t, []FindManyDeviceArrayWithNumRow{
-			{Num: pgtype.Int4{Int: 1, Status: pgtype.Present}, DeviceTypes: allDeviceTypes[3:]},
-			{Num: pgtype.Int4{Int: 2, Status: pgtype.Present}, DeviceTypes: allDeviceTypes},
+			{Num: &one, DeviceTypes: allDeviceTypes[3:]},
+			{Num: &two, DeviceTypes: allDeviceTypes},
 		}, devices)
 	}
 
@@ -113,9 +114,10 @@ func TestQuerier(t *testing.T) {
 		devices, err := q.FindManyDeviceArrayWithNumScan(results)
 		require.NoError(t, err)
 		require.NoError(t, results.Close())
+		one, two := int32(1), int32(2)
 		assert.Equal(t, []FindManyDeviceArrayWithNumRow{
-			{Num: pgtype.Int4{Int: 1, Status: pgtype.Present}, DeviceTypes: allDeviceTypes[3:]},
-			{Num: pgtype.Int4{Int: 2, Status: pgtype.Present}, DeviceTypes: allDeviceTypes},
+			{Num: &one, DeviceTypes: allDeviceTypes[3:]},
+			{Num: &two, DeviceTypes: allDeviceTypes},
 		}, devices)
 	}
 }
