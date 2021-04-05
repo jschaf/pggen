@@ -36,7 +36,7 @@ SELECT
   -- typdefaultbin is null and typdefault is not, then typdefault is the
   -- external representation of the type's default value, which can be fed
   -- to the type's input converter to produce a constant.
-  typ.typdefault    AS default_expr
+  COALESCE(typ.typdefault, '')    AS default_expr
 FROM pg_type typ
   JOIN enums enum ON typ.oid = enum.enum_type
 WHERE typ.typisdefined

@@ -146,7 +146,7 @@ SELECT
   -- typdefaultbin is null and typdefault is not, then typdefault is the
   -- external representation of the type's default value, which can be fed
   -- to the type's input converter to produce a constant.
-  typ.typdefault    AS default_expr
+  COALESCE(typ.typdefault, '')    AS default_expr
 FROM pg_type typ
   JOIN enums enum ON typ.oid = enum.enum_type
 WHERE typ.typisdefined
@@ -154,13 +154,13 @@ WHERE typ.typisdefined
   AND typ.oid = ANY ($1::oid[]);`
 
 type FindEnumTypesRow struct {
-	OID         pgtype.OID         `json:"oid"`
-	TypeName    pgtype.Text        `json:"type_name"`
-	ChildOIDs   pgtype.Int8Array   `json:"child_oids"`
-	Orders      pgtype.Float4Array `json:"orders"`
-	Labels      pgtype.TextArray   `json:"labels"`
-	TypeKind    pgtype.QChar       `json:"type_kind"`
-	DefaultExpr pgtype.Text        `json:"default_expr"`
+	OID         pgtype.OID   `json:"oid"`
+	TypeName    string       `json:"type_name"`
+	ChildOIDs   []int        `json:"child_oids"`
+	Orders      []float32    `json:"orders"`
+	Labels      []string     `json:"labels"`
+	TypeKind    pgtype.QChar `json:"type_kind"`
+	DefaultExpr string       `json:"default_expr"`
 }
 
 // FindEnumTypes implements Querier.FindEnumTypes.
@@ -241,7 +241,7 @@ WHERE arr_typ.typisdefined
 
 type FindArrayTypesRow struct {
 	OID      pgtype.OID   `json:"oid"`
-	TypeName pgtype.Text  `json:"type_name"`
+	TypeName string       `json:"type_name"`
 	ElemOID  pgtype.OID   `json:"elem_oid"`
 	TypeKind pgtype.QChar `json:"type_kind"`
 }
@@ -324,14 +324,14 @@ WHERE typ.oid = ANY ($1::oid[])
   AND typ.typtype = 'c';`
 
 type FindCompositeTypesRow struct {
-	TableTypeName pgtype.Text      `json:"table_type_name"`
+	TableTypeName string           `json:"table_type_name"`
 	TableTypeOID  pgtype.OID       `json:"table_type_oid"`
 	TableName     pgtype.Name      `json:"table_name"`
-	ColNames      pgtype.TextArray `json:"col_names"`
-	ColOIDs       pgtype.Int8Array `json:"col_oids"`
-	ColOrders     pgtype.Int8Array `json:"col_orders"`
+	ColNames      []string         `json:"col_names"`
+	ColOIDs       []int            `json:"col_oids"`
+	ColOrders     []int            `json:"col_orders"`
 	ColNotNulls   pgtype.BoolArray `json:"col_not_nulls"`
-	ColTypeNames  pgtype.TextArray `json:"col_type_names"`
+	ColTypeNames  []string         `json:"col_type_names"`
 }
 
 // FindCompositeTypes implements Querier.FindCompositeTypes.

@@ -62,6 +62,10 @@ func TestExamples(t *testing.T) {
 				"--query-glob", "internal/pg/query.sql",
 				"--acronym", "oid",
 				"--acronym", "oids=OIDs",
+				"--go-type", "text=string",
+				"--go-type", "_int8=[]int",
+				"--go-type", "_text=[]string",
+				"--go-type", "_float4=[]float32",
 			},
 		},
 		{

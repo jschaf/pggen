@@ -99,27 +99,15 @@ func (tf *TypeFetcher) findEnumTypes(ctx context.Context, uncached map[pgtype.OI
 	}
 	types := make([]EnumType, len(rows))
 	for i, enum := range rows {
-		labels := make([]string, len(enum.Labels.Elements))
-		if err := enum.Labels.AssignTo(&labels); err != nil {
-			return nil, fmt.Errorf("assign labels to string slice for enum %s: %w", enum.TypeName.String, err)
-		}
-		orders := make([]float32, len(enum.Orders.Elements))
-		if err := enum.Orders.AssignTo(&orders); err != nil {
-			return nil, fmt.Errorf("assign orders to float32 slice for enum %s: %w", enum.TypeName.String, err)
-		}
-		childOIDUint32s := make([]uint32, len(enum.ChildOIDs.Elements))
-		if err := enum.ChildOIDs.AssignTo(&childOIDUint32s); err != nil {
-			return nil, fmt.Errorf("assign child OIDs to uint32 slice for enum %s: %w", enum.TypeName.String, err)
-		}
-		childOIDs := make([]pgtype.OID, len(enum.ChildOIDs.Elements))
-		for i, oidUint32 := range childOIDUint32s {
+		childOIDs := make([]pgtype.OID, len(enum.ChildOIDs))
+		for i, oidUint32 := range enum.ChildOIDs {
 			childOIDs[i] = pgtype.OID(oidUint32)
 		}
 		types[i] = EnumType{
 			ID:        enum.OID,
-			Name:      enum.TypeName.String,
-			Labels:    labels,
-			Orders:    orders,
+			Name:      enum.TypeName,
+			Labels:    enum.Labels,
+			Orders:    enum.Orders,
 			ChildOIDs: childOIDs,
 		}
 	}
@@ -146,12 +134,11 @@ outer:
 		row := rows[idx]
 
 		// Check if we can resolve all columns for the composite type.
-		for i, colOID := range row.ColOIDs.Elements {
-			if _, isInCache := tf.cache.getOID(uint32(colOID.Int)); !isInCache {
-				if _, isInComposite := allComposites[pgtype.OID(colOID.Int)]; !isInComposite {
+		for i, colOID := range row.ColOIDs {
+			if _, isInCache := tf.cache.getOID(uint32(colOID)); !isInCache {
+				if _, isInComposite := allComposites[pgtype.OID(colOID)]; !isInComposite {
 					// We won't ever be able resolve this composite type.
-					return nil, fmt.Errorf("find type for composite column %s oid=%d",
-						row.ColNames.Elements[i].String, row.ColOIDs.Elements[i].Int)
+					return nil, fmt.Errorf("find type for composite column %s oid=%d", row.ColNames[i], row.ColOIDs[i])
 				}
 				// We'll be able to resolve this after one of the for loop iteration
 				// adds another composite to the cache.
@@ -159,17 +146,16 @@ outer:
 			}
 		}
 
-		colTypes := make([]Type, len(row.ColOIDs.Elements))
-		colNames := make([]string, len(row.ColOIDs.Elements))
+		colTypes := make([]Type, len(row.ColOIDs))
+		colNames := make([]string, len(row.ColOIDs))
 		// Build each column of the composite type.
-		for i, colOID := range row.ColOIDs.Elements {
-			colType, ok := tf.cache.getOID(uint32(colOID.Int))
+		for i, colOID := range row.ColOIDs {
+			colType, ok := tf.cache.getOID(uint32(colOID))
 			if !ok {
-				return nil, fmt.Errorf("find type for composite column %s oid=%d",
-					row.ColNames.Elements[i].String, row.ColOIDs.Elements[i].Int)
+				return nil, fmt.Errorf("find type for composite column %s oid=%d", row.ColNames[i], row.ColOIDs[i])
 			}
 			colTypes[i] = colType
-			colNames[i] = row.ColNames.Elements[i].String
+			colNames[i] = row.ColNames[i]
 		}
 		typ := CompositeType{
 			ID:          row.TableTypeOID,
@@ -210,11 +196,11 @@ func (tf *TypeFetcher) findArrayTypes(ctx context.Context, uncached map[pgtype.O
 	for i, row := range rows {
 		elemType, ok := tf.cache.getOID(uint32(row.ElemOID))
 		if !ok {
-			return nil, fmt.Errorf("find type for array elem %s oid=%d", row.TypeName.String, row.OID)
+			return nil, fmt.Errorf("find type for array elem %s oid=%d", row.TypeName, row.OID)
 		}
 		types[i] = ArrayType{
 			ID:       row.OID,
-			Name:     row.TypeName.String,
+			Name:     row.TypeName,
 			ElemType: elemType,
 		}
 	}
