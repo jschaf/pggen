@@ -7,7 +7,7 @@ CREATE TYPE device_type AS ENUM (
   'iot'
   );
 
-CREATE TABLE IF NOT EXISTS device (
+CREATE TABLE device (
   mac  MACADDR PRIMARY KEY,
   type device_type NOT NULL DEFAULT 'undefined'
 );
