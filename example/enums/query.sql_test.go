@@ -142,6 +142,38 @@ func TestNewQuerier_FindManyDeviceArrayWithNum(t *testing.T) {
 	})
 }
 
+func TestNewQuerier_EnumInsideComposite(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	conn, cleanup := pgtest.NewPostgresSchema(t, []string{"schema.sql"})
+	defer cleanup()
+
+	q := NewQuerier(conn)
+	mac, _ := net.ParseMAC("08:00:2b:01:02:03")
+
+	t.Run("EnumInsideComposite", func(t *testing.T) {
+		device, err := q.EnumInsideComposite(ctx)
+		require.NoError(t, err)
+		assert.Equal(t,
+			Device{Mac: pgtype.Macaddr{Addr: mac, Status: pgtype.Present}, Type: DeviceTypePhone},
+			device,
+		)
+	})
+
+	t.Run("EnumInsideCompositeBatch", func(t *testing.T) {
+		batch := &pgx.Batch{}
+		q.EnumInsideCompositeBatch(batch)
+		results := conn.SendBatch(context.Background(), batch)
+		defer errs.CaptureT(t, results.Close, "close batch results")
+		device, err := q.EnumInsideCompositeScan(results)
+		require.NoError(t, err)
+		assert.Equal(t,
+			Device{Mac: pgtype.Macaddr{Addr: mac, Status: pgtype.Present}, Type: DeviceTypePhone},
+			device,
+		)
+	})
+}
+
 func insertDevice(t *testing.T, q *DBQuerier, mac net.HardwareAddr, device DeviceType) {
 	t.Helper()
 	_, err := q.InsertDevice(context.Background(),

@@ -324,10 +324,13 @@ func (tq TemplatedQuery) appendResultCompositeInit(
 	indent int,
 ) {
 	sb.WriteString("newCompositeType(\n")
+	// Name of the composite type.
 	sb.WriteString(strings.Repeat("\t", indent+1))
 	sb.WriteByte('"')
 	sb.WriteString(typ.PgComposite.Name)
 	sb.WriteString("\",\n")
+
+	// Field type names of the composite type.
 	sb.WriteString(strings.Repeat("\t", indent+1))
 	sb.WriteString(`[]string{`)
 	for i := range typ.FieldNames {
@@ -339,12 +342,18 @@ func (tq TemplatedQuery) appendResultCompositeInit(
 		}
 	}
 	sb.WriteString("},")
+
+	// Field decoders.
 	for _, fieldType := range typ.FieldTypes {
 		sb.WriteString("\n")
 		sb.WriteString(strings.Repeat("\t", indent+1)) // indent for method and slice literal
 		switch fieldType := fieldType.(type) {
 		case gotype.CompositeType:
 			tq.appendResultCompositeInit(sb, pkgPath, fieldType, indent+1)
+		case gotype.EnumType:
+			sb.WriteString("enumDecoder")
+			sb.WriteString(fieldType.Name)
+			sb.WriteString(",")
 		case gotype.VoidType:
 			// skip
 		default:

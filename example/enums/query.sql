@@ -21,3 +21,7 @@ SELECT enum_range(NULL::device_type) AS device_types;
 SELECT 1 AS num, enum_range('ipad'::device_type, 'iot'::device_type) AS device_types
 UNION ALL
 SELECT 2 as num, enum_range(NULL::device_type) AS device_types;
+
+-- Regression test for https://github.com/jschaf/pggen/issues/23.
+-- name: EnumInsideComposite :one
+SELECT ROW('08:00:2b:01:02:03'::macaddr, 'phone'::device_type) ::device;

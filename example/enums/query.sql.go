@@ -54,6 +54,14 @@ type Querier interface {
 	FindManyDeviceArrayWithNumBatch(batch *pgx.Batch)
 	// FindManyDeviceArrayWithNumScan scans the result of an executed FindManyDeviceArrayWithNumBatch query.
 	FindManyDeviceArrayWithNumScan(results pgx.BatchResults) ([]FindManyDeviceArrayWithNumRow, error)
+
+	// Regression test for https://github.com/jschaf/pggen/issues/23.
+	EnumInsideComposite(ctx context.Context) (Device, error)
+	// EnumInsideCompositeBatch enqueues a EnumInsideComposite query into batch to be executed
+	// later by the batch.
+	EnumInsideCompositeBatch(batch *pgx.Batch)
+	// EnumInsideCompositeScan scans the result of an executed EnumInsideCompositeBatch query.
+	EnumInsideCompositeScan(results pgx.BatchResults) (Device, error)
 }
 
 type DBQuerier struct {
@@ -94,6 +102,12 @@ func (q *DBQuerier) WithTx(tx pgx.Tx) (*DBQuerier, error) {
 	return &DBQuerier{conn: tx}, nil
 }
 
+// Device represents the Postgres composite type "device".
+type Device struct {
+	Mac  pgtype.Macaddr `json:"mac"`
+	Type DeviceType     `json:"type"`
+}
+
 // ignoredOID means we don't know or care about the OID for a type. This is okay
 // because pgx only uses the OID to encode values and lookup a decoder. We only
 // use ignoredOID for decoding and we always specify a concrete decoder for scan
@@ -113,6 +127,26 @@ const (
 )
 
 func (d DeviceType) String() string { return string(d) }
+
+var enumDecoderDeviceType = pgtype.NewEnumType("device_type", []string{
+	string(DeviceTypeUndefined),
+	string(DeviceTypePhone),
+	string(DeviceTypeLaptop),
+	string(DeviceTypeIpad),
+	string(DeviceTypeDesktop),
+	string(DeviceTypeIot),
+})
+
+func newCompositeType(name string, fieldNames []string, vals ...pgtype.ValueTranscoder) *pgtype.CompositeType {
+	fields := make([]pgtype.CompositeTypeField, len(fieldNames))
+	for i, name := range fieldNames {
+		fields[i] = pgtype.CompositeTypeField{Name: name, OID: ignoredOID}
+	}
+	// Okay to ignore error because it's only thrown when the number of field
+	// names does not equal the number of ValueTranscoders.
+	rowType, _ := pgtype.NewCompositeTypeValues(name, fields, vals)
+	return rowType
+}
 
 const findAllDevicesSQL = `SELECT mac, type
 FROM device;`
@@ -339,4 +373,45 @@ func (q *DBQuerier) FindManyDeviceArrayWithNumScan(results pgx.BatchResults) ([]
 		return nil, fmt.Errorf("close FindManyDeviceArrayWithNumBatch rows: %w", err)
 	}
 	return items, err
+}
+
+const enumInsideCompositeSQL = `SELECT ROW('08:00:2b:01:02:03'::macaddr, 'phone'::device_type) ::device;`
+
+// EnumInsideComposite implements Querier.EnumInsideComposite.
+func (q *DBQuerier) EnumInsideComposite(ctx context.Context) (Device, error) {
+	row := q.conn.QueryRow(ctx, enumInsideCompositeSQL)
+	var item Device
+	rowRow := newCompositeType(
+		"device",
+		[]string{"mac", "type"},
+		&pgtype.Macaddr{},
+		enumDecoderDeviceType,
+	)
+	if err := row.Scan(rowRow); err != nil {
+		return item, fmt.Errorf("query EnumInsideComposite: %w", err)
+	}
+	rowRow.AssignTo(&item)
+	return item, nil
+}
+
+// EnumInsideCompositeBatch implements Querier.EnumInsideCompositeBatch.
+func (q *DBQuerier) EnumInsideCompositeBatch(batch *pgx.Batch) {
+	batch.Queue(enumInsideCompositeSQL)
+}
+
+// EnumInsideCompositeScan implements Querier.EnumInsideCompositeScan.
+func (q *DBQuerier) EnumInsideCompositeScan(results pgx.BatchResults) (Device, error) {
+	row := results.QueryRow()
+	var item Device
+	rowRow := newCompositeType(
+		"device",
+		[]string{"mac", "type"},
+		&pgtype.Macaddr{},
+		enumDecoderDeviceType,
+	)
+	if err := row.Scan(rowRow); err != nil {
+		return item, fmt.Errorf("scan EnumInsideCompositeBatch row: %w", err)
+	}
+	rowRow.AssignTo(&item)
+	return item, nil
 }

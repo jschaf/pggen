@@ -22,10 +22,10 @@ type Declarer interface {
 // declarers are needed. Composite types might depend on enums or other
 // composite types.
 func FindDeclarers(typ gotype.Type) []Declarer {
-	return findDeclsHelper(typ, make(map[string]struct{}, 4))
+	return findDeclsHelper(typ, make(map[string]struct{}, 4), false)
 }
 
-func findDeclsHelper(typ gotype.Type, visited map[string]struct{}) []Declarer {
+func findDeclsHelper(typ gotype.Type, visited map[string]struct{}, hadCompositeParent bool) []Declarer {
 	switch typ := typ.(type) {
 	case gotype.EnumType:
 		d := NewEnumDeclarer(typ)
@@ -33,7 +33,12 @@ func findDeclsHelper(typ gotype.Type, visited map[string]struct{}) []Declarer {
 			return nil
 		}
 		visited[d.DedupeKey()] = struct{}{}
-		return []Declarer{d}
+		decls := []Declarer{d}
+		dt := NewEnumPgTypeDeclarer(typ)
+		if _, ok := visited[dt.DedupeKey()]; !ok && hadCompositeParent {
+			decls = append(decls, dt)
+		}
+		return decls
 
 	case gotype.CompositeType:
 		d := NewCompositeDeclarer(typ)
@@ -44,13 +49,13 @@ func findDeclsHelper(typ gotype.Type, visited map[string]struct{}) []Declarer {
 		decls := make([]Declarer, 1, 4)
 		decls[0] = d
 		for _, childType := range typ.FieldTypes {
-			childDecls := findDeclsHelper(childType, visited)
+			childDecls := findDeclsHelper(childType, visited, true)
 			decls = append(decls, childDecls...)
 		}
 		return decls
 
 	case gotype.ArrayType:
-		return findDeclsHelper(typ.Elem, visited)
+		return findDeclsHelper(typ.Elem, visited, hadCompositeParent)
 
 	default:
 		return nil
@@ -222,5 +227,36 @@ func (e EnumDeclarer) Declare(string) (string, error) {
 	sb.WriteString(") String() string { return string(")
 	sb.WriteByte(dispatcher)
 	sb.WriteString(") }")
+	return sb.String(), nil
+}
+
+// EnumPgTypeDeclarer declares a new pgtype.EnumType for use in the generated
+// function newCompositeType.
+type EnumPgTypeDeclarer struct {
+	enum gotype.EnumType
+}
+
+func NewEnumPgTypeDeclarer(enum gotype.EnumType) EnumPgTypeDeclarer {
+	return EnumPgTypeDeclarer{enum: enum}
+}
+
+func (e EnumPgTypeDeclarer) DedupeKey() string {
+	return "enum_pgtype::" + e.enum.Name
+}
+
+func (e EnumPgTypeDeclarer) Declare(string) (string, error) {
+	sb := &strings.Builder{}
+	sb.WriteString("var enumDecoder")
+	sb.WriteString(e.enum.Name)
+	sb.WriteString(` = pgtype.NewEnumType(`)
+	sb.WriteString(strconv.Quote(e.enum.PgEnum.Name))
+	sb.WriteString(`, []string{`)
+	for _, label := range e.enum.Labels {
+		sb.WriteString("\n\t")
+		sb.WriteString("string(")
+		sb.WriteString(label)
+		sb.WriteString("),")
+	}
+	sb.WriteString("\n})")
 	return sb.String(), nil
 }

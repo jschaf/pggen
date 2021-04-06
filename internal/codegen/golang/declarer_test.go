@@ -154,6 +154,52 @@ func TestFindDeclarer_Declare(t *testing.T) {
 			`),
 			},
 		},
+		{
+			name: "composite - enum",
+			typ: gotype.CompositeType{
+				PgComposite: pg.CompositeType{
+					Name:        "some_table",
+					ColumnNames: []string{"foo", "bar_baz"},
+				},
+				PkgPath:    "example.com/foo",
+				Pkg:        "foo",
+				Name:       "SomeTable",
+				FieldNames: []string{"Foo"},
+				FieldTypes: []gotype.Type{
+					gotype.NewEnumType(
+						emptyPkgPath,
+						pg.EnumType{Name: "device_type", Labels: []string{"ios", "mobile"}},
+						caser,
+					),
+				},
+			},
+			pkgPath: "example.com/foo",
+			want: []string{
+				texts.Dedent(`
+				// SomeTable represents the Postgres composite type "some_table".
+				type SomeTable struct {
+					Foo DeviceType ` + "`json:\"foo\"`" + `
+				}
+			`),
+				texts.Dedent(`
+				// DeviceType represents the Postgres enum "device_type".
+				type DeviceType string
+		
+				const (
+					DeviceTypeIOS    DeviceType = "ios"
+					DeviceTypeMobile DeviceType = "mobile"
+				)
+		
+				func (d DeviceType) String() string { return string(d) }
+			`),
+				texts.Dedent(`
+				var enumDecoderDeviceType = pgtype.NewEnumType("device_type", []string{
+					string(DeviceTypeIOS),
+					string(DeviceTypeMobile),
+				})
+			`),
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
