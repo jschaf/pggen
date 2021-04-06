@@ -85,6 +85,30 @@ func TestParseFile_Queries(t *testing.T) {
 				ResultKind:  ast.ResultKindMany,
 			},
 		},
+		{
+			"-- name: Qux :many proto-type=foo.Bar\nSELECT 1;",
+			&ast.SourceQuery{
+				Name:        "Qux",
+				Doc:         &ast.CommentGroup{List: []*ast.LineComment{{Text: "-- name: Qux :many proto-type=foo.Bar"}}},
+				SourceSQL:   "SELECT 1;",
+				PreparedSQL: "SELECT 1;",
+				ParamNames:  nil,
+				ResultKind:  ast.ResultKindMany,
+				Pragmas:     ast.Pragmas{ProtobufType: "foo.Bar"},
+			},
+		},
+		{
+			"-- name: Qux :many proto-type=Bar\nSELECT 1;",
+			&ast.SourceQuery{
+				Name:        "Qux",
+				Doc:         &ast.CommentGroup{List: []*ast.LineComment{{Text: "-- name: Qux :many proto-type=Bar"}}},
+				SourceSQL:   "SELECT 1;",
+				PreparedSQL: "SELECT 1;",
+				ParamNames:  nil,
+				ResultKind:  ast.ResultKindMany,
+				Pragmas:     ast.Pragmas{ProtobufType: "Bar"},
+			},
+		},
 	}
 
 	for _, tt := range tests {

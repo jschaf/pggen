@@ -202,7 +202,7 @@ func (p *parser) errorExpected(pos gotok.Pos, msg string) {
 }
 
 // Regexp to extract query annotations that control output.
-var annotationRegexp = regexp.MustCompile(`name: ([a-zA-Z0-9_$]+)[ \t]+(:many|:one|:exec)`)
+var annotationRegexp = regexp.MustCompile(`name: ([a-zA-Z0-9_$]+)[ \t]+(:many|:one|:exec)[ \t]*(.*)`)
 
 func (p *parser) parseQuery() ast.Query {
 	if p.trace {
@@ -251,6 +251,12 @@ func (p *parser) parseQuery() ast.Query {
 		p.error(pos, "no 'name: <name> :<type>' token found in comment before query; comment line: \""+last.Text+`"`)
 		return &ast.BadQuery{From: pos, To: p.pos}
 	}
+	args := annotations[3]
+	pragmas, err := parsePragmas(args)
+	if err != nil {
+		p.error(pos, "invalid query pragma: "+err.Error())
+		return &ast.BadQuery{From: pos, To: p.pos}
+	}
 
 	templateSQL := sql.String()
 	preparedSQL, params := prepareSQL(templateSQL, names)
@@ -263,8 +269,61 @@ func (p *parser) parseQuery() ast.Query {
 		PreparedSQL: preparedSQL,
 		ParamNames:  params,
 		ResultKind:  ast.ResultKind(annotations[2]),
+		Pragmas:     pragmas,
 		Semi:        semi,
 	}
+}
+
+// parsePragmas parses optional pragmas for a query like proto-type=foo.bar.Msg.
+func parsePragmas(allPragmas string) (ast.Pragmas, error) {
+	if allPragmas == "" {
+		return ast.Pragmas{}, nil
+	}
+	ss := strings.Fields(allPragmas)
+	qp := ast.Pragmas{}
+	for _, s := range ss {
+		arg := strings.Split(s, "=")
+		if len(arg) != 2 {
+			return ast.Pragmas{}, fmt.Errorf("expected arg format x=y; got %s", s)
+		}
+		key, val := arg[0], arg[1]
+		switch key {
+		case "proto-type":
+			p, err := validateProtoMsgType(val)
+			if err != nil {
+				return ast.Pragmas{}, err
+			}
+			qp.ProtobufType = p
+		default:
+			return ast.Pragmas{}, fmt.Errorf("unsupported pramga %q", key)
+		}
+	}
+	return qp, nil
+}
+
+// validateProtoMsgType checks that val is a valid message name.
+// https://developers.google.com/protocol-buffers/docs/reference/proto3-spec#identifiers
+func validateProtoMsgType(val string) (string, error) {
+	isStart := true
+	for i, v := range val {
+		isLast := i == len(val)-1
+		switch {
+		case ('a' <= v && v <= 'z') || ('A' <= v && v <= 'Z'):
+			isStart = false
+		case ('0' <= v && v <= '9') || v == '_':
+			if isStart {
+				return "", fmt.Errorf("invalid proto-type, proto package cannot start with 0-9 or _; got %q", val)
+			}
+		case v == '.':
+			if isStart || isLast {
+				return "", fmt.Errorf("invalid proto-type, proto package cannot start or end with '.'; got %q", val)
+			}
+			isStart = true
+		default:
+			return "", fmt.Errorf("invalid proto-type, proto message must only contain [a-zA-Z0-9.-]; got %q", val)
+		}
+	}
+	return val, nil
 }
 
 // argPos is the name and position of expression like pggen.arg('foo').
@@ -300,7 +359,7 @@ func (p *parser) parsePggenArg() (argPos, bool) {
 	return argPos{lo: lo, hi: hi, name: name}, true
 }
 
-// prepareSQL replaces each pggen.arg with the $n, reflecting the order that the
+// prepareSQL replaces each pggen.arg with the $n, respecting the order that the
 // arg first appeared. Args with the same name use the same $n.
 func prepareSQL(sql string, args []argPos) (string, []string) {
 	if len(args) == 0 {

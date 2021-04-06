@@ -35,6 +35,9 @@ type TypedQuery struct {
 	Inputs []InputParam
 	// The output columns of the query.
 	Outputs []OutputColumn
+	// Qualified protocol buffer message type to use for each output row, like
+	//"erp.api.Product". If empty, generate our own Row type.
+	ProtobufType string
 }
 
 // InputParam is an input parameter for a prepared query.
@@ -98,12 +101,13 @@ func (inf *Inferrer) InferTypes(query *ast.SourceQuery) (TypedQuery, error) {
 	}
 	doc := extractDoc(query)
 	return TypedQuery{
-		Name:        query.Name,
-		ResultKind:  query.ResultKind,
-		Doc:         doc,
-		PreparedSQL: query.PreparedSQL,
-		Inputs:      inputs,
-		Outputs:     outputs,
+		Name:         query.Name,
+		ResultKind:   query.ResultKind,
+		Doc:          doc,
+		PreparedSQL:  query.PreparedSQL,
+		Inputs:       inputs,
+		Outputs:      outputs,
+		ProtobufType: query.Pragmas.ProtobufType,
 	}, nil
 }
 

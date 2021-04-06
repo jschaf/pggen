@@ -241,6 +241,24 @@ func TestInferrer_InferTypes(t *testing.T) {
 				},
 			},
 		},
+		{
+			&ast.SourceQuery{
+				Name:        "PragmaProtoType",
+				PreparedSQL: "SELECT 1 as one, 'foo' as two",
+				ResultKind:  ast.ResultKindOne,
+				Pragmas:     ast.Pragmas{ProtobufType: "foo.Bar"},
+			},
+			TypedQuery{
+				Name:        "PragmaProtoType",
+				ResultKind:  ast.ResultKindOne,
+				PreparedSQL: "SELECT 1 as one, 'foo' as two",
+				Outputs: []OutputColumn{
+					{PgName: "one", PgType: pg.Int4, Nullable: false},
+					{PgName: "two", PgType: pg.Text, Nullable: false},
+				},
+				ProtobufType: "foo.Bar",
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.query.Name, func(t *testing.T) {

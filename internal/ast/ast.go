@@ -73,6 +73,11 @@ const (
 	ResultKindExec ResultKind = ":exec"
 )
 
+// Pragmas are options to control generated code for a single query.
+type Pragmas struct {
+	ProtobufType string // package qualified protocol buffer message type to use for output rows
+}
+
 // An query is represented by one of the following query nodes.
 type (
 	// A BadQuery node is a placeholder for queries containing syntax errors
@@ -90,6 +95,7 @@ type (
 		PreparedSQL string        // the sql query with args replaced by $1, $2, etc.
 		ParamNames  []string      // the name of each param in the PreparedSQL, the nth entry is the $n+1 param
 		ResultKind  ResultKind    // the result output type
+		Pragmas     Pragmas       // optional query options
 		Semi        gotok.Pos     // position of the closing semicolon
 	}
 )
