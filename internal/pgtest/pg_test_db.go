@@ -22,9 +22,11 @@ func init() {
 // CleanupFunc deletes the schema and all database objects.
 type CleanupFunc func()
 
+type Option func(config *pgx.ConnConfig)
+
 // NewPostgresSchema opens a connection with search_path set to a randomly
 // named, new schema and loads the sql string.
-func NewPostgresSchemaString(t *testing.T, sql string) (*pgx.Conn, CleanupFunc) {
+func NewPostgresSchemaString(t *testing.T, sql string, opts ...Option) (*pgx.Conn, CleanupFunc) {
 	t.Helper()
 	// Create a new schema.
 	connStr := "user=postgres password=hunter2 host=localhost port=5555 dbname=pggen"
@@ -41,7 +43,15 @@ func NewPostgresSchemaString(t *testing.T, sql string) (*pgx.Conn, CleanupFunc) 
 	t.Logf("created schema: %s", schema)
 
 	// Load SQL files into new schema.
-	schemaConn, err := pgx.Connect(ctx, connStr+" search_path="+schema)
+	connStr += " search_path=" + schema
+	connCfg, err := pgx.ParseConfig(connStr)
+	if err != nil {
+		t.Fatalf("parse config: %q: %s", connStr, err)
+	}
+	for _, opt := range opts {
+		opt(connCfg)
+	}
+	schemaConn, err := pgx.ConnectConfig(ctx, connCfg)
 	if err != nil {
 		t.Fatalf("connect to docker postgres with search path: %s", err)
 	}
@@ -68,7 +78,7 @@ func NewPostgresSchemaString(t *testing.T, sql string) (*pgx.Conn, CleanupFunc) 
 
 // NewPostgresSchema opens a connection with search_path set to a randomly
 // named, new schema and loads all sqlFiles.
-func NewPostgresSchema(t *testing.T, sqlFiles []string) (*pgx.Conn, CleanupFunc) {
+func NewPostgresSchema(t *testing.T, sqlFiles []string, opts ...Option) (*pgx.Conn, CleanupFunc) {
 	t.Helper()
 	sb := &strings.Builder{}
 	for _, file := range sqlFiles {
@@ -82,5 +92,5 @@ func NewPostgresSchema(t *testing.T, sqlFiles []string) (*pgx.Conn, CleanupFunc)
 		sb.WriteString("\n")
 
 	}
-	return NewPostgresSchemaString(t, sb.String())
+	return NewPostgresSchemaString(t, sb.String(), opts...)
 }
