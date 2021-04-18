@@ -18,12 +18,12 @@ type TemplatedPackage struct {
 // TemplatedFile is the Go version of a SQL query file with all information
 // needed to execute the codegen template.
 type TemplatedFile struct {
-	Pkg     TemplatedPackage // the parent package containing this file
-	PkgPath string           // full package path, like "github.com/foo/bar"
-	GoPkg   string           // the name of the Go package to use for the generated file
-	Path    string           // the path to source SQL file
-	Queries []TemplatedQuery // the queries with all template information
-	Imports []string         // Go imports
+	Pkg        TemplatedPackage // the parent package containing this file
+	PkgPath    string           // full package path, like "github.com/foo/bar"
+	GoPkg      string           // the name of the Go package to use for the generated file
+	SourcePath string           // absolute path to source SQL file
+	Queries    []TemplatedQuery // the queries with all template information
+	Imports    []string         // Go imports
 	// True if this file is the leader file. The leader defines common code used
 	// by by all queries in the same directory. Only one leader per directory.
 	IsLeader bool

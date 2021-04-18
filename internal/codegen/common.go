@@ -8,6 +8,6 @@ import (
 
 // QueryFile represents all of the SQL queries from a single file.
 type QueryFile struct {
-	Path    string               // the path to the source SQL query file
-	Queries []pginfer.TypedQuery // the typed queries
+	SourcePath string               // absolute path to the source SQL query file
+	Queries    []pginfer.TypedQuery // the typed queries
 }

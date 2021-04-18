@@ -190,7 +190,11 @@ func connectPostgres(
 func parseQueryFiles(queryFiles []string, inferrer *pginfer.Inferrer) ([]codegen.QueryFile, error) {
 	files := make([]codegen.QueryFile, len(queryFiles))
 	for i, file := range queryFiles {
-		queryFile, err := parseQueries(file, inferrer)
+		srcPath, err := filepath.Abs(file)
+		if err != nil {
+			return nil, fmt.Errorf("resovle absolute path for %q: %w", file, err)
+		}
+		queryFile, err := parseQueries(srcPath, inferrer)
 		if err != nil {
 			return nil, fmt.Errorf("parse template query file %q: %w", file, err)
 		}
@@ -199,10 +203,10 @@ func parseQueryFiles(queryFiles []string, inferrer *pginfer.Inferrer) ([]codegen
 	return files, nil
 }
 
-func parseQueries(file string, inferrer *pginfer.Inferrer) (codegen.QueryFile, error) {
-	astFile, err := parser.ParseFile(gotok.NewFileSet(), file, nil, 0)
+func parseQueries(srcPath string, inferrer *pginfer.Inferrer) (codegen.QueryFile, error) {
+	astFile, err := parser.ParseFile(gotok.NewFileSet(), srcPath, nil, 0)
 	if err != nil {
-		return codegen.QueryFile{}, fmt.Errorf("parse query file %q: %w", file, err)
+		return codegen.QueryFile{}, fmt.Errorf("parse query file %q: %w", srcPath, err)
 	}
 
 	// Check for duplicate query names and bad queries.
@@ -233,7 +237,7 @@ func parseQueries(file string, inferrer *pginfer.Inferrer) (codegen.QueryFile, e
 		queries = append(queries, typedQuery)
 	}
 	return codegen.QueryFile{
-		Path:    file,
-		Queries: queries,
+		SourcePath: srcPath,
+		Queries:    queries,
 	}, nil
 }

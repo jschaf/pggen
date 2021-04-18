@@ -36,7 +36,7 @@ type TypedQuery struct {
 	// The output columns of the query.
 	Outputs []OutputColumn
 	// Qualified protocol buffer message type to use for each output row, like
-	//"erp.api.Product". If empty, generate our own Row type.
+	// "erp.api.Product". If empty, generate our own Row type.
 	ProtobufType string
 }
 

@@ -42,7 +42,7 @@ func (tm Templater) TemplateAll(files []codegen.QueryFile) ([]TemplatedFile, err
 	for _, queryFile := range files {
 		goFile, decls, err := tm.templateFile(queryFile)
 		if err != nil {
-			return nil, fmt.Errorf("template query file %s for go: %w", queryFile.Path, err)
+			return nil, fmt.Errorf("template query file %s for go: %w", queryFile.SourcePath, err)
 		}
 		goQueryFiles = append(goQueryFiles, goFile)
 		declarers = append(declarers, decls...)
@@ -52,9 +52,9 @@ func (tm Templater) TemplateAll(files []codegen.QueryFile) ([]TemplatedFile, err
 	firstIndex := -1
 	firstName := string(unicode.MaxRune)
 	for i, goFile := range goQueryFiles {
-		if goFile.Path < firstName {
+		if goFile.SourcePath < firstName {
 			firstIndex = i
-			firstName = goFile.Path
+			firstName = goFile.SourcePath
 		}
 	}
 	goQueryFiles[firstIndex].IsLeader = true
@@ -94,7 +94,7 @@ func (tm Templater) TemplateAll(files []codegen.QueryFile) ([]TemplatedFile, err
 
 	// Remove self imports.
 	for i, file := range goQueryFiles {
-		selfPkg, err := gomod.GuessPackage(file.Path)
+		selfPkg, err := gomod.GuessPackage(file.SourcePath)
 		if err != nil || selfPkg == "" {
 			continue // ignore error, assume it's not a self import
 		}
@@ -130,7 +130,7 @@ func (tm Templater) templateFile(file codegen.QueryFile) (TemplatedFile, []Decla
 	// resolving the package isn't perfect. We'll fallback to an unqualified
 	// type which will likely work since the type is probably declared in this
 	// package.
-	if pkg, err := gomod.GuessPackage(file.Path); err == nil {
+	if pkg, err := gomod.GuessPackage(file.SourcePath); err == nil {
 		pkgPath = pkg
 	}
 
@@ -210,11 +210,11 @@ func (tm Templater) templateFile(file codegen.QueryFile) (TemplatedFile, []Decla
 	}
 
 	return TemplatedFile{
-		PkgPath: pkgPath,
-		GoPkg:   tm.pkg,
-		Path:    file.Path,
-		Queries: queries,
-		Imports: imports.SortedPackages(),
+		PkgPath:    pkgPath,
+		GoPkg:      tm.pkg,
+		SourcePath: file.SourcePath,
+		Queries:    queries,
+		Imports:    imports.SortedPackages(),
 	}, declarers, nil
 }
 

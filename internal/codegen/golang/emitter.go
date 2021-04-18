@@ -20,7 +20,7 @@ func NewEmitter(outDir string, tmpl *template.Template) Emitter {
 
 // EmitQueryFile emits a single query file.
 func (em Emitter) EmitQueryFile(tf TemplatedFile) (mErr error) {
-	base := filepath.Base(tf.Path)
+	base := filepath.Base(tf.SourcePath)
 	out := filepath.Join(em.outDir, base+".go")
 	file, err := os.OpenFile(out, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
 	defer errs.Capture(&mErr, file.Close, "close emit query file")

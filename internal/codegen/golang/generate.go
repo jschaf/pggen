@@ -41,7 +41,7 @@ func Generate(opts GenerateOptions, queryFiles []codegen.QueryFile) error {
 
 	// Order for reproducible results.
 	sort.Slice(templatedFiles, func(i, j int) bool {
-		return templatedFiles[i].Path < templatedFiles[j].Path
+		return templatedFiles[i].SourcePath < templatedFiles[j].SourcePath
 	})
 
 	// Link each child to the package. Necessary so the leader can define all
