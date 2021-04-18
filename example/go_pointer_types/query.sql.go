@@ -96,6 +96,41 @@ func (q *DBQuerier) WithTx(tx pgx.Tx) (*DBQuerier, error) {
 	return &DBQuerier{conn: tx}, nil
 }
 
+// preparer is any Postgres connection transport that provides a way to prepare
+// a statement, most commonly *pgx.Conn.
+type preparer interface {
+	Prepare(ctx context.Context, name, sql string) (sd *pgconn.StatementDescription, err error)
+}
+
+// PrepareAllQueries executes a PREPARE statement for all pggen generated SQL
+// queries in querier files. Typical usage is as the AfterConnect callback
+// for pgxpool.Config
+//
+// pgx will use the prepared statement if available. Calling PrepareAllQueries
+// is an optional optimization to avoid a network round-trip the first time pgx
+// runs a query if pgx statement caching is enabled.
+func PrepareAllQueries(ctx context.Context, p preparer) error {
+	if _, err := p.Prepare(ctx, genSeries1SQL, genSeries1SQL); err != nil {
+		return fmt.Errorf("prepare query 'GenSeries1': %w", err)
+	}
+	if _, err := p.Prepare(ctx, genSeriesSQL, genSeriesSQL); err != nil {
+		return fmt.Errorf("prepare query 'GenSeries': %w", err)
+	}
+	if _, err := p.Prepare(ctx, genSeriesArr1SQL, genSeriesArr1SQL); err != nil {
+		return fmt.Errorf("prepare query 'GenSeriesArr1': %w", err)
+	}
+	if _, err := p.Prepare(ctx, genSeriesArrSQL, genSeriesArrSQL); err != nil {
+		return fmt.Errorf("prepare query 'GenSeriesArr': %w", err)
+	}
+	if _, err := p.Prepare(ctx, genSeriesStr1SQL, genSeriesStr1SQL); err != nil {
+		return fmt.Errorf("prepare query 'GenSeriesStr1': %w", err)
+	}
+	if _, err := p.Prepare(ctx, genSeriesStrSQL, genSeriesStrSQL); err != nil {
+		return fmt.Errorf("prepare query 'GenSeriesStr': %w", err)
+	}
+	return nil
+}
+
 const genSeries1SQL = `SELECT n
 FROM generate_series(0, 2) n
 LIMIT 1;`

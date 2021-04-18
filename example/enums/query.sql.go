@@ -102,6 +102,41 @@ func (q *DBQuerier) WithTx(tx pgx.Tx) (*DBQuerier, error) {
 	return &DBQuerier{conn: tx}, nil
 }
 
+// preparer is any Postgres connection transport that provides a way to prepare
+// a statement, most commonly *pgx.Conn.
+type preparer interface {
+	Prepare(ctx context.Context, name, sql string) (sd *pgconn.StatementDescription, err error)
+}
+
+// PrepareAllQueries executes a PREPARE statement for all pggen generated SQL
+// queries in querier files. Typical usage is as the AfterConnect callback
+// for pgxpool.Config
+//
+// pgx will use the prepared statement if available. Calling PrepareAllQueries
+// is an optional optimization to avoid a network round-trip the first time pgx
+// runs a query if pgx statement caching is enabled.
+func PrepareAllQueries(ctx context.Context, p preparer) error {
+	if _, err := p.Prepare(ctx, findAllDevicesSQL, findAllDevicesSQL); err != nil {
+		return fmt.Errorf("prepare query 'FindAllDevices': %w", err)
+	}
+	if _, err := p.Prepare(ctx, insertDeviceSQL, insertDeviceSQL); err != nil {
+		return fmt.Errorf("prepare query 'InsertDevice': %w", err)
+	}
+	if _, err := p.Prepare(ctx, findOneDeviceArraySQL, findOneDeviceArraySQL); err != nil {
+		return fmt.Errorf("prepare query 'FindOneDeviceArray': %w", err)
+	}
+	if _, err := p.Prepare(ctx, findManyDeviceArraySQL, findManyDeviceArraySQL); err != nil {
+		return fmt.Errorf("prepare query 'FindManyDeviceArray': %w", err)
+	}
+	if _, err := p.Prepare(ctx, findManyDeviceArrayWithNumSQL, findManyDeviceArrayWithNumSQL); err != nil {
+		return fmt.Errorf("prepare query 'FindManyDeviceArrayWithNum': %w", err)
+	}
+	if _, err := p.Prepare(ctx, enumInsideCompositeSQL, enumInsideCompositeSQL); err != nil {
+		return fmt.Errorf("prepare query 'EnumInsideComposite': %w", err)
+	}
+	return nil
+}
+
 // Device represents the Postgres composite type "device".
 type Device struct {
 	Mac  pgtype.Macaddr `json:"mac"`
