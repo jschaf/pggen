@@ -112,6 +112,7 @@ WHERE typ.oid = ANY (pggen.arg('oids')::oid[])
 -- types.
 -- name: FindDescendantOIDs :many
 WITH RECURSIVE oid_descs(oid) AS (
+  -- Base case.
   SELECT oid
   FROM unnest(pggen.arg('oids')::oid[]) AS t(oid)
   UNION

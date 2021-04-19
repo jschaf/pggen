@@ -85,6 +85,11 @@ func (tf *TypeFetcher) FindTypesByOIDs(oids ...uint32) (map[pgtype.OID]Type, err
 		delete(uncached, unk.ID)
 	}
 
+	// Resolve all placeholder types now that we know all types.
+	if err := tf.resolvePlaceholderTypes(types); err != nil {
+		return nil, err
+	}
+
 	if len(uncached) > 0 {
 		return nil, fmt.Errorf("had %d unclassified types: %v", len(uncached), uncached)
 	}
@@ -128,34 +133,24 @@ func (tf *TypeFetcher) findCompositeTypes(ctx context.Context, uncached map[pgty
 
 	types := make([]CompositeType, 0, len(rows))
 	idx := -1
-outer:
 	for len(types) < len(rows) {
 		idx = (idx + 1) % len(rows)
 		row := rows[idx]
-
-		// Check if we can resolve all columns for the composite type.
-		for i, colOID := range row.ColOIDs {
-			if _, isInCache := tf.cache.getOID(uint32(colOID)); !isInCache {
-				if _, isInComposite := allComposites[pgtype.OID(colOID)]; !isInComposite {
-					// We won't ever be able resolve this composite type.
-					return nil, fmt.Errorf("find type for composite column %s oid=%d", row.ColNames[i], row.ColOIDs[i])
-				}
-				// We'll be able to resolve this after one of the for loop iteration
-				// adds another composite to the cache.
-				continue outer
-			}
-		}
 
 		colTypes := make([]Type, len(row.ColOIDs))
 		colNames := make([]string, len(row.ColOIDs))
 		// Build each column of the composite type.
 		for i, colOID := range row.ColOIDs {
-			colType, ok := tf.cache.getOID(uint32(colOID))
-			if !ok {
-				return nil, fmt.Errorf("find type for composite column %s oid=%d", row.ColNames[i], row.ColOIDs[i])
+			if colType, ok := tf.cache.getOID(uint32(colOID)); ok {
+				colTypes[i] = colType
+				colNames[i] = row.ColNames[i]
+			} else {
+				// We might resolve this type in a future pass like findArrayTypes. At
+				// the end, we'll attempt to to replace the placeholder with the
+				// resolved type.
+				colTypes[i] = placeholderType{ID: pgtype.OID(colOID)}
+				colNames[i] = row.ColNames[i]
 			}
-			colTypes[i] = colType
-			colNames[i] = row.ColNames[i]
 		}
 		typ := CompositeType{
 			ID:          row.TableTypeOID,
@@ -205,6 +200,50 @@ func (tf *TypeFetcher) findArrayTypes(ctx context.Context, uncached map[pgtype.O
 		}
 	}
 	return types, nil
+}
+
+// resolvePlaceholderTypes resolves all placeholder types or errors if we can't
+// resolve a placeholderType using all known types.
+func (tf *TypeFetcher) resolvePlaceholderTypes(knownTypes map[pgtype.OID]Type) error {
+	// resolveType walks down type, replacing placeholderType with a known type.
+	var resolveType func(typ Type) (Type, error)
+	resolveType = func(typ Type) (Type, error) {
+		switch typ := typ.(type) {
+		case CompositeType:
+			for i, colType := range typ.ColumnTypes {
+				newType, err := resolveType(colType)
+				if err != nil {
+					return nil, fmt.Errorf("composite child '%s.%s': %w", typ.Name, colType.String(), err)
+				}
+				typ.ColumnTypes[i] = newType
+			}
+			return typ, nil
+		case ArrayType:
+			newType, err := resolveType(typ.ElemType)
+			if err != nil {
+				return nil, fmt.Errorf("array %q elem: %w", typ.Name, err)
+			}
+			typ.ElemType = newType
+			return typ, nil
+		case placeholderType:
+			newType, ok := knownTypes[typ.ID]
+			if !ok {
+				return nil, fmt.Errorf("unresolved placeholder type oid=%d", typ.ID)
+			}
+			return newType, nil
+		default:
+			return typ, nil
+		}
+	}
+
+	for oid, typ := range knownTypes {
+		newType, err := resolveType(typ)
+		if err != nil {
+			return fmt.Errorf("resolve placeholder type: %w", err)
+		}
+		knownTypes[oid] = newType
+	}
+	return nil
 }
 
 func oidKeys(os map[pgtype.OID]struct{}) []uint32 {

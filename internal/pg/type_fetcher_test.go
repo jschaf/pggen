@@ -13,6 +13,15 @@ import (
 )
 
 func TestNewTypeFetcher(t *testing.T) {
+	productImageType := CompositeType{
+		Name:        "product_image_type",
+		ColumnNames: []string{"pixel_width", "pixel_height"},
+		ColumnTypes: []Type{Int4, Int4},
+	}
+	productImageArrayType := ArrayType{
+		Name:     "_product_image_type",
+		ElemType: productImageType,
+	}
 	tests := []struct {
 		name     string
 		schema   string
@@ -118,6 +127,30 @@ func TestNewTypeFetcher(t *testing.T) {
 			},
 		},
 		{
+			name:     "composite type - depth 2 array",
+			fetchOID: "product_image_set_type",
+			wants: []Type{
+				Int4,
+				CompositeType{
+					Name:        "product_image_set_type",
+					ColumnNames: []string{"name", "images"},
+					ColumnTypes: []Type{Text, productImageArrayType}},
+				productImageType,
+				productImageArrayType,
+				Text,
+			},
+			schema: texts.Dedent(`
+				CREATE TYPE product_image_type AS (
+					pixel_width   int4,
+					pixel_height  int4
+				);
+				CREATE TYPE product_image_set_type AS (
+					name   text,
+					images product_image_type[]
+				);
+			`),
+		},
+		{
 			name: "custom base type",
 			schema: texts.Dedent(`
 				-- New base type my_int.
@@ -203,6 +236,7 @@ func TestNewTypeFetcher(t *testing.T) {
 			opts := cmp.Options{
 				cmpopts.IgnoreFields(EnumType{}, "ChildOIDs", "ID"),
 				cmpopts.IgnoreFields(CompositeType{}, "ID"),
+				cmpopts.IgnoreFields(ArrayType{}, "ID"),
 			}
 			sortTypes(wantTypes)
 			sortTypes(gotTypes)

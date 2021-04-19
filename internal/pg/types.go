@@ -3,6 +3,7 @@ package pg
 import (
 	"github.com/jackc/pgtype"
 	"github.com/jschaf/pggen/internal/pg/pgoid"
+	"strconv"
 )
 
 // Type is a Postgres type.
@@ -12,16 +13,17 @@ type Type interface {
 	Kind() TypeKind
 }
 
-// TypeKinds is the pg_type.typtype column, describing the meta type of Type.
+// TypeKind is the pg_type.typtype column, describing the meta type of Type.
 type TypeKind byte
 
 const (
-	KindBaseType      TypeKind = 'b' // includes array types
-	KindCompositeType TypeKind = 'c'
-	KindDomainType    TypeKind = 'd'
-	KindEnumType      TypeKind = 'e'
-	KindPseudoType    TypeKind = 'p'
-	KindRangeType     TypeKind = 'r'
+	KindBaseType        TypeKind = 'b' // includes array types
+	KindCompositeType   TypeKind = 'c'
+	KindDomainType      TypeKind = 'd'
+	KindEnumType        TypeKind = 'e'
+	KindPseudoType      TypeKind = 'p'
+	KindRangeType       TypeKind = 'r'
+	kindPlaceholderType TypeKind = '?' // pggen only, not part of postgres
 )
 
 func (k TypeKind) String() string {
@@ -51,7 +53,7 @@ type (
 		Name string     // pg_type.typname: data type name
 	}
 
-	// Void type is an empty type. A void type doesn't appear in output but it's
+	// VoidType is an empty type. A void type doesn't appear in output but it's
 	// necessary to scan rows.
 	VoidType struct{}
 
@@ -111,6 +113,15 @@ type (
 		Name   string     // pg_type.typname: data type name
 		PgKind TypeKind
 	}
+
+	// placeholderType is an internal, temporary type that we resolve in a second
+	// pass. Useful because we resolve types sequentially by kind. For example, we
+	// resolve all composite types before resolving array types. This approach
+	// requires two passes for cases like when a composite type has an child type
+	// that's an array.
+	placeholderType struct {
+		ID pgtype.OID // pg_type.oid: row identifier
+	}
 )
 
 func (b BaseType) OID() pgtype.OID { return b.ID }
@@ -140,3 +151,7 @@ func (e CompositeType) Kind() TypeKind  { return KindCompositeType }
 func (e UnknownType) OID() pgtype.OID { return e.ID }
 func (e UnknownType) String() string  { return e.Name }
 func (e UnknownType) Kind() TypeKind  { return e.PgKind }
+
+func (p placeholderType) OID() pgtype.OID { return p.ID }
+func (p placeholderType) String() string  { return "placeholder-" + strconv.Itoa(int(p.ID)) }
+func (p placeholderType) Kind() TypeKind  { return kindPlaceholderType }

@@ -420,6 +420,7 @@ func (q *DBQuerier) FindCompositeTypesScan(results pgx.BatchResults) ([]FindComp
 }
 
 const findDescendantOIDsSQL = `WITH RECURSIVE oid_descs(oid) AS (
+  -- Base case.
   SELECT oid
   FROM unnest($1::oid[]) AS t(oid)
   UNION
