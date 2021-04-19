@@ -140,6 +140,16 @@ func TestExamples(t *testing.T) {
 			},
 		},
 		{
+			name: "example/separate_out_dir",
+			args: []string{
+				"--schema-glob", "example/separate_out_dir/schema.sql",
+				"--query-glob", "example/separate_out_dir/alpha/query.sql",
+				"--query-glob", "example/separate_out_dir/alpha/alpha/query.sql",
+				"--query-glob", "example/separate_out_dir/bravo/query.sql",
+				"--output-dir", "example/separate_out_dir/out",
+			},
+		},
+		{
 			name: "example/void",
 			args: []string{
 				"--schema-glob", "example/void/schema.sql",
