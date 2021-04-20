@@ -76,6 +76,10 @@ func findDeclsHelper(typ gotype.Type, decls DeclarerSet, hadCompositeParent bool
 
 	case gotype.ArrayType:
 		decls.AddAll(ignoredOIDDeclarer)
+		switch typ.Elem.(type) {
+		case gotype.CompositeType, gotype.EnumType:
+			decls.AddAll(NewArrayDecoderDeclarer(typ))
+		}
 		findDeclsHelper(typ.Elem, decls, hadCompositeParent)
 
 	default:

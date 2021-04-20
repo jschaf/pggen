@@ -102,6 +102,11 @@ func PrepareAllQueries(ctx context.Context, p preparer) error {
 	return nil
 }
 
+// newBlocksArrayDecoder creates a new decoder for the Postgres '_blocks' array type.
+func newBlocksArrayDecoder() pgtype.ValueTranscoder {
+	return pgtype.NewArrayType("_blocks", ignoredOID, newBlocksDecoder)
+}
+
 // Blocks represents the Postgres composite type "blocks".
 type Blocks struct {
 	ID           int    `json:"id"`

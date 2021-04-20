@@ -1,3 +1,8 @@
+// newSomeArrayArrayDecoder creates a new decoder for the Postgres '' array type.
+func newSomeArrayArrayDecoder() pgtype.ValueTranscoder {
+	return pgtype.NewArrayType("", ignoredOID, newSomeTableDecoder)
+}
+
 // SomeTable represents the Postgres composite type "some_table".
 type SomeTable struct {
 	Foo    int16       `json:"foo"`

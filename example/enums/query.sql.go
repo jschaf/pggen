@@ -137,6 +137,11 @@ func PrepareAllQueries(ctx context.Context, p preparer) error {
 	return nil
 }
 
+// newDeviceTypeArrayDecoder creates a new decoder for the Postgres '_device_type' array type.
+func newDeviceTypeArrayDecoder() pgtype.ValueTranscoder {
+	return pgtype.NewArrayType("_device_type", ignoredOID, newDeviceTypeEnumDecoder)
+}
+
 // Device represents the Postgres composite type "device".
 type Device struct {
 	Mac  pgtype.Macaddr `json:"mac"`
