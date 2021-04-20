@@ -149,7 +149,7 @@ func newDeviceDecoder() pgtype.ValueTranscoder {
 		"device",
 		[]string{"mac", "type"},
 		&pgtype.Macaddr{},
-		enumDecoderDeviceType,
+		newDeviceTypeEnumDecoder(),
 	)
 }
 
@@ -159,14 +159,20 @@ func newDeviceDecoder() pgtype.ValueTranscoder {
 // methods.
 const ignoredOID = 0
 
-var enumDecoderDeviceType = pgtype.NewEnumType("device_type", []string{
-	string(DeviceTypeUndefined),
-	string(DeviceTypePhone),
-	string(DeviceTypeLaptop),
-	string(DeviceTypeIpad),
-	string(DeviceTypeDesktop),
-	string(DeviceTypeIot),
-})
+// newDeviceTypeEnumDecoder creates a new decoder for the Postgres 'device_type' enum type.
+func newDeviceTypeEnumDecoder() pgtype.ValueTranscoder {
+	return pgtype.NewEnumType(
+		"device_type",
+		[]string{
+			string(DeviceTypeUndefined),
+			string(DeviceTypePhone),
+			string(DeviceTypeLaptop),
+			string(DeviceTypeIpad),
+			string(DeviceTypeDesktop),
+			string(DeviceTypeIot),
+		},
+	)
+}
 
 // DeviceType represents the Postgres enum "device_type".
 type DeviceType string
@@ -430,7 +436,7 @@ func (q *DBQuerier) EnumInsideComposite(ctx context.Context) (Device, error) {
 		"device",
 		[]string{"mac", "type"},
 		&pgtype.Macaddr{},
-		enumDecoderDeviceType,
+		newDeviceTypeEnumDecoder(),
 	)
 	if err := row.Scan(rowRow); err != nil {
 		return item, fmt.Errorf("query EnumInsideComposite: %w", err)
@@ -454,7 +460,7 @@ func (q *DBQuerier) EnumInsideCompositeScan(results pgx.BatchResults) (Device, e
 		"device",
 		[]string{"mac", "type"},
 		&pgtype.Macaddr{},
-		enumDecoderDeviceType,
+		newDeviceTypeEnumDecoder(),
 	)
 	if err := row.Scan(rowRow); err != nil {
 		return item, fmt.Errorf("scan EnumInsideCompositeBatch row: %w", err)

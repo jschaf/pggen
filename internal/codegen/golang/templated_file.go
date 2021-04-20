@@ -351,9 +351,8 @@ func (tq TemplatedQuery) appendResultCompositeInit(
 		case gotype.CompositeType:
 			tq.appendResultCompositeInit(sb, pkgPath, fieldType, indent+1)
 		case gotype.EnumType:
-			sb.WriteString("enumDecoder")
-			sb.WriteString(fieldType.Name)
-			sb.WriteString(",")
+			sb.WriteString(NameEnumDecoderFunc(fieldType))
+			sb.WriteString("(),")
 		case gotype.VoidType:
 			// skip
 		default:

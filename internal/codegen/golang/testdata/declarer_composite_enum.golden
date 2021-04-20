@@ -8,7 +8,7 @@ func newSomeTableDecoder() pgtype.ValueTranscoder {
 	return newCompositeType(
 		"some_table",
 		[]string{"foo"},
-		enumDecoderDeviceType,
+		newDeviceTypeEnumDecoder(),
 	)
 }
 
@@ -18,10 +18,16 @@ func newSomeTableDecoder() pgtype.ValueTranscoder {
 // methods.
 const ignoredOID = 0
 
-var enumDecoderDeviceType = pgtype.NewEnumType("device_type", []string{
-	string(DeviceTypeIOS),
-	string(DeviceTypeMobile),
-})
+// newDeviceTypeEnumDecoder creates a new decoder for the Postgres 'device_type' enum type.
+func newDeviceTypeEnumDecoder() pgtype.ValueTranscoder {
+	return pgtype.NewEnumType(
+		"device_type",
+		[]string{
+			string(DeviceTypeIOS),
+			string(DeviceTypeMobile),
+		},
+	)
+}
 
 // DeviceType represents the Postgres enum "device_type".
 type DeviceType string

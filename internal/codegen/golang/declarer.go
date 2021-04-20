@@ -57,9 +57,13 @@ func FindDeclarers(typ gotype.Type) DeclarerSet {
 func findDeclsHelper(typ gotype.Type, decls DeclarerSet, hadCompositeParent bool) {
 	switch typ := typ.(type) {
 	case gotype.EnumType:
-		decls.AddAll(NewEnumTypeDeclarer(typ))
+		decls.AddAll(
+			NewEnumTypeDeclarer(typ),
+		)
 		if hadCompositeParent {
-			decls.AddAll(NewEnumPgTypeDeclarer(typ))
+			// We can use a string as the decoder except if the enum is part of a
+			// composite type.
+			decls.AddAll(NewEnumDecoderDeclarer(typ))
 		}
 
 	case gotype.CompositeType:
@@ -207,11 +211,11 @@ func (c CompositeDecoderDeclarer) DedupeKey() string {
 }
 
 func (c CompositeDecoderDeclarer) Declare(pkgPath string) (string, error) {
-	funcName := nameCompositeDecoderFunc(c.typ)
+	funcName := NameCompositeDecoderFunc(c.typ)
 	sb := &strings.Builder{}
 	sb.Grow(256)
 
-	// Doc comment.
+	// Doc comment
 	sb.WriteString("// ")
 	sb.WriteString(funcName)
 	sb.WriteString(" creates a new decoder for the Postgres '")
@@ -245,13 +249,12 @@ func (c CompositeDecoderDeclarer) Declare(pkgPath string) (string, error) {
 		sb.WriteString("\n\t\t")
 		switch fieldType := fieldType.(type) {
 		case gotype.CompositeType:
-			childFuncName := nameCompositeDecoderFunc(fieldType)
+			childFuncName := NameCompositeDecoderFunc(fieldType)
 			sb.WriteString(childFuncName)
 			sb.WriteString("(),")
 		case gotype.EnumType:
-			sb.WriteString("enumDecoder")
-			sb.WriteString(fieldType.Name)
-			sb.WriteString(",")
+			sb.WriteString(NameEnumDecoderFunc(fieldType))
+			sb.WriteString("(),")
 		case gotype.VoidType:
 			// skip
 		default:
@@ -279,7 +282,7 @@ func (c CompositeDecoderDeclarer) Declare(pkgPath string) (string, error) {
 	return sb.String(), nil
 }
 
-func nameCompositeDecoderFunc(typ gotype.CompositeType) string {
+func NameCompositeDecoderFunc(typ gotype.CompositeType) string {
 	return "new" + typ.Name + "Decoder"
 }
 
@@ -341,33 +344,58 @@ func (e EnumTypeDeclarer) Declare(string) (string, error) {
 	return sb.String(), nil
 }
 
-// EnumPgTypeDeclarer declares a new pgtype.EnumType for use in the generated
-// function newCompositeType.
-type EnumPgTypeDeclarer struct {
-	enum gotype.EnumType
+// EnumDecoderDeclarer declares a new Go function that creates a pgx decoder
+// for the Postgres type represented by the gotype.EnumType.
+type EnumDecoderDeclarer struct {
+	typ gotype.EnumType
 }
 
-func NewEnumPgTypeDeclarer(enum gotype.EnumType) EnumPgTypeDeclarer {
-	return EnumPgTypeDeclarer{enum: enum}
+func NewEnumDecoderDeclarer(enum gotype.EnumType) EnumDecoderDeclarer {
+	return EnumDecoderDeclarer{typ: enum}
 }
 
-func (e EnumPgTypeDeclarer) DedupeKey() string {
-	return "enum_pgtype::" + e.enum.Name
+func (e EnumDecoderDeclarer) DedupeKey() string {
+	return "enum_decoder::" + e.typ.Name
 }
 
-func (e EnumPgTypeDeclarer) Declare(string) (string, error) {
+func (e EnumDecoderDeclarer) Declare(string) (string, error) {
 	sb := &strings.Builder{}
-	sb.WriteString("var enumDecoder")
-	sb.WriteString(e.enum.Name)
-	sb.WriteString(` = pgtype.NewEnumType(`)
-	sb.WriteString(strconv.Quote(e.enum.PgEnum.Name))
-	sb.WriteString(`, []string{`)
-	for _, label := range e.enum.Labels {
-		sb.WriteString("\n\t")
+	funcName := NameEnumDecoderFunc(e.typ)
+
+	// Doc comment
+	sb.WriteString("// ")
+	sb.WriteString(funcName)
+	sb.WriteString(" creates a new decoder for the Postgres '")
+	sb.WriteString(e.typ.PgEnum.Name)
+	sb.WriteString("' enum type.\n")
+
+	// Function signature
+	sb.WriteString("func ")
+	sb.WriteString(funcName)
+	sb.WriteString("() pgtype.ValueTranscoder {\n\t")
+
+	// NewEnumType call
+	sb.WriteString("return pgtype.NewEnumType(\n\t\t")
+	sb.WriteString(strconv.Quote(e.typ.PgEnum.Name))
+	sb.WriteString(",\n\t\t")
+	sb.WriteString(`[]string{`)
+	for _, label := range e.typ.Labels {
+		sb.WriteString("\n\t\t\t")
 		sb.WriteString("string(")
 		sb.WriteString(label)
 		sb.WriteString("),")
 	}
-	sb.WriteString("\n})")
+	sb.WriteString("\n\t\t")
+	sb.WriteString("},")
+	sb.WriteString("\n\t")
+	sb.WriteString(")")
+	sb.WriteString("\n")
+	sb.WriteString("}")
+
 	return sb.String(), nil
+}
+
+func NameEnumDecoderFunc(typ gotype.EnumType) string {
+	return "new" + typ.Name + "EnumDecoder"
+
 }
