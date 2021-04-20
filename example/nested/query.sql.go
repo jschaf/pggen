@@ -146,7 +146,9 @@ func (q *DBQuerier) Nested3(ctx context.Context) ([]Qux, error) {
 		if err := rows.Scan(quxRow); err != nil {
 			return nil, fmt.Errorf("scan Nested3 row: %w", err)
 		}
-		quxRow.AssignTo(&item)
+		if err := quxRow.AssignTo(&item); err != nil {
+			return nil, fmt.Errorf("assign Nested3 row: %w", err)
+		}
 		items = append(items, item)
 	}
 	if err := rows.Err(); err != nil {
@@ -188,7 +190,9 @@ func (q *DBQuerier) Nested3Scan(results pgx.BatchResults) ([]Qux, error) {
 		if err := rows.Scan(quxRow); err != nil {
 			return nil, fmt.Errorf("scan Nested3Batch row: %w", err)
 		}
-		quxRow.AssignTo(&item)
+		if err := quxRow.AssignTo(&item); err != nil {
+			return nil, fmt.Errorf("assign Nested3 row: %w", err)
+		}
 		items = append(items, item)
 	}
 	if err := rows.Err(); err != nil {

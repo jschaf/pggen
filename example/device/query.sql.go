@@ -271,7 +271,9 @@ func (q *DBQuerier) CompositeUser(ctx context.Context) ([]CompositeUserRow, erro
 		if err := rows.Scan(&item.Mac, &item.Type, userRow); err != nil {
 			return nil, fmt.Errorf("scan CompositeUser row: %w", err)
 		}
-		userRow.AssignTo(&item.User)
+		if err := userRow.AssignTo(&item.User); err != nil {
+			return nil, fmt.Errorf("assign CompositeUser row: %w", err)
+		}
 		items = append(items, item)
 	}
 	if err := rows.Err(); err != nil {
@@ -304,7 +306,9 @@ func (q *DBQuerier) CompositeUserScan(results pgx.BatchResults) ([]CompositeUser
 		if err := rows.Scan(&item.Mac, &item.Type, userRow); err != nil {
 			return nil, fmt.Errorf("scan CompositeUserBatch row: %w", err)
 		}
-		userRow.AssignTo(&item.User)
+		if err := userRow.AssignTo(&item.User); err != nil {
+			return nil, fmt.Errorf("assign CompositeUser row: %w", err)
+		}
 		items = append(items, item)
 	}
 	if err := rows.Err(); err != nil {
@@ -328,7 +332,9 @@ func (q *DBQuerier) CompositeUserOne(ctx context.Context) (User, error) {
 	if err := row.Scan(userRow); err != nil {
 		return item, fmt.Errorf("query CompositeUserOne: %w", err)
 	}
-	userRow.AssignTo(&item)
+	if err := userRow.AssignTo(&item); err != nil {
+		return item, fmt.Errorf("assign CompositeUserOne row: %w", err)
+	}
 	return item, nil
 }
 
@@ -350,7 +356,9 @@ func (q *DBQuerier) CompositeUserOneScan(results pgx.BatchResults) (User, error)
 	if err := row.Scan(userRow); err != nil {
 		return item, fmt.Errorf("scan CompositeUserOneBatch row: %w", err)
 	}
-	userRow.AssignTo(&item)
+	if err := userRow.AssignTo(&item); err != nil {
+		return item, fmt.Errorf("assign CompositeUserOne row: %w", err)
+	}
 	return item, nil
 }
 
@@ -374,7 +382,9 @@ func (q *DBQuerier) CompositeUserOneTwoCols(ctx context.Context) (CompositeUserO
 	if err := row.Scan(&item.Num, userRow); err != nil {
 		return item, fmt.Errorf("query CompositeUserOneTwoCols: %w", err)
 	}
-	userRow.AssignTo(&item.User)
+	if err := userRow.AssignTo(&item.User); err != nil {
+		return item, fmt.Errorf("assign CompositeUserOneTwoCols row: %w", err)
+	}
 	return item, nil
 }
 
@@ -396,7 +406,9 @@ func (q *DBQuerier) CompositeUserOneTwoColsScan(results pgx.BatchResults) (Compo
 	if err := row.Scan(&item.Num, userRow); err != nil {
 		return item, fmt.Errorf("scan CompositeUserOneTwoColsBatch row: %w", err)
 	}
-	userRow.AssignTo(&item.User)
+	if err := userRow.AssignTo(&item.User); err != nil {
+		return item, fmt.Errorf("assign CompositeUserOneTwoCols row: %w", err)
+	}
 	return item, nil
 }
 
@@ -421,7 +433,9 @@ func (q *DBQuerier) CompositeUserMany(ctx context.Context) ([]User, error) {
 		if err := rows.Scan(userRow); err != nil {
 			return nil, fmt.Errorf("scan CompositeUserMany row: %w", err)
 		}
-		userRow.AssignTo(&item)
+		if err := userRow.AssignTo(&item); err != nil {
+			return nil, fmt.Errorf("assign CompositeUserMany row: %w", err)
+		}
 		items = append(items, item)
 	}
 	if err := rows.Err(); err != nil {
@@ -454,7 +468,9 @@ func (q *DBQuerier) CompositeUserManyScan(results pgx.BatchResults) ([]User, err
 		if err := rows.Scan(userRow); err != nil {
 			return nil, fmt.Errorf("scan CompositeUserManyBatch row: %w", err)
 		}
-		userRow.AssignTo(&item)
+		if err := userRow.AssignTo(&item); err != nil {
+			return nil, fmt.Errorf("assign CompositeUserMany row: %w", err)
+		}
 		items = append(items, item)
 	}
 	if err := rows.Err(); err != nil {

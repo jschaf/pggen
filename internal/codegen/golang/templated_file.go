@@ -404,7 +404,7 @@ func (tq TemplatedQuery) appendResultArrayComposite(
 // output struct.
 //
 // Copies pgtype.EnumArray fields into Go enum array types.
-func (tq TemplatedQuery) EmitResultAssigns() (string, error) {
+func (tq TemplatedQuery) EmitResultAssigns(zeroVal string) (string, error) {
 	sb := &strings.Builder{}
 	indent := "\n\t"
 	if tq.ResultKind == ast.ResultKindMany {
@@ -414,17 +414,27 @@ func (tq TemplatedQuery) EmitResultAssigns() (string, error) {
 		switch typ := out.Type.(type) {
 		case gotype.CompositeType:
 			sb.WriteString(indent)
+			sb.WriteString("if err := ")
 			sb.WriteString(out.LowerName)
 			sb.WriteString("Row.AssignTo(&item")
 			if len(removeVoidColumns(tq.Outputs)) > 1 {
 				sb.WriteRune('.')
 				sb.WriteString(out.UpperName)
 			}
-			sb.WriteString(")")
+			sb.WriteString("); err != nil {")
+			sb.WriteString(indent)
+			sb.WriteString("\treturn ")
+			sb.WriteString(zeroVal)
+			sb.WriteString(", fmt.Errorf(\"assign ")
+			sb.WriteString(tq.Name)
+			sb.WriteString(" row: %w\", err)")
+			sb.WriteString(indent)
+			sb.WriteString("}")
 		case gotype.ArrayType:
 			switch typ.Elem.(type) {
 			case gotype.EnumType:
 				sb.WriteString(indent)
+				sb.WriteString("_ = ")
 				sb.WriteString(out.LowerName)
 				sb.WriteString("Array.AssignTo((*[]string)(unsafe.Pointer(&item")
 				if len(removeVoidColumns(tq.Outputs)) > 1 {
@@ -436,13 +446,22 @@ func (tq TemplatedQuery) EmitResultAssigns() (string, error) {
 
 			case gotype.CompositeType:
 				sb.WriteString(indent)
+				sb.WriteString("if err := ")
 				sb.WriteString(out.LowerName)
 				sb.WriteString("Array.AssignTo(&item")
 				if len(removeVoidColumns(tq.Outputs)) > 1 {
 					sb.WriteRune('.')
 					sb.WriteString(out.UpperName)
 				}
-				sb.WriteString(")")
+				sb.WriteString("); err != nil {")
+				sb.WriteString(indent)
+				sb.WriteString("\treturn ")
+				sb.WriteString(zeroVal)
+				sb.WriteString(", fmt.Errorf(\"assign ")
+				sb.WriteString(tq.Name)
+				sb.WriteString(" row: %w\", err)")
+				sb.WriteString(indent)
+				sb.WriteString("}")
 			}
 		}
 	}

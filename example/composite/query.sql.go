@@ -170,7 +170,9 @@ func (q *DBQuerier) SearchScreenshots(ctx context.Context, params SearchScreensh
 		if err := rows.Scan(&item.ID, blocksArray); err != nil {
 			return nil, fmt.Errorf("scan SearchScreenshots row: %w", err)
 		}
-		blocksArray.AssignTo(&item.Blocks)
+		if err := blocksArray.AssignTo(&item.Blocks); err != nil {
+			return nil, fmt.Errorf("assign SearchScreenshots row: %w", err)
+		}
 		items = append(items, item)
 	}
 	if err := rows.Err(); err != nil {
@@ -207,7 +209,9 @@ func (q *DBQuerier) SearchScreenshotsScan(results pgx.BatchResults) ([]SearchScr
 		if err := rows.Scan(&item.ID, blocksArray); err != nil {
 			return nil, fmt.Errorf("scan SearchScreenshotsBatch row: %w", err)
 		}
-		blocksArray.AssignTo(&item.Blocks)
+		if err := blocksArray.AssignTo(&item.Blocks); err != nil {
+			return nil, fmt.Errorf("assign SearchScreenshots row: %w", err)
+		}
 		items = append(items, item)
 	}
 	if err := rows.Err(); err != nil {
@@ -254,7 +258,9 @@ func (q *DBQuerier) SearchScreenshotsOneCol(ctx context.Context, params SearchSc
 		if err := rows.Scan(blocksArray); err != nil {
 			return nil, fmt.Errorf("scan SearchScreenshotsOneCol row: %w", err)
 		}
-		blocksArray.AssignTo(&item)
+		if err := blocksArray.AssignTo(&item); err != nil {
+			return nil, fmt.Errorf("assign SearchScreenshotsOneCol row: %w", err)
+		}
 		items = append(items, item)
 	}
 	if err := rows.Err(); err != nil {
@@ -291,7 +297,9 @@ func (q *DBQuerier) SearchScreenshotsOneColScan(results pgx.BatchResults) ([][]B
 		if err := rows.Scan(blocksArray); err != nil {
 			return nil, fmt.Errorf("scan SearchScreenshotsOneColBatch row: %w", err)
 		}
-		blocksArray.AssignTo(&item)
+		if err := blocksArray.AssignTo(&item); err != nil {
+			return nil, fmt.Errorf("assign SearchScreenshotsOneCol row: %w", err)
+		}
 		items = append(items, item)
 	}
 	if err := rows.Err(); err != nil {
