@@ -180,20 +180,15 @@ func (tm Templater) templateFile(file codegen.QueryFile) (TemplatedFile, []Decla
 			if isCompositeArray(goType) {
 				imports.AddPackage("github.com/jackc/pgtype") // needed for decoder types
 			}
+			if gotype.HasCompositeType(goType) {
+				imports.AddPackage("github.com/jackc/pgtype") // needed for newCompositeType
+			}
 			outputs[i] = TemplatedColumn{
 				PgName:    out.PgName,
 				UpperName: tm.chooseUpperName(out.PgName, "UnnamedColumn", i, len(query.Outputs)),
 				LowerName: tm.chooseLowerName(out.PgName, "UnnamedColumn", i, len(query.Outputs)),
 				Type:      goType,
 				QualType:  goType.QualifyRel(pkgPath),
-			}
-			if gotype.HasArrayType(goType) {
-				declarers = append(declarers, ignoredOIDDeclarer)
-			}
-			if gotype.HasCompositeType(goType) {
-				declarers = append(declarers, ignoredOIDDeclarer)
-				declarers = append(declarers, newCompositeTypeDeclarer)
-				imports.AddPackage("github.com/jackc/pgtype") // needed for newCompositeType
 			}
 			declarers = append(declarers, FindDeclarers(goType)...)
 		}

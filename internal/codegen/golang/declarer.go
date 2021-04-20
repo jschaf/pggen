@@ -6,15 +6,15 @@ import (
 	"strings"
 )
 
-// Declarer is implemented by any value that needs to declare types or data
-// before use. For example, Postgres enums map to a Go enum with a type
-// declaration and const values. If we use the enum in any Querier function, we
-// need to declare the enum.
+// Declarer is implemented by any value that needs to declare types, data, or
+// functions before use. For example, Postgres enums map to a Go enum with a
+// type declaration and const values. If we use the enum in any Querier
+// function, we need to declare the enum.
 type Declarer interface {
 	// DedupeKey uniquely identifies the declaration so that we only emit
 	// declarations once. Should be namespaced like enum::some_enum.
 	DedupeKey() string
-	// Declare returns the string of the Go declaration.
+	// Declare returns the string of the Go code for the declaration.
 	Declare(pkgPath string) (string, error)
 }
 
@@ -46,8 +46,10 @@ func findDeclsHelper(typ gotype.Type, visited map[string]struct{}, hadCompositeP
 			return nil
 		}
 		visited[d.DedupeKey()] = struct{}{}
-		decls := make([]Declarer, 1, 4)
+		decls := make([]Declarer, 3, 8)
 		decls[0] = d
+		decls[1] = ignoredOIDDeclarer
+		decls[2] = newCompositeTypeDeclarer
 		for _, childType := range typ.FieldTypes {
 			childDecls := findDeclsHelper(childType, visited, true)
 			decls = append(decls, childDecls...)
@@ -55,7 +57,8 @@ func findDeclsHelper(typ gotype.Type, visited map[string]struct{}, hadCompositeP
 		return decls
 
 	case gotype.ArrayType:
-		return findDeclsHelper(typ.Elem, visited, hadCompositeParent)
+		decls := findDeclsHelper(typ.Elem, visited, hadCompositeParent)
+		return append(decls, ignoredOIDDeclarer)
 
 	default:
 		return nil
