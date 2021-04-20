@@ -6,6 +6,7 @@ import (
 	"github.com/jschaf/pggen/internal/pg"
 	"github.com/jschaf/pggen/internal/texts"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"testing"
 )
 
@@ -13,6 +14,11 @@ func TestFindDeclarer_Declare(t *testing.T) {
 	caser := casing.NewCaser()
 	caser.AddAcronym("ios", "IOS")
 	emptyPkgPath := ""
+	declarerVal := func(pkgPath string, d Declarer) string {
+		out, err := d.Declare(pkgPath)
+		require.NoError(t, err)
+		return out
+	}
 	tests := []struct {
 		name    string
 		typ     gotype.Type
@@ -77,12 +83,14 @@ func TestFindDeclarer_Declare(t *testing.T) {
 			pkgPath: "example.com/foo",
 			want: []string{
 				texts.Dedent(`
-				// SomeTable represents the Postgres composite type "some_table".
-				type SomeTable struct {
-					Foo    int16       ` + "`json:\"foo\"`" + `
-					BarBaz pgtype.Text ` + "`json:\"bar_baz\"`" + `
-				}
-			`),
+					// SomeTable represents the Postgres composite type "some_table".
+					type SomeTable struct {
+						Foo    int16       ` + "`json:\"foo\"`" + `
+						BarBaz pgtype.Text ` + "`json:\"bar_baz\"`" + `
+					}
+				`),
+				declarerVal("example.com/foo", ignoredOIDDeclarer),
+				declarerVal("example.com/foo", newCompositeTypeDeclarer),
 			},
 		},
 		{
@@ -108,7 +116,9 @@ func TestFindDeclarer_Declare(t *testing.T) {
 						Foo    int16       ` + "`json:\"foo\"`" + `
 						BarBaz pgtype.Text ` + "`json:\"bar_baz\"`" + `
 					}
-			`),
+				`),
+				declarerVal("example.com/foo", ignoredOIDDeclarer),
+				declarerVal("example.com/foo", newCompositeTypeDeclarer),
 			},
 		},
 		{
@@ -140,18 +150,20 @@ func TestFindDeclarer_Declare(t *testing.T) {
 			pkgPath: "example.com/foo",
 			want: []string{
 				texts.Dedent(`
-				// SomeTable represents the Postgres composite type "some_table".
-				type SomeTable struct {
-					Foo    FooType     ` + "`json:\"foo\"`" + `
-					BarBaz pgtype.Text ` + "`json:\"bar_baz\"`" + `
-				}
-			`),
+					// FooType represents the Postgres composite type "foo_type".
+					type FooType struct {
+						Alpha pgtype.Text ` + "`json:\"alpha\"`" + `
+					}
+				`),
 				texts.Dedent(`
-				// FooType represents the Postgres composite type "foo_type".
-				type FooType struct {
-					Alpha pgtype.Text ` + "`json:\"alpha\"`" + `
-				}
-			`),
+					// SomeTable represents the Postgres composite type "some_table".
+					type SomeTable struct {
+						Foo    FooType     ` + "`json:\"foo\"`" + `
+						BarBaz pgtype.Text ` + "`json:\"bar_baz\"`" + `
+					}
+				`),
+				declarerVal("example.com/foo", ignoredOIDDeclarer),
+				declarerVal("example.com/foo", newCompositeTypeDeclarer),
 			},
 		},
 		{
@@ -176,34 +188,36 @@ func TestFindDeclarer_Declare(t *testing.T) {
 			pkgPath: "example.com/foo",
 			want: []string{
 				texts.Dedent(`
-				// SomeTable represents the Postgres composite type "some_table".
-				type SomeTable struct {
-					Foo DeviceType ` + "`json:\"foo\"`" + `
-				}
-			`),
+					// SomeTable represents the Postgres composite type "some_table".
+					type SomeTable struct {
+						Foo DeviceType ` + "`json:\"foo\"`" + `
+					}
+				`),
+				declarerVal("example.com/foo", ignoredOIDDeclarer),
 				texts.Dedent(`
-				// DeviceType represents the Postgres enum "device_type".
-				type DeviceType string
-		
-				const (
-					DeviceTypeIOS    DeviceType = "ios"
-					DeviceTypeMobile DeviceType = "mobile"
-				)
-		
-				func (d DeviceType) String() string { return string(d) }
-			`),
+					// DeviceType represents the Postgres enum "device_type".
+					type DeviceType string
+			
+					const (
+						DeviceTypeIOS    DeviceType = "ios"
+						DeviceTypeMobile DeviceType = "mobile"
+					)
+			
+					func (d DeviceType) String() string { return string(d) }
+				`),
 				texts.Dedent(`
-				var enumDecoderDeviceType = pgtype.NewEnumType("device_type", []string{
-					string(DeviceTypeIOS),
-					string(DeviceTypeMobile),
-				})
-			`),
+					var enumDecoderDeviceType = pgtype.NewEnumType("device_type", []string{
+						string(DeviceTypeIOS),
+						string(DeviceTypeMobile),
+					})
+				`),
+				declarerVal("example.com/foo", newCompositeTypeDeclarer),
 			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			decls := FindDeclarers(tt.typ)
+			decls := FindDeclarers(tt.typ).ListAll()
 			gotStrings := make([]string, len(decls))
 			for i, decl := range decls {
 				s, err := decl.Declare(tt.pkgPath)

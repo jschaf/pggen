@@ -2,6 +2,7 @@ package golang
 
 import (
 	"github.com/jschaf/pggen/internal/codegen/golang/gotype"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -18,50 +19,64 @@ type Declarer interface {
 	Declare(pkgPath string) (string, error)
 }
 
+// DeclarerSet is a set of declarers, identified by the dedupe key.
+type DeclarerSet map[string]Declarer
+
+func NewDeclarerSet(decls ...Declarer) DeclarerSet {
+	d := DeclarerSet(make(map[string]Declarer, len(decls)))
+	d.AddAll(decls...)
+	return d
+}
+
+func (d DeclarerSet) AddAll(decls ...Declarer) {
+	for _, decl := range decls {
+		d[decl.DedupeKey()] = decl
+	}
+}
+
+// ListAll gets all declarers in the set in a stable sort order.
+func (d DeclarerSet) ListAll() []Declarer {
+	decls := make([]Declarer, 0, len(d))
+	for _, decl := range d {
+		decls = append(decls, decl)
+	}
+	sort.Slice(decls, func(i, j int) bool { return decls[i].DedupeKey() < decls[j].DedupeKey() })
+	return decls
+}
+
 // FindDeclarers finds all necessary Declarers for a type or nil if no
 // declarers are needed. Composite types might depend on enums or other
 // composite types.
-func FindDeclarers(typ gotype.Type) []Declarer {
-	return findDeclsHelper(typ, make(map[string]struct{}, 4), false)
+func FindDeclarers(typ gotype.Type) DeclarerSet {
+	decls := NewDeclarerSet()
+	findDeclsHelper(typ, decls, false)
+	return decls
 }
 
-func findDeclsHelper(typ gotype.Type, visited map[string]struct{}, hadCompositeParent bool) []Declarer {
+func findDeclsHelper(typ gotype.Type, decls DeclarerSet, hadCompositeParent bool) {
 	switch typ := typ.(type) {
 	case gotype.EnumType:
-		d := NewEnumDeclarer(typ)
-		if _, ok := visited[d.DedupeKey()]; ok {
-			return nil
+		decls.AddAll(NewEnumDeclarer(typ))
+		if hadCompositeParent {
+			decls.AddAll(NewEnumPgTypeDeclarer(typ))
 		}
-		visited[d.DedupeKey()] = struct{}{}
-		decls := []Declarer{d}
-		dt := NewEnumPgTypeDeclarer(typ)
-		if _, ok := visited[dt.DedupeKey()]; !ok && hadCompositeParent {
-			decls = append(decls, dt)
-		}
-		return decls
 
 	case gotype.CompositeType:
-		d := NewCompositeDeclarer(typ)
-		if _, ok := visited[d.DedupeKey()]; ok {
-			return nil
-		}
-		visited[d.DedupeKey()] = struct{}{}
-		decls := make([]Declarer, 3, 8)
-		decls[0] = d
-		decls[1] = ignoredOIDDeclarer
-		decls[2] = newCompositeTypeDeclarer
+		decls.AddAll(
+			NewCompositeDeclarer(typ),
+			ignoredOIDDeclarer,
+			newCompositeTypeDeclarer,
+		)
 		for _, childType := range typ.FieldTypes {
-			childDecls := findDeclsHelper(childType, visited, true)
-			decls = append(decls, childDecls...)
+			findDeclsHelper(childType, decls, true)
 		}
-		return decls
 
 	case gotype.ArrayType:
-		decls := findDeclsHelper(typ.Elem, visited, hadCompositeParent)
-		return append(decls, ignoredOIDDeclarer)
+		decls.AddAll(ignoredOIDDeclarer)
+		findDeclsHelper(typ.Elem, decls, hadCompositeParent)
 
 	default:
-		return nil
+		return
 	}
 }
 

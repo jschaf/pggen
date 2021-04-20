@@ -6,7 +6,6 @@ import (
 	"github.com/jschaf/pggen/internal/codegen"
 	"github.com/jschaf/pggen/internal/codegen/golang/gotype"
 	"github.com/jschaf/pggen/internal/gomod"
-	"sort"
 	"strconv"
 	"strings"
 	"unicode"
@@ -37,15 +36,17 @@ func NewTemplater(opts TemplaterOpts) Templater {
 // TemplateAll creates query template files for each codegen.QueryFile.
 func (tm Templater) TemplateAll(files []codegen.QueryFile) ([]TemplatedFile, error) {
 	goQueryFiles := make([]TemplatedFile, 0, len(files))
-	declarers := make([]Declarer, 0, 8)
+	var declarers DeclarerSet
 
 	for _, queryFile := range files {
 		goFile, decls, err := tm.templateFile(queryFile)
+		declarers = decls
 		if err != nil {
 			return nil, fmt.Errorf("template query file %s for go: %w", queryFile.SourcePath, err)
 		}
 		goQueryFiles = append(goQueryFiles, goFile)
-		declarers = append(declarers, decls...)
+		ds := decls.ListAll()
+		declarers.AddAll(ds...)
 	}
 
 	// Pick leader file to define common structs and interfaces via Declarer.
@@ -59,18 +60,8 @@ func (tm Templater) TemplateAll(files []codegen.QueryFile) ([]TemplatedFile, err
 	}
 	goQueryFiles[firstIndex].IsLeader = true
 
-	// Add declarers to the leader in a stable sort order, removing duplicates.
 	if len(declarers) > 0 {
-		sort.Slice(declarers, func(i, j int) bool { return declarers[i].DedupeKey() < declarers[j].DedupeKey() })
-		dedupeLen := 1
-		for i := 1; i < len(declarers); i++ {
-			if declarers[i].DedupeKey() == declarers[dedupeLen-1].DedupeKey() {
-				continue
-			}
-			declarers[dedupeLen] = declarers[i]
-			dedupeLen++
-		}
-		goQueryFiles[firstIndex].Declarers = declarers[:dedupeLen]
+		goQueryFiles[firstIndex].Declarers = declarers.ListAll()
 	}
 
 	// Remove unneeded pgconn import if possible.
@@ -117,7 +108,7 @@ func (tm Templater) TemplateAll(files []codegen.QueryFile) ([]TemplatedFile, err
 // templateFile creates the data needed to build a Go file for a query file.
 // Also returns any declarations needed by this query file. The caller must
 // dedupe declarations.
-func (tm Templater) templateFile(file codegen.QueryFile) (TemplatedFile, []Declarer, error) {
+func (tm Templater) templateFile(file codegen.QueryFile) (TemplatedFile, DeclarerSet, error) {
 	imports := NewImportSet()
 	imports.AddPackage("context")
 	imports.AddPackage("fmt")
@@ -135,7 +126,7 @@ func (tm Templater) templateFile(file codegen.QueryFile) (TemplatedFile, []Decla
 	}
 
 	queries := make([]TemplatedQuery, 0, len(file.Queries))
-	declarers := make([]Declarer, 0, 8)
+	declarers := NewDeclarerSet()
 	for _, query := range file.Queries {
 		// Build doc string.
 		docs := strings.Builder{}
@@ -163,7 +154,8 @@ func (tm Templater) templateFile(file codegen.QueryFile) (TemplatedFile, []Decla
 				LowerName: tm.chooseLowerName(input.PgName, "unnamedParam", i, len(query.Inputs)),
 				QualType:  goType.QualifyRel(pkgPath),
 			}
-			declarers = append(declarers, FindDeclarers(goType)...)
+			ds := FindDeclarers(goType).ListAll()
+			declarers.AddAll(ds...)
 		}
 
 		// Build outputs.
@@ -190,7 +182,8 @@ func (tm Templater) templateFile(file codegen.QueryFile) (TemplatedFile, []Decla
 				Type:      goType,
 				QualType:  goType.QualifyRel(pkgPath),
 			}
-			declarers = append(declarers, FindDeclarers(goType)...)
+			ds := FindDeclarers(goType).ListAll()
+			declarers.AddAll(ds...)
 		}
 
 		queries = append(queries, TemplatedQuery{
