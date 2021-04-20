@@ -2,6 +2,7 @@ package golang
 
 import (
 	"github.com/jschaf/pggen/internal/codegen/golang/gotype"
+	"github.com/jschaf/pggen/internal/pg"
 	"sort"
 	"strconv"
 	"strings"
@@ -56,14 +57,15 @@ func FindDeclarers(typ gotype.Type) DeclarerSet {
 func findDeclsHelper(typ gotype.Type, decls DeclarerSet, hadCompositeParent bool) {
 	switch typ := typ.(type) {
 	case gotype.EnumType:
-		decls.AddAll(NewEnumDeclarer(typ))
+		decls.AddAll(NewEnumTypeDeclarer(typ))
 		if hadCompositeParent {
 			decls.AddAll(NewEnumPgTypeDeclarer(typ))
 		}
 
 	case gotype.CompositeType:
 		decls.AddAll(
-			NewCompositeDeclarer(typ),
+			NewCompositeTypeDeclarer(typ),
+			NewCompositeDecoderDeclarer(typ),
 			ignoredOIDDeclarer,
 			newCompositeTypeDeclarer,
 		)
@@ -114,21 +116,21 @@ const newCompositeTypeDecl = `func newCompositeType(name string, fieldNames []st
 
 var newCompositeTypeDeclarer = NewConstantDeclarer("func::newCompositeType", newCompositeTypeDecl)
 
-// CompositeDeclarer declares a new struct to represent a Postgres composite
-// type.
-type CompositeDeclarer struct {
+// CompositeTypeDeclarer declares a new Go struct to represent a Postgres
+// composite type.
+type CompositeTypeDeclarer struct {
 	comp gotype.CompositeType
 }
 
-func NewCompositeDeclarer(comp gotype.CompositeType) CompositeDeclarer {
-	return CompositeDeclarer{comp: comp}
+func NewCompositeTypeDeclarer(comp gotype.CompositeType) CompositeTypeDeclarer {
+	return CompositeTypeDeclarer{comp: comp}
 }
 
-func (c CompositeDeclarer) DedupeKey() string {
+func (c CompositeTypeDeclarer) DedupeKey() string {
 	return "composite::" + c.comp.Name
 }
 
-func (c CompositeDeclarer) Declare(pkgPath string) (string, error) {
+func (c CompositeTypeDeclarer) Declare(pkgPath string) (string, error) {
 	sb := &strings.Builder{}
 	// Doc string
 	if c.comp.PgComposite.Name != "" {
@@ -190,21 +192,112 @@ func getLongestNameTypes(typ gotype.CompositeType, pkgPath string) (int, int) {
 	return nameLen, typeLen
 }
 
-// EnumDeclarer declares a new string type and the const values to map to a
+// CompositeDecoderDeclarer declares a new Go function that creates a pgx
+// decoder for the Postgres type represented by the gotype.CompositeType.
+type CompositeDecoderDeclarer struct {
+	typ gotype.CompositeType
+}
+
+func NewCompositeDecoderDeclarer(typ gotype.CompositeType) CompositeDecoderDeclarer {
+	return CompositeDecoderDeclarer{typ}
+}
+
+func (c CompositeDecoderDeclarer) DedupeKey() string {
+	return "composite_decoder::" + c.typ.Name
+}
+
+func (c CompositeDecoderDeclarer) Declare(pkgPath string) (string, error) {
+	funcName := nameCompositeDecoderFunc(c.typ)
+	sb := &strings.Builder{}
+	sb.Grow(256)
+
+	// Doc comment.
+	sb.WriteString("// ")
+	sb.WriteString(funcName)
+	sb.WriteString(" creates a new decoder for the Postgres '")
+	sb.WriteString(c.typ.PgComposite.Name)
+	sb.WriteString("' composite type.\n")
+
+	// Function signature
+	sb.WriteString("func ")
+	sb.WriteString(funcName)
+	sb.WriteString("() pgtype.ValueTranscoder {\n\t")
+
+	// newCompositeType call
+	sb.WriteString("return newCompositeType(\n\t\t")
+	sb.WriteString(strconv.Quote(c.typ.PgComposite.Name))
+	sb.WriteString(",\n\t\t")
+
+	// newCompositeType - field names of the composite type
+	sb.WriteString(`[]string{`)
+	for i := range c.typ.FieldNames {
+		sb.WriteByte('"')
+		sb.WriteString(c.typ.PgComposite.ColumnNames[i])
+		sb.WriteByte('"')
+		if i < len(c.typ.FieldNames)-1 {
+			sb.WriteString(", ")
+		}
+	}
+	sb.WriteString("},")
+
+	// newCompositeType - child decoders
+	for _, fieldType := range c.typ.FieldTypes {
+		sb.WriteString("\n\t\t")
+		switch fieldType := fieldType.(type) {
+		case gotype.CompositeType:
+			childFuncName := nameCompositeDecoderFunc(fieldType)
+			sb.WriteString(childFuncName)
+			sb.WriteString("(),")
+		case gotype.EnumType:
+			sb.WriteString("enumDecoder")
+			sb.WriteString(fieldType.Name)
+			sb.WriteString(",")
+		case gotype.VoidType:
+			// skip
+		default:
+			sb.WriteString("&") // pgx needs pointers to types
+			// TODO: support builtin types and builtin wrappers that use a different
+			// initialization syntax.
+			pgType := fieldType.PgType()
+			if pgType == nil || pgType == (pg.VoidType{}) {
+				sb.WriteString("nil,")
+			} else {
+				// We need the pgx variant because it matches the interface expected by
+				// newCompositeType, pgtype.ValueTranscoder.
+				if decoderType, ok := gotype.FindKnownTypePgx(pgType.OID()); ok {
+					fieldType = decoderType
+				}
+				sb.WriteString(fieldType.QualifyRel(pkgPath))
+				sb.WriteString("{},")
+			}
+		}
+	}
+	sb.WriteString("\n\t")
+	sb.WriteString(")")
+	sb.WriteString("\n")
+	sb.WriteString("}")
+	return sb.String(), nil
+}
+
+func nameCompositeDecoderFunc(typ gotype.CompositeType) string {
+	return "new" + typ.Name + "Decoder"
+}
+
+// EnumTypeDeclarer declares a new string type and the const values to map to a
 // Postgres enum.
-type EnumDeclarer struct {
+type EnumTypeDeclarer struct {
 	enum gotype.EnumType
 }
 
-func NewEnumDeclarer(enum gotype.EnumType) EnumDeclarer {
-	return EnumDeclarer{enum: enum}
+func NewEnumTypeDeclarer(enum gotype.EnumType) EnumTypeDeclarer {
+	return EnumTypeDeclarer{enum: enum}
 }
 
-func (e EnumDeclarer) DedupeKey() string {
-	return "enum::" + e.enum.Name
+func (e EnumTypeDeclarer) DedupeKey() string {
+	return "enum_type::" + e.enum.Name
 }
 
-func (e EnumDeclarer) Declare(string) (string, error) {
+func (e EnumTypeDeclarer) Declare(string) (string, error) {
 	sb := &strings.Builder{}
 	// Doc string.
 	if e.enum.PgEnum.Name != "" {

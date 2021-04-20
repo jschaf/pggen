@@ -143,11 +143,30 @@ type Device struct {
 	Type DeviceType     `json:"type"`
 }
 
+// newDeviceDecoder creates a new decoder for the Postgres 'device' composite type.
+func newDeviceDecoder() pgtype.ValueTranscoder {
+	return newCompositeType(
+		"device",
+		[]string{"mac", "type"},
+		&pgtype.Macaddr{},
+		enumDecoderDeviceType,
+	)
+}
+
 // ignoredOID means we don't know or care about the OID for a type. This is okay
 // because pgx only uses the OID to encode values and lookup a decoder. We only
 // use ignoredOID for decoding and we always specify a concrete decoder for scan
 // methods.
 const ignoredOID = 0
+
+var enumDecoderDeviceType = pgtype.NewEnumType("device_type", []string{
+	string(DeviceTypeUndefined),
+	string(DeviceTypePhone),
+	string(DeviceTypeLaptop),
+	string(DeviceTypeIpad),
+	string(DeviceTypeDesktop),
+	string(DeviceTypeIot),
+})
 
 // DeviceType represents the Postgres enum "device_type".
 type DeviceType string
@@ -162,15 +181,6 @@ const (
 )
 
 func (d DeviceType) String() string { return string(d) }
-
-var enumDecoderDeviceType = pgtype.NewEnumType("device_type", []string{
-	string(DeviceTypeUndefined),
-	string(DeviceTypePhone),
-	string(DeviceTypeLaptop),
-	string(DeviceTypeIpad),
-	string(DeviceTypeDesktop),
-	string(DeviceTypeIot),
-})
 
 func newCompositeType(name string, fieldNames []string, vals ...pgtype.ValueTranscoder) *pgtype.CompositeType {
 	fields := make([]pgtype.CompositeTypeField, len(fieldNames))

@@ -99,6 +99,35 @@ type Sku struct {
 	SkuID *string `json:"sku_id"`
 }
 
+// newInventoryItemDecoder creates a new decoder for the Postgres 'inventory_item' composite type.
+func newInventoryItemDecoder() pgtype.ValueTranscoder {
+	return newCompositeType(
+		"inventory_item",
+		[]string{"item_name", "sku"},
+		&pgtype.Text{},
+		newSkuDecoder(),
+	)
+}
+
+// newQuxDecoder creates a new decoder for the Postgres 'qux' composite type.
+func newQuxDecoder() pgtype.ValueTranscoder {
+	return newCompositeType(
+		"qux",
+		[]string{"inv_item", "foo"},
+		newInventoryItemDecoder(),
+		&pgtype.Int8{},
+	)
+}
+
+// newSkuDecoder creates a new decoder for the Postgres 'sku' composite type.
+func newSkuDecoder() pgtype.ValueTranscoder {
+	return newCompositeType(
+		"sku",
+		[]string{"sku_id"},
+		&pgtype.Text{},
+	)
+}
+
 // ignoredOID means we don't know or care about the OID for a type. This is okay
 // because pgx only uses the OID to encode values and lookup a decoder. We only
 // use ignoredOID for decoding and we always specify a concrete decoder for scan

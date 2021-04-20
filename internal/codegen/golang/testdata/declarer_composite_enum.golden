@@ -1,0 +1,45 @@
+// SomeTable represents the Postgres composite type "some_table".
+type SomeTable struct {
+	Foo DeviceType `json:"foo"`
+}
+
+// newSomeTableDecoder creates a new decoder for the Postgres 'some_table' composite type.
+func newSomeTableDecoder() pgtype.ValueTranscoder {
+	return newCompositeType(
+		"some_table",
+		[]string{"foo"},
+		enumDecoderDeviceType,
+	)
+}
+
+// ignoredOID means we don't know or care about the OID for a type. This is okay
+// because pgx only uses the OID to encode values and lookup a decoder. We only
+// use ignoredOID for decoding and we always specify a concrete decoder for scan
+// methods.
+const ignoredOID = 0
+
+var enumDecoderDeviceType = pgtype.NewEnumType("device_type", []string{
+	string(DeviceTypeIOS),
+	string(DeviceTypeMobile),
+})
+
+// DeviceType represents the Postgres enum "device_type".
+type DeviceType string
+
+const (
+	DeviceTypeIOS    DeviceType = "ios"
+	DeviceTypeMobile DeviceType = "mobile"
+)
+
+func (d DeviceType) String() string { return string(d) }
+
+func newCompositeType(name string, fieldNames []string, vals ...pgtype.ValueTranscoder) *pgtype.CompositeType {
+	fields := make([]pgtype.CompositeTypeField, len(fieldNames))
+	for i, name := range fieldNames {
+		fields[i] = pgtype.CompositeTypeField{Name: name, OID: ignoredOID}
+	}
+	// Okay to ignore error because it's only thrown when the number of field
+	// names does not equal the number of ValueTranscoders.
+	rowType, _ := pgtype.NewCompositeTypeValues(name, fields, vals)
+	return rowType
+}

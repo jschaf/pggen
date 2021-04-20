@@ -1,0 +1,9 @@
+// DeviceType represents the Postgres enum "device_type".
+type DeviceType string
+
+const (
+	DeviceTypeIOS    DeviceType = "ios"
+	DeviceTypeMobile DeviceType = "mobile"
+)
+
+func (d DeviceType) String() string { return string(d) }

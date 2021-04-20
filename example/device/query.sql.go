@@ -148,6 +148,16 @@ type User struct {
 	Name *string `json:"name"`
 }
 
+// newUserDecoder creates a new decoder for the Postgres 'user' composite type.
+func newUserDecoder() pgtype.ValueTranscoder {
+	return newCompositeType(
+		"user",
+		[]string{"id", "name"},
+		&pgtype.Int8{},
+		&pgtype.Text{},
+	)
+}
+
 // ignoredOID means we don't know or care about the OID for a type. This is okay
 // because pgx only uses the OID to encode values and lookup a decoder. We only
 // use ignoredOID for decoding and we always specify a concrete decoder for scan

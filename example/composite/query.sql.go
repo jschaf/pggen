@@ -109,6 +109,17 @@ type Blocks struct {
 	Body         string `json:"body"`
 }
 
+// newBlocksDecoder creates a new decoder for the Postgres 'blocks' composite type.
+func newBlocksDecoder() pgtype.ValueTranscoder {
+	return newCompositeType(
+		"blocks",
+		[]string{"id", "screenshot_id", "body"},
+		&pgtype.Int4{},
+		&pgtype.Int8{},
+		&pgtype.Text{},
+	)
+}
+
 // ignoredOID means we don't know or care about the OID for a type. This is okay
 // because pgx only uses the OID to encode values and lookup a decoder. We only
 // use ignoredOID for decoding and we always specify a concrete decoder for scan
