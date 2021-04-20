@@ -324,19 +324,7 @@ func (tq TemplatedQuery) EmitResultAssigns(zeroVal string) (string, error) {
 			sb.WriteString("}")
 		case gotype.ArrayType:
 			switch typ.Elem.(type) {
-			case gotype.EnumType:
-				sb.WriteString(indent)
-				sb.WriteString("_ = ")
-				sb.WriteString(out.LowerName)
-				sb.WriteString("Array.AssignTo((*[]string)(unsafe.Pointer(&item")
-				if len(removeVoidColumns(tq.Outputs)) > 1 {
-					sb.WriteRune('.')
-					sb.WriteString(out.UpperName)
-				}
-				sb.WriteString(")))")
-				sb.WriteString(" // safe cast; enum array is []string")
-
-			case gotype.CompositeType:
+			case gotype.CompositeType, gotype.EnumType:
 				sb.WriteString(indent)
 				sb.WriteString("if err := ")
 				sb.WriteString(out.LowerName)

@@ -166,9 +166,6 @@ func (tm Templater) templateFile(file codegen.QueryFile) (TemplatedFile, Declare
 				return TemplatedFile{}, nil, err
 			}
 			imports.AddType(goType)
-			if isEnumArray(goType) {
-				imports.AddPackage("unsafe") // used to cast []string to []EnumType
-			}
 			if isCompositeArray(goType) {
 				imports.AddPackage("github.com/jackc/pgtype") // needed for decoder types
 			}
@@ -232,15 +229,6 @@ func (tm Templater) chooseLowerName(pgName string, fallback string, idx int, num
 		suffix = fmt.Sprintf("%2d", idx)
 	}
 	return fallback + suffix
-}
-
-func isEnumArray(typ gotype.Type) bool {
-	if typ, ok := typ.(gotype.ArrayType); !ok {
-		return false
-	} else if _, ok := typ.Elem.(gotype.EnumType); !ok {
-		return false
-	}
-	return true
 }
 
 func isCompositeArray(typ gotype.Type) bool {

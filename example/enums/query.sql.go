@@ -8,7 +8,6 @@ import (
 	"github.com/jackc/pgconn"
 	"github.com/jackc/pgtype"
 	"github.com/jackc/pgx/v4"
-	"unsafe"
 )
 
 // Querier is a typesafe Go interface backed by SQL queries.
@@ -295,7 +294,9 @@ func (q *DBQuerier) FindOneDeviceArray(ctx context.Context) ([]DeviceType, error
 	if err := row.Scan(deviceTypesArray); err != nil {
 		return item, fmt.Errorf("query FindOneDeviceArray: %w", err)
 	}
-	_ = deviceTypesArray.AssignTo((*[]string)(unsafe.Pointer(&item))) // safe cast; enum array is []string
+	if err := deviceTypesArray.AssignTo(&item); err != nil {
+		return item, fmt.Errorf("assign FindOneDeviceArray row: %w", err)
+	}
 	return item, nil
 }
 
@@ -312,7 +313,9 @@ func (q *DBQuerier) FindOneDeviceArrayScan(results pgx.BatchResults) ([]DeviceTy
 	if err := row.Scan(deviceTypesArray); err != nil {
 		return item, fmt.Errorf("scan FindOneDeviceArrayBatch row: %w", err)
 	}
-	_ = deviceTypesArray.AssignTo((*[]string)(unsafe.Pointer(&item))) // safe cast; enum array is []string
+	if err := deviceTypesArray.AssignTo(&item); err != nil {
+		return item, fmt.Errorf("assign FindOneDeviceArray row: %w", err)
+	}
 	return item, nil
 }
 
@@ -334,7 +337,9 @@ func (q *DBQuerier) FindManyDeviceArray(ctx context.Context) ([][]DeviceType, er
 		if err := rows.Scan(deviceTypesArray); err != nil {
 			return nil, fmt.Errorf("scan FindManyDeviceArray row: %w", err)
 		}
-		_ = deviceTypesArray.AssignTo((*[]string)(unsafe.Pointer(&item))) // safe cast; enum array is []string
+		if err := deviceTypesArray.AssignTo(&item); err != nil {
+			return nil, fmt.Errorf("assign FindManyDeviceArray row: %w", err)
+		}
 		items = append(items, item)
 	}
 	if err := rows.Err(); err != nil {
@@ -362,7 +367,9 @@ func (q *DBQuerier) FindManyDeviceArrayScan(results pgx.BatchResults) ([][]Devic
 		if err := rows.Scan(deviceTypesArray); err != nil {
 			return nil, fmt.Errorf("scan FindManyDeviceArrayBatch row: %w", err)
 		}
-		_ = deviceTypesArray.AssignTo((*[]string)(unsafe.Pointer(&item))) // safe cast; enum array is []string
+		if err := deviceTypesArray.AssignTo(&item); err != nil {
+			return nil, fmt.Errorf("assign FindManyDeviceArray row: %w", err)
+		}
 		items = append(items, item)
 	}
 	if err := rows.Err(); err != nil {
@@ -394,7 +401,9 @@ func (q *DBQuerier) FindManyDeviceArrayWithNum(ctx context.Context) ([]FindManyD
 		if err := rows.Scan(&item.Num, deviceTypesArray); err != nil {
 			return nil, fmt.Errorf("scan FindManyDeviceArrayWithNum row: %w", err)
 		}
-		_ = deviceTypesArray.AssignTo((*[]string)(unsafe.Pointer(&item.DeviceTypes))) // safe cast; enum array is []string
+		if err := deviceTypesArray.AssignTo(&item.DeviceTypes); err != nil {
+			return nil, fmt.Errorf("assign FindManyDeviceArrayWithNum row: %w", err)
+		}
 		items = append(items, item)
 	}
 	if err := rows.Err(); err != nil {
@@ -422,7 +431,9 @@ func (q *DBQuerier) FindManyDeviceArrayWithNumScan(results pgx.BatchResults) ([]
 		if err := rows.Scan(&item.Num, deviceTypesArray); err != nil {
 			return nil, fmt.Errorf("scan FindManyDeviceArrayWithNumBatch row: %w", err)
 		}
-		_ = deviceTypesArray.AssignTo((*[]string)(unsafe.Pointer(&item.DeviceTypes))) // safe cast; enum array is []string
+		if err := deviceTypesArray.AssignTo(&item.DeviceTypes); err != nil {
+			return nil, fmt.Errorf("assign FindManyDeviceArrayWithNum row: %w", err)
+		}
 		items = append(items, item)
 	}
 	if err := rows.Err(); err != nil {
