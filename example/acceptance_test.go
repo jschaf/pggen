@@ -161,6 +161,8 @@ func TestExamples(t *testing.T) {
 			args: []string{
 				"--schema-glob", "example/nested/schema.sql",
 				"--query-glob", "example/nested/query.sql",
+				"--go-type", "int4=int",
+				"--go-type", "text=string",
 			},
 		},
 		{

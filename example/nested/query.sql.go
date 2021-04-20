@@ -16,12 +16,19 @@ import (
 // calling SendBatch on pgx.Conn, pgxpool.Pool, or pgx.Tx, use the Scan methods
 // to parse the results.
 type Querier interface {
-	Nested3(ctx context.Context) ([]Qux, error)
+	ArrayNested2(ctx context.Context) ([]ProductImageType, error)
+	// ArrayNested2Batch enqueues a ArrayNested2 query into batch to be executed
+	// later by the batch.
+	ArrayNested2Batch(batch *pgx.Batch)
+	// ArrayNested2Scan scans the result of an executed ArrayNested2Batch query.
+	ArrayNested2Scan(results pgx.BatchResults) ([]ProductImageType, error)
+
+	Nested3(ctx context.Context) ([]ProductImageSetType, error)
 	// Nested3Batch enqueues a Nested3 query into batch to be executed
 	// later by the batch.
 	Nested3Batch(batch *pgx.Batch)
 	// Nested3Scan scans the result of an executed Nested3Batch query.
-	Nested3Scan(results pgx.BatchResults) ([]Qux, error)
+	Nested3Scan(results pgx.BatchResults) ([]ProductImageSetType, error)
 }
 
 type DBQuerier struct {
@@ -76,55 +83,67 @@ type preparer interface {
 // is an optional optimization to avoid a network round-trip the first time pgx
 // runs a query if pgx statement caching is enabled.
 func PrepareAllQueries(ctx context.Context, p preparer) error {
+	if _, err := p.Prepare(ctx, arrayNested2SQL, arrayNested2SQL); err != nil {
+		return fmt.Errorf("prepare query 'ArrayNested2': %w", err)
+	}
 	if _, err := p.Prepare(ctx, nested3SQL, nested3SQL); err != nil {
 		return fmt.Errorf("prepare query 'Nested3': %w", err)
 	}
 	return nil
 }
 
-// InventoryItem represents the Postgres composite type "inventory_item".
-type InventoryItem struct {
-	ItemName *string `json:"item_name"`
-	Sku      Sku     `json:"sku"`
+// newProductImageTypeArrayDecoder creates a new decoder for the Postgres '_product_image_type' array type.
+func newProductImageTypeArrayDecoder() pgtype.ValueTranscoder {
+	return pgtype.NewArrayType("_product_image_type", ignoredOID, newProductImageTypeDecoder)
 }
 
-// Qux represents the Postgres composite type "qux".
-type Qux struct {
-	InvItem InventoryItem `json:"inv_item"`
-	Foo     *int          `json:"foo"`
+// Dimensions represents the Postgres composite type "dimensions".
+type Dimensions struct {
+	Width  int `json:"width"`
+	Height int `json:"height"`
 }
 
-// Sku represents the Postgres composite type "sku".
-type Sku struct {
-	SkuID *string `json:"sku_id"`
+// ProductImageSetType represents the Postgres composite type "product_image_set_type".
+type ProductImageSetType struct {
+	Name      string             `json:"name"`
+	OrigImage ProductImageType   `json:"orig_image"`
+	Images    []ProductImageType `json:"images"`
 }
 
-// newInventoryItemDecoder creates a new decoder for the Postgres 'inventory_item' composite type.
-func newInventoryItemDecoder() pgtype.ValueTranscoder {
+// ProductImageType represents the Postgres composite type "product_image_type".
+type ProductImageType struct {
+	Source     string     `json:"source"`
+	Dimensions Dimensions `json:"dimensions"`
+}
+
+// newDimensionsDecoder creates a new decoder for the Postgres 'dimensions' composite type.
+func newDimensionsDecoder() pgtype.ValueTranscoder {
 	return newCompositeType(
-		"inventory_item",
-		[]string{"item_name", "sku"},
-		&pgtype.Text{},
-		newSkuDecoder(),
+		"dimensions",
+		[]string{"width", "height"},
+		&pgtype.Int4{},
+		&pgtype.Int4{},
 	)
 }
 
-// newQuxDecoder creates a new decoder for the Postgres 'qux' composite type.
-func newQuxDecoder() pgtype.ValueTranscoder {
+// newProductImageSetTypeDecoder creates a new decoder for the Postgres 'product_image_set_type' composite type.
+func newProductImageSetTypeDecoder() pgtype.ValueTranscoder {
 	return newCompositeType(
-		"qux",
-		[]string{"inv_item", "foo"},
-		newInventoryItemDecoder(),
-		&pgtype.Int8{},
+		"product_image_set_type",
+		[]string{"name", "orig_image", "images"},
+		&pgtype.Text{},
+		newProductImageTypeDecoder(),
+		newProductImageTypeArrayDecoder(),
 	)
 }
 
-// newSkuDecoder creates a new decoder for the Postgres 'sku' composite type.
-func newSkuDecoder() pgtype.ValueTranscoder {
+// newProductImageTypeDecoder creates a new decoder for the Postgres 'product_image_type' composite type.
+func newProductImageTypeDecoder() pgtype.ValueTranscoder {
 	return newCompositeType(
-		"sku",
-		[]string{"sku_id"},
+		"product_image_type",
+		[]string{"source", "dimensions"},
 		&pgtype.Text{},
+		newDimensionsDecoder(),
 	)
 }
 
@@ -145,23 +164,70 @@ func newCompositeType(name string, fieldNames []string, vals ...pgtype.ValueTran
 	return rowType
 }
 
-const nested3SQL = `SELECT ROW (ROW ('item_name', ROW ('sku_id')::sku)::inventory_item, 88)::qux AS qux;`
+const arrayNested2SQL = `SELECT
+  ARRAY [
+    ROW ('img2', ROW (22, 22)::dimensions)::product_image_type,
+    ROW ('img3', ROW (33, 33)::dimensions)::product_image_type
+    ] AS images;`
+
+// ArrayNested2 implements Querier.ArrayNested2.
+func (q *DBQuerier) ArrayNested2(ctx context.Context) ([]ProductImageType, error) {
+	row := q.conn.QueryRow(ctx, arrayNested2SQL)
+	item := []ProductImageType{}
+	imagesArray := newProductImageTypeArrayDecoder()
+	if err := row.Scan(imagesArray); err != nil {
+		return item, fmt.Errorf("query ArrayNested2: %w", err)
+	}
+	if err := imagesArray.AssignTo(&item); err != nil {
+		return item, fmt.Errorf("assign ArrayNested2 row: %w", err)
+	}
+	return item, nil
+}
+
+// ArrayNested2Batch implements Querier.ArrayNested2Batch.
+func (q *DBQuerier) ArrayNested2Batch(batch *pgx.Batch) {
+	batch.Queue(arrayNested2SQL)
+}
+
+// ArrayNested2Scan implements Querier.ArrayNested2Scan.
+func (q *DBQuerier) ArrayNested2Scan(results pgx.BatchResults) ([]ProductImageType, error) {
+	row := results.QueryRow()
+	item := []ProductImageType{}
+	imagesArray := newProductImageTypeArrayDecoder()
+	if err := row.Scan(imagesArray); err != nil {
+		return item, fmt.Errorf("scan ArrayNested2Batch row: %w", err)
+	}
+	if err := imagesArray.AssignTo(&item); err != nil {
+		return item, fmt.Errorf("assign ArrayNested2 row: %w", err)
+	}
+	return item, nil
+}
+
+const nested3SQL = `SELECT
+  ROW (
+    'name', -- name
+    ROW ('img1', ROW (11, 11)::dimensions)::product_image_type, -- orig_image
+    ARRAY [ --images
+      ROW ('img2', ROW (22, 22)::dimensions)::product_image_type,
+      ROW ('img3', ROW (33, 33)::dimensions)::product_image_type
+      ]
+    )::product_image_set_type;`
 
 // Nested3 implements Querier.Nested3.
-func (q *DBQuerier) Nested3(ctx context.Context) ([]Qux, error) {
+func (q *DBQuerier) Nested3(ctx context.Context) ([]ProductImageSetType, error) {
 	rows, err := q.conn.Query(ctx, nested3SQL)
 	if err != nil {
 		return nil, fmt.Errorf("query Nested3: %w", err)
 	}
 	defer rows.Close()
-	items := []Qux{}
-	quxRow := newQuxDecoder()
+	items := []ProductImageSetType{}
+	rowRow := newProductImageSetTypeDecoder()
 	for rows.Next() {
-		var item Qux
-		if err := rows.Scan(quxRow); err != nil {
+		var item ProductImageSetType
+		if err := rows.Scan(rowRow); err != nil {
 			return nil, fmt.Errorf("scan Nested3 row: %w", err)
 		}
-		if err := quxRow.AssignTo(&item); err != nil {
+		if err := rowRow.AssignTo(&item); err != nil {
 			return nil, fmt.Errorf("assign Nested3 row: %w", err)
 		}
 		items = append(items, item)
@@ -178,20 +244,20 @@ func (q *DBQuerier) Nested3Batch(batch *pgx.Batch) {
 }
 
 // Nested3Scan implements Querier.Nested3Scan.
-func (q *DBQuerier) Nested3Scan(results pgx.BatchResults) ([]Qux, error) {
+func (q *DBQuerier) Nested3Scan(results pgx.BatchResults) ([]ProductImageSetType, error) {
 	rows, err := results.Query()
 	if err != nil {
 		return nil, fmt.Errorf("query Nested3Batch: %w", err)
 	}
 	defer rows.Close()
-	items := []Qux{}
-	quxRow := newQuxDecoder()
+	items := []ProductImageSetType{}
+	rowRow := newProductImageSetTypeDecoder()
 	for rows.Next() {
-		var item Qux
-		if err := rows.Scan(quxRow); err != nil {
+		var item ProductImageSetType
+		if err := rows.Scan(rowRow); err != nil {
 			return nil, fmt.Errorf("scan Nested3Batch row: %w", err)
 		}
-		if err := quxRow.AssignTo(&item); err != nil {
+		if err := rowRow.AssignTo(&item); err != nil {
 			return nil, fmt.Errorf("assign Nested3 row: %w", err)
 		}
 		items = append(items, item)

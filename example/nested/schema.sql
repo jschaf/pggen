@@ -1,13 +1,15 @@
-CREATE TYPE SKU AS (
-  sku_id text
+CREATE TYPE dimensions AS (
+  width  int4,
+  height int4
 );
 
-CREATE TYPE inventory_item AS (
-  item_name text,
-  sku       SKU
+CREATE TYPE product_image_type AS (
+  source text,
+  dimensions dimensions
 );
 
-CREATE TABLE qux (
-  inv_item inventory_item,
-  foo  int8
+CREATE TYPE product_image_set_type AS (
+  name       text,
+  orig_image product_image_type,
+  images     product_image_type[]
 );

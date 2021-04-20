@@ -21,6 +21,10 @@ func TestGenerate_Go_Example_nested(t *testing.T) {
 			OutputDir:  tmpDir,
 			GoPackage:  "nested",
 			Language:   pggen.LangGo,
+			TypeOverrides: map[string]string{
+				"int4": "int",
+				"text": "string",
+			},
 		})
 	if err != nil {
 		t.Fatalf("Generate() example/nested: %s", err)

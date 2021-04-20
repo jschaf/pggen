@@ -159,6 +159,9 @@ func (c CompositeDecoderDeclarer) Declare(pkgPath string) (string, error) {
 		case gotype.EnumType:
 			sb.WriteString(NameEnumDecoderFunc(fieldType))
 			sb.WriteString("(),")
+		case gotype.ArrayType:
+			sb.WriteString(NameArrayDecoderFunc(fieldType))
+			sb.WriteString("(),")
 		case gotype.VoidType:
 			// skip
 		default:
