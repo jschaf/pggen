@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"github.com/jschaf/pggen/internal/ast"
 	"github.com/jschaf/pggen/internal/codegen/golang/gotype"
-	"github.com/jschaf/pggen/internal/pg"
 	"strconv"
 	"strings"
 )
@@ -261,139 +260,33 @@ func (tq TemplatedQuery) EmitResultTypeInit(name string) (string, error) {
 	return "var " + name + " " + raw, nil
 }
 
-// EmitResultInits declares all initialization required for output types.
-func (tq TemplatedQuery) EmitResultInits(pkgPath string) (string, error) {
+// EmitResultDecoders declares all initialization required for output types.
+func (tq TemplatedQuery) EmitResultDecoders() (string, error) {
 	sb := &strings.Builder{}
 	const indent = "\n\t" // 1 level indent inside querier method
 	for _, out := range tq.Outputs {
 		switch typ := out.Type.(type) {
 		case gotype.CompositeType:
-			// Declares pgtype.CompositeFields types for composite types in the output
-			// columns. pggen uses pgtype.CompositeFields as args to the row scan
-			// methods. Emits definitions like:
-			//   userRow := pgtype.CompositeFields{
-			//      &pgtype.Int8{},
-			//      &pgtype.Text{},
-			//   }
 			sb.WriteString(indent)
 			sb.WriteString(out.LowerName)
 			sb.WriteString("Row := ")
-			tq.appendResultCompositeInit(sb, pkgPath, typ, 1)
+			sb.WriteString(NameCompositeDecoderFunc(typ))
+			sb.WriteString("()")
 		case gotype.ArrayType:
-			switch elem := typ.Elem.(type) {
-			case gotype.EnumType:
-				// Declares pgtype.EnumArray types for enum arrays in the output columns.
-				// pggen uses pgtype.EnumArray as arg to the pgx row scan methods. Emits
-				// definitions like:
-				//   deviceTypeArray := &pgtype.EnumArray{}
-				sb.WriteString(indent)
-				sb.WriteString(out.LowerName)
-				sb.WriteString("Array := &pgtype.EnumArray{}")
-
-			case gotype.CompositeType:
-				// Declares a composite type and an array type like:
-				//   blockRow, _ := pgtype.NewCompositeTypeValues("blocks", []pgtype.CompositeTypeField{
-				//   	{Name: "id", OID: pgtype.Int4OID},
-				//   }, []pgtype.ValueTranscoder{
-				//   	&pgtype.Int4{},
-				//   })
-				//   blockArray := pgtype.NewArrayType("_block", ignoredOID, func() pgtype.ValueTranscoder {
-				//   	return blockRow.NewTypeValue().(*pgtype.CompositeType)
-				//   })
-				sb.WriteString(indent)
-				rowName := out.LowerName + "Row"
-				sb.WriteString(rowName)
-				sb.WriteString(" := ")
-				tq.appendResultCompositeInit(sb, pkgPath, elem, 1)
+			switch typ.Elem.(type) {
+			case gotype.EnumType, gotype.CompositeType:
+				// For all other array elems, a normal array works.
 				sb.WriteString(indent)
 				sb.WriteString(out.LowerName)
 				sb.WriteString("Array := ")
-				tq.appendResultArrayComposite(sb, typ, rowName)
+				sb.WriteString(NameArrayDecoderFunc(typ))
+				sb.WriteString("()")
 			}
 		default:
 			continue
 		}
 	}
 	return sb.String(), nil
-}
-
-func (tq TemplatedQuery) appendResultCompositeInit(
-	sb *strings.Builder,
-	pkgPath string,
-	typ gotype.CompositeType,
-	indent int,
-) {
-	sb.WriteString("newCompositeType(\n")
-	// Name of the composite type.
-	sb.WriteString(strings.Repeat("\t", indent+1))
-	sb.WriteByte('"')
-	sb.WriteString(typ.PgComposite.Name)
-	sb.WriteString("\",\n")
-
-	// Field type names of the composite type.
-	sb.WriteString(strings.Repeat("\t", indent+1))
-	sb.WriteString(`[]string{`)
-	for i := range typ.FieldNames {
-		sb.WriteByte('"')
-		sb.WriteString(typ.PgComposite.ColumnNames[i])
-		sb.WriteByte('"')
-		if i < len(typ.FieldNames)-1 {
-			sb.WriteString(", ")
-		}
-	}
-	sb.WriteString("},")
-
-	// Field decoders.
-	for _, fieldType := range typ.FieldTypes {
-		sb.WriteString("\n")
-		sb.WriteString(strings.Repeat("\t", indent+1)) // indent for method and slice literal
-		switch fieldType := fieldType.(type) {
-		case gotype.CompositeType:
-			tq.appendResultCompositeInit(sb, pkgPath, fieldType, indent+1)
-		case gotype.EnumType:
-			sb.WriteString(NameEnumDecoderFunc(fieldType))
-			sb.WriteString("(),")
-		case gotype.VoidType:
-			// skip
-		default:
-			sb.WriteString("&") // pgx needs pointers to types
-			// TODO: support builtin types and builtin wrappers that use a different
-			// initialization syntax.
-			pgType := fieldType.PgType()
-			if pgType == nil || pgType == (pg.VoidType{}) {
-				sb.WriteString("nil,")
-			} else {
-				// We need the pgx variant because it matches the interface expected by
-				// newCompositeType, pgtype.ValueTranscoder.
-				if decoderType, ok := gotype.FindKnownTypePgx(pgType.OID()); ok {
-					fieldType = decoderType
-				}
-				sb.WriteString(fieldType.QualifyRel(pkgPath))
-				sb.WriteString("{},")
-			}
-		}
-	}
-	sb.WriteString("\n")
-	sb.WriteString(strings.Repeat("\t", indent))
-	sb.WriteString(")")
-	if indent > 1 {
-		sb.WriteByte(',') // nested call so add trailing comma
-	}
-}
-
-func (tq TemplatedQuery) appendResultArrayComposite(
-	sb *strings.Builder,
-	arr gotype.ArrayType,
-	elemVarName string,
-) {
-	sb.WriteString(`pgtype.NewArrayType("`)
-	sb.WriteString(arr.PgArray.Name)
-	sb.WriteString(`", ignoredOID, func() pgtype.ValueTranscoder {`)
-	sb.WriteString("\n\t\t")
-	sb.WriteString("return ")
-	sb.WriteString(elemVarName)
-	sb.WriteString(".NewTypeValue().(*pgtype.CompositeType)\n\t")
-	sb.WriteString("})")
 }
 
 // EmitResultAssigns writes all the assign statements after scanning the result

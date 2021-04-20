@@ -155,21 +155,7 @@ func (q *DBQuerier) Nested3(ctx context.Context) ([]Qux, error) {
 	}
 	defer rows.Close()
 	items := []Qux{}
-	quxRow := newCompositeType(
-		"qux",
-		[]string{"inv_item", "foo"},
-		newCompositeType(
-			"inventory_item",
-			[]string{"item_name", "sku"},
-			&pgtype.Text{},
-			newCompositeType(
-				"sku",
-				[]string{"sku_id"},
-				&pgtype.Text{},
-			),
-		),
-		&pgtype.Int8{},
-	)
+	quxRow := newQuxDecoder()
 	for rows.Next() {
 		var item Qux
 		if err := rows.Scan(quxRow); err != nil {
@@ -199,21 +185,7 @@ func (q *DBQuerier) Nested3Scan(results pgx.BatchResults) ([]Qux, error) {
 	}
 	defer rows.Close()
 	items := []Qux{}
-	quxRow := newCompositeType(
-		"qux",
-		[]string{"inv_item", "foo"},
-		newCompositeType(
-			"inventory_item",
-			[]string{"item_name", "sku"},
-			&pgtype.Text{},
-			newCompositeType(
-				"sku",
-				[]string{"sku_id"},
-				&pgtype.Text{},
-			),
-		),
-		&pgtype.Int8{},
-	)
+	quxRow := newQuxDecoder()
 	for rows.Next() {
 		var item Qux
 		if err := rows.Scan(quxRow); err != nil {

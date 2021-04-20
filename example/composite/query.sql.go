@@ -171,16 +171,7 @@ func (q *DBQuerier) SearchScreenshots(ctx context.Context, params SearchScreensh
 	}
 	defer rows.Close()
 	items := []SearchScreenshotsRow{}
-	blocksRow := newCompositeType(
-		"blocks",
-		[]string{"id", "screenshot_id", "body"},
-		&pgtype.Int4{},
-		&pgtype.Int8{},
-		&pgtype.Text{},
-	)
-	blocksArray := pgtype.NewArrayType("_blocks", ignoredOID, func() pgtype.ValueTranscoder {
-		return blocksRow.NewTypeValue().(*pgtype.CompositeType)
-	})
+	blocksArray := newBlocksArrayDecoder()
 	for rows.Next() {
 		var item SearchScreenshotsRow
 		if err := rows.Scan(&item.ID, blocksArray); err != nil {
@@ -210,16 +201,7 @@ func (q *DBQuerier) SearchScreenshotsScan(results pgx.BatchResults) ([]SearchScr
 	}
 	defer rows.Close()
 	items := []SearchScreenshotsRow{}
-	blocksRow := newCompositeType(
-		"blocks",
-		[]string{"id", "screenshot_id", "body"},
-		&pgtype.Int4{},
-		&pgtype.Int8{},
-		&pgtype.Text{},
-	)
-	blocksArray := pgtype.NewArrayType("_blocks", ignoredOID, func() pgtype.ValueTranscoder {
-		return blocksRow.NewTypeValue().(*pgtype.CompositeType)
-	})
+	blocksArray := newBlocksArrayDecoder()
 	for rows.Next() {
 		var item SearchScreenshotsRow
 		if err := rows.Scan(&item.ID, blocksArray); err != nil {
@@ -259,16 +241,7 @@ func (q *DBQuerier) SearchScreenshotsOneCol(ctx context.Context, params SearchSc
 	}
 	defer rows.Close()
 	items := [][]Blocks{}
-	blocksRow := newCompositeType(
-		"blocks",
-		[]string{"id", "screenshot_id", "body"},
-		&pgtype.Int4{},
-		&pgtype.Int8{},
-		&pgtype.Text{},
-	)
-	blocksArray := pgtype.NewArrayType("_blocks", ignoredOID, func() pgtype.ValueTranscoder {
-		return blocksRow.NewTypeValue().(*pgtype.CompositeType)
-	})
+	blocksArray := newBlocksArrayDecoder()
 	for rows.Next() {
 		var item []Blocks
 		if err := rows.Scan(blocksArray); err != nil {
@@ -298,16 +271,7 @@ func (q *DBQuerier) SearchScreenshotsOneColScan(results pgx.BatchResults) ([][]B
 	}
 	defer rows.Close()
 	items := [][]Blocks{}
-	blocksRow := newCompositeType(
-		"blocks",
-		[]string{"id", "screenshot_id", "body"},
-		&pgtype.Int4{},
-		&pgtype.Int8{},
-		&pgtype.Text{},
-	)
-	blocksArray := pgtype.NewArrayType("_blocks", ignoredOID, func() pgtype.ValueTranscoder {
-		return blocksRow.NewTypeValue().(*pgtype.CompositeType)
-	})
+	blocksArray := newBlocksArrayDecoder()
 	for rows.Next() {
 		var item []Blocks
 		if err := rows.Scan(blocksArray); err != nil {

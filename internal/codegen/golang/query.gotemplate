@@ -108,7 +108,7 @@ func (q *DBQuerier) {{ $q.Name }}(ctx context.Context {{- $q.EmitParams }}) ({{ 
 {{- if eq $q.ResultKind ":one" }}
 	row := q.conn.QueryRow(ctx, {{ $q.SQLVarName }} {{- $q.EmitParamNames }})
 	{{ $q.EmitResultTypeInit "item" }}
-	{{- $q.EmitResultInits $.PkgPath }}
+	{{- $q.EmitResultDecoders }}
 	if err := row.Scan({{ $q.EmitRowScanArgs }}); err != nil {
 		return {{ $q.EmitResultExpr "item" }}, fmt.Errorf("query {{ $q.Name }}: %w", err)
 	}
@@ -121,7 +121,7 @@ func (q *DBQuerier) {{ $q.Name }}(ctx context.Context {{- $q.EmitParams }}) ({{ 
 	}
 	defer rows.Close()
 	{{ $q.EmitResultTypeInit "items" }}
-	{{- $q.EmitResultInits $.PkgPath }}
+	{{- $q.EmitResultDecoders }}
 	for rows.Next() {
 		var item {{ $q.EmitResultElem }}
 		if err := rows.Scan({{- $q.EmitRowScanArgs -}}); err != nil {
@@ -153,7 +153,7 @@ func (q *DBQuerier) {{.Name}}Scan(results pgx.BatchResults) ({{ $q.EmitResultTyp
 {{- if eq $q.ResultKind ":one" }}
 	row := results.QueryRow()
 	{{ $q.EmitResultTypeInit "item" }}
-	{{- $q.EmitResultInits $.PkgPath }}
+	{{- $q.EmitResultDecoders }}
 	if err := row.Scan({{ $q.EmitRowScanArgs }}); err != nil {
 		return {{ $q.EmitResultExpr "item" }}, fmt.Errorf("scan {{ $q.Name }}Batch row: %w", err)
 	}
@@ -166,7 +166,7 @@ func (q *DBQuerier) {{.Name}}Scan(results pgx.BatchResults) ({{ $q.EmitResultTyp
 	}
 	defer rows.Close()
 	{{ $q.EmitResultTypeInit "items" }}
-	{{- $q.EmitResultInits $.PkgPath }}
+	{{- $q.EmitResultDecoders }}
 	for rows.Next() {
 		var item {{ $q.EmitResultElem }}
 		if err := rows.Scan({{- $q.EmitRowScanArgs -}}); err != nil {
