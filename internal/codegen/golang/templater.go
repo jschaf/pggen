@@ -154,7 +154,7 @@ func (tm Templater) templateFile(file codegen.QueryFile) (TemplatedFile, Declare
 				LowerName: tm.chooseLowerName(input.PgName, "unnamedParam", i, len(query.Inputs)),
 				QualType:  goType.QualifyRel(pkgPath),
 			}
-			ds := FindDeclarers(goType).ListAll()
+			ds := FindInputDeclarers(goType).ListAll()
 			declarers.AddAll(ds...)
 		}
 
@@ -179,7 +179,7 @@ func (tm Templater) templateFile(file codegen.QueryFile) (TemplatedFile, Declare
 				Type:      goType,
 				QualType:  goType.QualifyRel(pkgPath),
 			}
-			ds := FindDeclarers(goType).ListAll()
+			ds := FindOutputDeclarers(goType).ListAll()
 			declarers.AddAll(ds...)
 		}
 

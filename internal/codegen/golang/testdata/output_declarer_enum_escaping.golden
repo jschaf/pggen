@@ -1,0 +1,9 @@
+// Quoting represents the Postgres enum "quoting".
+type Quoting string
+
+const (
+	QuotingUnnamedLabel0 Quoting = "\"\n\t"
+	QuotingUnnamedLabel1 Quoting = "`\"`"
+)
+
+func (q Quoting) String() string { return string(q) }

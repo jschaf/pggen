@@ -14,7 +14,7 @@ import (
 
 var update = flag.Bool("update", false, "update integration tests if true")
 
-func TestFindDeclarer_Declare(t *testing.T) {
+func TestDeclarers(t *testing.T) {
 	caser := casing.NewCaser()
 	caser.AddAcronym("ios", "IOS")
 	emptyPkgPath := ""
@@ -122,9 +122,36 @@ func TestFindDeclarer_Declare(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			golden := "testdata/declarer_" + tt.name + ".golden"
-			decls := FindDeclarers(tt.typ).ListAll()
+		t.Run("input  "+tt.name, func(t *testing.T) {
+			golden := "testdata/input_declarer_" + tt.name + ".golden"
+			decls := FindInputDeclarers(tt.typ).ListAll()
+			sb := &strings.Builder{}
+			for i, decl := range decls {
+				s, err := decl.Declare(tt.pkgPath)
+				if err != nil {
+					t.Fatal(err)
+				}
+				sb.WriteString(s)
+				if i < len(decls)-1 {
+					sb.WriteString("\n\n")
+				}
+			}
+			got := sb.String()
+
+			if *update {
+				err := os.WriteFile(golden, []byte(got), 0644)
+				require.NoError(t, err)
+				return
+			}
+
+			want, err := os.ReadFile(golden)
+			require.NoError(t, err)
+			assert.Equal(t, string(want), got)
+		})
+
+		t.Run("output "+tt.name, func(t *testing.T) {
+			golden := "testdata/output_declarer_" + tt.name + ".golden"
+			decls := FindOutputDeclarers(tt.typ).ListAll()
 			sb := &strings.Builder{}
 			for i, decl := range decls {
 				s, err := decl.Declare(tt.pkgPath)

@@ -42,16 +42,45 @@ func (d DeclarerSet) ListAll() []Declarer {
 	return decls
 }
 
-// FindDeclarers finds all necessary Declarers for a type or nil if no
-// declarers are needed. Composite types might depend on enums or other
-// composite types.
-func FindDeclarers(typ gotype.Type) DeclarerSet {
+// FindInputDeclarers finds all necessary Declarers for types that appear in
+// the input parameters. Returns nil if no declarers are needed.
+func FindInputDeclarers(typ gotype.Type) DeclarerSet {
 	decls := NewDeclarerSet()
-	findDeclsHelper(typ, decls, false)
+	findInputDeclsHelper(typ, decls, false)
+	findOutputDeclsHelper(typ, decls, false) // inputs depend on output transcoders
 	return decls
 }
 
-func findDeclsHelper(typ gotype.Type, decls DeclarerSet, hadCompositeParent bool) {
+func findInputDeclsHelper(typ gotype.Type, decls DeclarerSet, hadCompositeParent bool) {
+	switch typ := typ.(type) {
+	case gotype.CompositeType:
+		decls.AddAll(
+			NewTextEncoderDeclarer(),
+		)
+		for _, childType := range typ.FieldTypes {
+			findInputDeclsHelper(childType, decls, true)
+		}
+
+	case gotype.ArrayType:
+		decls.AddAll(
+			NewTextEncoderDeclarer(),
+		)
+		findInputDeclsHelper(typ.Elem, decls, hadCompositeParent)
+
+	default:
+		return
+	}
+}
+
+// FindOutputDeclarers finds all necessary Declarers for types that appear in
+// the output rows. Returns nil if no declarers are needed.
+func FindOutputDeclarers(typ gotype.Type) DeclarerSet {
+	decls := NewDeclarerSet()
+	findOutputDeclsHelper(typ, decls, false)
+	return decls
+}
+
+func findOutputDeclsHelper(typ gotype.Type, decls DeclarerSet, hadCompositeParent bool) {
 	switch typ := typ.(type) {
 	case gotype.EnumType:
 		decls.AddAll(
@@ -71,7 +100,7 @@ func findDeclsHelper(typ gotype.Type, decls DeclarerSet, hadCompositeParent bool
 			newCompositeTypeDeclarer,
 		)
 		for _, childType := range typ.FieldTypes {
-			findDeclsHelper(childType, decls, true)
+			findOutputDeclsHelper(childType, decls, true)
 		}
 
 	case gotype.ArrayType:
@@ -80,7 +109,7 @@ func findDeclsHelper(typ gotype.Type, decls DeclarerSet, hadCompositeParent bool
 		case gotype.CompositeType, gotype.EnumType:
 			decls.AddAll(NewArrayDecoderDeclarer(typ))
 		}
-		findDeclsHelper(typ.Elem, decls, hadCompositeParent)
+		findOutputDeclsHelper(typ.Elem, decls, hadCompositeParent)
 
 	default:
 		return
