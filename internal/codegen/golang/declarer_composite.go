@@ -11,6 +11,10 @@ func NameCompositeDecoderFunc(typ gotype.CompositeType) string {
 	return "new" + typ.Name + "Decoder"
 }
 
+func NameCompositeEncoderFunc(typ gotype.CompositeType) string {
+	return "encode" + typ.Name
+}
+
 const newCompositeTypeDecl = `func newCompositeType(name string, fieldNames []string, vals ...pgtype.ValueTranscoder) *pgtype.CompositeType {
 	fields := make([]pgtype.CompositeTypeField, len(fieldNames))
 	for i, name := range fieldNames {
@@ -185,6 +189,86 @@ func (c CompositeDecoderDeclarer) Declare(pkgPath string) (string, error) {
 	sb.WriteString("\n\t")
 	sb.WriteString(")")
 	sb.WriteString("\n")
+	sb.WriteString("}")
+	return sb.String(), nil
+}
+
+// CompositeEncoderDeclarer declares a new Go function that creates a pgx
+// Encoder for the Postgres type represented by the gotype.CompositeType.
+//
+// We need a separate encoder because setting a pgtype.ValueTranscoder is much
+// less flexible on the values allowed compared to AssignTo. We can assign a
+// pgtype.CompositeType to any struct but we can only set it with an
+// []interface{}.
+//
+// Additionally, we need to use the Postgres text format exclusively because the
+// Postgres binary format requires the type OID but pggen doesn't necessarily
+// know the OIDs of the types. The text format, however, doesn't require OIDs.
+type CompositeEncoderDeclarer struct {
+	typ gotype.CompositeType
+}
+
+func NewCompositeEncoderDeclarer(typ gotype.CompositeType) CompositeEncoderDeclarer {
+	return CompositeEncoderDeclarer{typ}
+}
+
+func (c CompositeEncoderDeclarer) DedupeKey() string {
+	return "composite_encoder::" + c.typ.Name
+}
+
+func (c CompositeEncoderDeclarer) Declare(string) (string, error) {
+	funcName := NameCompositeEncoderFunc(c.typ)
+	sb := &strings.Builder{}
+	sb.Grow(256)
+
+	// Doc comment
+	sb.WriteString("// ")
+	sb.WriteString(funcName)
+	sb.WriteString(" creates a new encoder for the Postgres '")
+	sb.WriteString(c.typ.PgComposite.Name)
+	sb.WriteString("' composite type query params.\n")
+
+	// Function signature
+	sb.WriteString("func ")
+	sb.WriteString(funcName)
+	sb.WriteString("(p ")
+	sb.WriteString(c.typ.Name)
+	sb.WriteString(") textEncoder {\n\t")
+
+	// Function body
+	sb.WriteString("dec := ")
+	sb.WriteString(NameCompositeDecoderFunc(c.typ))
+	sb.WriteString("()\n\t")
+	sb.WriteString("dec.Set([]interface{}{")
+
+	// Field encoders of the composite type
+	for i, fieldType := range c.typ.FieldTypes {
+		fieldName := c.typ.FieldNames[i]
+		sb.WriteString("\n\t\t")
+		switch fieldType := fieldType.(type) {
+		case gotype.CompositeType:
+			childFuncName := NameCompositeEncoderFunc(fieldType)
+			sb.WriteString(childFuncName)
+			sb.WriteString("(p.")
+			sb.WriteString(fieldName)
+			sb.WriteString(")")
+		case gotype.ArrayType:
+			sb.WriteString(NameArrayEncoderFunc(fieldType))
+			sb.WriteString("(p.")
+			sb.WriteString(fieldName)
+			sb.WriteString(")")
+		case gotype.VoidType:
+			sb.WriteString("nil") // TODO: does this work?
+		default:
+			sb.WriteString("p.")
+			sb.WriteString(fieldName)
+		}
+		sb.WriteString(",")
+	}
+	sb.WriteString("\n\t")
+	sb.WriteString("})")
+	sb.WriteString("\n\t")
+	sb.WriteString("return textEncoder{ValueTranscoder: dec}\n")
 	sb.WriteString("}")
 	return sb.String(), nil
 }

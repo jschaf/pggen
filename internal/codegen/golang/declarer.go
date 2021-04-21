@@ -56,6 +56,7 @@ func findInputDeclsHelper(typ gotype.Type, decls DeclarerSet, hadCompositeParent
 	case gotype.CompositeType:
 		decls.AddAll(
 			NewTextEncoderDeclarer(),
+			NewCompositeEncoderDeclarer(typ),
 		)
 		for _, childType := range typ.FieldTypes {
 			findInputDeclsHelper(childType, decls, true)
@@ -64,6 +65,7 @@ func findInputDeclsHelper(typ gotype.Type, decls DeclarerSet, hadCompositeParent
 	case gotype.ArrayType:
 		decls.AddAll(
 			NewTextEncoderDeclarer(),
+			NewArrayEncoderDeclarer(typ),
 		)
 		findInputDeclsHelper(typ.Elem, decls, hadCompositeParent)
 

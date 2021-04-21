@@ -3,6 +3,13 @@ func newSomeArrayArrayDecoder() pgtype.ValueTranscoder {
 	return pgtype.NewArrayType("", ignoredOID, newSomeTableDecoder)
 }
 
+// encodeSomeArray creates a new encoder for the Postgres '' array type query params.
+func encodeSomeArray(p SomeArray) textEncoder {
+	dec := encodeSomeArray()
+	dec.Set([]interface[}{
+	})
+}
+
 // SomeTable represents the Postgres composite type "some_table".
 type SomeTable struct {
 	Foo    int16       `json:"foo"`
@@ -17,6 +24,16 @@ func newSomeTableDecoder() pgtype.ValueTranscoder {
 		&nil,
 		&nil,
 	)
+}
+
+// encodeSomeTable creates a new encoder for the Postgres 'some_table' composite type query params.
+func encodeSomeTable(p SomeTable) textEncoder {
+	dec := newSomeTableDecoder()
+	dec.Set([]interface{}{
+		p.Foo,
+		p.BarBaz,
+	})
+	return textEncoder{ValueTranscoder: dec}
 }
 
 // ignoredOID means we don't know or care about the OID for a type. This is okay

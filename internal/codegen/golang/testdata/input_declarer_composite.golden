@@ -14,6 +14,16 @@ func newSomeTableDecoder() pgtype.ValueTranscoder {
 	)
 }
 
+// encodeSomeTable creates a new encoder for the Postgres 'some_table' composite type query params.
+func encodeSomeTable(p SomeTable) textEncoder {
+	dec := newSomeTableDecoder()
+	dec.Set([]interface{}{
+		p.Foo,
+		p.BarBaz,
+	})
+	return textEncoder{ValueTranscoder: dec}
+}
+
 // ignoredOID means we don't know or care about the OID for a type. This is okay
 // because pgx only uses the OID to encode values and lookup a decoder. We only
 // use ignoredOID for decoding and we always specify a concrete decoder for scan

@@ -133,21 +133,37 @@ func (tq TemplatedQuery) EmitParamStruct() string {
 // EmitParamNames emits the TemplatedQuery.Inputs into comma separated names
 // for use in a method invocation.
 func (tq TemplatedQuery) EmitParamNames() string {
+	appendParam := func(sb *strings.Builder, typ gotype.Type, name string) {
+		switch typ := typ.(type) {
+		case gotype.CompositeType:
+			sb.WriteString(NameCompositeEncoderFunc(typ))
+			sb.WriteString("(")
+			sb.WriteString(name)
+			sb.WriteString(")")
+		case gotype.ArrayType:
+			sb.WriteString(NameArrayEncoderFunc(typ))
+			sb.WriteString("(")
+			sb.WriteString(name)
+			sb.WriteString(")")
+		default:
+			sb.WriteString(name)
+		}
+	}
 	switch len(tq.Inputs) {
 	case 0:
 		return ""
 	case 1, 2:
-		sb := strings.Builder{}
+		sb := &strings.Builder{}
 		for _, input := range tq.Inputs {
 			sb.WriteString(", ")
-			sb.WriteString(input.LowerName)
+			appendParam(sb, input.Type, input.LowerName)
 		}
 		return sb.String()
 	default:
-		sb := strings.Builder{}
+		sb := &strings.Builder{}
 		for _, input := range tq.Inputs {
-			sb.WriteString(", params.")
-			sb.WriteString(input.UpperName)
+			sb.WriteString(", ")
+			appendParam(sb, input.Type, "params."+input.UpperName)
 		}
 		return sb.String()
 	}
