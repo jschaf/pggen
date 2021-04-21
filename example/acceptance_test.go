@@ -39,6 +39,16 @@ func TestExamples(t *testing.T) {
 			},
 		},
 		{
+			name: "example/complex_params",
+			args: []string{
+				"--schema-glob", "example/complex_params/schema.sql",
+				"--query-glob", "example/complex_params/query.sql",
+				"--go-type", "int8=int",
+				"--go-type", "int4=int",
+				"--go-type", "text=string",
+			},
+		},
+		{
 			name: "example/composite",
 			args: []string{
 				"--schema-glob", "example/composite/schema.sql",
