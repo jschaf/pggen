@@ -3,9 +3,9 @@ func newSomeArrayArrayDecoder() pgtype.ValueTranscoder {
 	return pgtype.NewArrayType("", ignoredOID, newSomeTableDecoder)
 }
 
-// encodeSomeArray creates a new encoder for the Postgres '' array type query params.
-func encodeSomeArray(p SomeArray) textEncoder {
-	dec := encodeSomeArray()
+// newSomeArrayArrayEncoder creates a new encoder for the Postgres '' array type query params.
+func newSomeArrayArrayEncoder(p SomeArray) textEncoder {
+	dec := newSomeArrayArrayEncoder()
 	dec.Set([]interface[}{
 	})
 }
@@ -16,6 +16,16 @@ type SomeTable struct {
 	BarBaz pgtype.Text `json:"bar_baz"`
 }
 
+// assignSomeTableComposite returns all composite fields for the Postgres
+// 'some_table' composite type as a slice of interface{} for use with the
+// pgtype.Value Set method.
+func assignSomeTableComposite(p SomeTable) []interface{} {
+	return []interface{}{
+		p.Foo,
+		p.BarBaz,
+	}
+}
+
 // newSomeTableDecoder creates a new decoder for the Postgres 'some_table' composite type.
 func newSomeTableDecoder() pgtype.ValueTranscoder {
 	return newCompositeType(
@@ -24,16 +34,6 @@ func newSomeTableDecoder() pgtype.ValueTranscoder {
 		&nil,
 		&nil,
 	)
-}
-
-// encodeSomeTable creates a new encoder for the Postgres 'some_table' composite type query params.
-func encodeSomeTable(p SomeTable) textEncoder {
-	dec := newSomeTableDecoder()
-	dec.Set([]interface{}{
-		p.Foo,
-		p.BarBaz,
-	})
-	return textEncoder{ValueTranscoder: dec}
 }
 
 // ignoredOID means we don't know or care about the OID for a type. This is okay

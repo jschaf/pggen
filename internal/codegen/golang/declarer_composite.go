@@ -7,12 +7,27 @@ import (
 	"strings"
 )
 
+// NameCompositeDecoderFunc returns the function name that creates a
+// pgtype.ValueTranscoder for the composite type that's used to decode rows
+// returned by Postgres.
 func NameCompositeDecoderFunc(typ gotype.CompositeType) string {
 	return "new" + typ.Name + "Decoder"
 }
 
+// NameCompositeEncoderFunc returns the function name that creates a textEncoder
+// for the composite type that's used to encode query parameters. This function
+// is only necessary for top-level types. Descendant types use the assigner
+// functions.
 func NameCompositeEncoderFunc(typ gotype.CompositeType) string {
-	return "encode" + typ.Name
+	return "new" + typ.Name + "Encoder"
+}
+
+// NameCompositeAssignerFunc returns the function name that create the
+// []interface{} array for the composite type so that we can use it with a
+// parent encoder function, like NameCompositeEncoderFunc, in the pgtype.Value
+// Set call.
+func NameCompositeAssignerFunc(typ gotype.CompositeType) string {
+	return "assign" + typ.Name + "Composite"
 }
 
 const newCompositeTypeDecl = `func newCompositeType(name string, fieldNames []string, vals ...pgtype.ValueTranscoder) *pgtype.CompositeType {
@@ -247,13 +262,13 @@ func (c CompositeEncoderDeclarer) Declare(string) (string, error) {
 		sb.WriteString("\n\t\t")
 		switch fieldType := fieldType.(type) {
 		case gotype.CompositeType:
-			childFuncName := NameCompositeEncoderFunc(fieldType)
+			childFuncName := NameCompositeAssignerFunc(fieldType)
 			sb.WriteString(childFuncName)
 			sb.WriteString("(p.")
 			sb.WriteString(fieldName)
 			sb.WriteString(")")
 		case gotype.ArrayType:
-			sb.WriteString(NameArrayEncoderFunc(fieldType))
+			sb.WriteString(NameArrayAssignerFunc(fieldType))
 			sb.WriteString("(p.")
 			sb.WriteString(fieldName)
 			sb.WriteString(")")
@@ -269,6 +284,76 @@ func (c CompositeEncoderDeclarer) Declare(string) (string, error) {
 	sb.WriteString("})")
 	sb.WriteString("\n\t")
 	sb.WriteString("return textEncoder{ValueTranscoder: dec}\n")
+	sb.WriteString("}")
+	return sb.String(), nil
+}
+
+// CompositeAssignerDeclarer declares a new Go function that returns all fields
+// as a generic array: []interface{}. Necessary because we can only set
+// pgtype.CompositeType from a []interface{}.
+type CompositeAssignerDeclarer struct {
+	typ gotype.CompositeType
+}
+
+func NewCompositeAssignerDeclarer(typ gotype.CompositeType) CompositeAssignerDeclarer {
+	return CompositeAssignerDeclarer{typ}
+}
+
+func (c CompositeAssignerDeclarer) DedupeKey() string {
+	return "composite_assigner::" + c.typ.Name
+}
+
+func (c CompositeAssignerDeclarer) Declare(string) (string, error) {
+	funcName := NameCompositeAssignerFunc(c.typ)
+	sb := &strings.Builder{}
+	sb.Grow(256)
+
+	// Doc comment
+	sb.WriteString("// ")
+	sb.WriteString(funcName)
+	sb.WriteString(" returns all composite fields for the Postgres\n")
+	sb.WriteString("// '")
+	sb.WriteString(c.typ.PgComposite.Name)
+	sb.WriteString("' composite type as a slice of interface{} for use with the\n")
+	sb.WriteString("// pgtype.Value Set method.\n")
+
+	// Function signature
+	sb.WriteString("func ")
+	sb.WriteString(funcName)
+	sb.WriteString("(p ")
+	sb.WriteString(c.typ.Name)
+	sb.WriteString(") []interface{} {\n\t")
+
+	// Function body
+	sb.WriteString("return []interface{}{")
+
+	// Field Assigners of the composite type
+	for i, fieldType := range c.typ.FieldTypes {
+		fieldName := c.typ.FieldNames[i]
+		sb.WriteString("\n\t\t")
+		switch fieldType := fieldType.(type) {
+		case gotype.CompositeType:
+			childFuncName := NameCompositeAssignerFunc(fieldType)
+			sb.WriteString(childFuncName)
+			sb.WriteString("(p.")
+			sb.WriteString(fieldName)
+			sb.WriteString(")")
+		case gotype.ArrayType:
+			sb.WriteString(NameArrayAssignerFunc(fieldType))
+			sb.WriteString("(p.")
+			sb.WriteString(fieldName)
+			sb.WriteString(")")
+		case gotype.VoidType:
+			sb.WriteString("nil") // TODO: does this work?
+		default:
+			sb.WriteString("p.")
+			sb.WriteString(fieldName)
+		}
+		sb.WriteString(",")
+	}
+	sb.WriteString("\n\t")
+	sb.WriteString("}")
+	sb.WriteString("\n")
 	sb.WriteString("}")
 	return sb.String(), nil
 }

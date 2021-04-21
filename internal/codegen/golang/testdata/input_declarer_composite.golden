@@ -14,8 +14,8 @@ func newSomeTableDecoder() pgtype.ValueTranscoder {
 	)
 }
 
-// encodeSomeTable creates a new encoder for the Postgres 'some_table' composite type query params.
-func encodeSomeTable(p SomeTable) textEncoder {
+// newSomeTableEncoder creates a new encoder for the Postgres 'some_table' composite type query params.
+func newSomeTableEncoder(p SomeTable) textEncoder {
 	dec := newSomeTableDecoder()
 	dec.Set([]interface{}{
 		p.Foo,

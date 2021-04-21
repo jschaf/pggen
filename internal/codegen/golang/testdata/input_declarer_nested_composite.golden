@@ -9,6 +9,15 @@ type SomeTable struct {
 	BarBaz pgtype.Text `json:"bar_baz"`
 }
 
+// assignFooTypeComposite returns all composite fields for the Postgres
+// 'foo_type' composite type as a slice of interface{} for use with the
+// pgtype.Value Set method.
+func assignFooTypeComposite(p FooType) []interface{} {
+	return []interface{}{
+		p.Alpha,
+	}
+}
+
 // newFooTypeDecoder creates a new decoder for the Postgres 'foo_type' composite type.
 func newFooTypeDecoder() pgtype.ValueTranscoder {
 	return newCompositeType(
@@ -28,20 +37,11 @@ func newSomeTableDecoder() pgtype.ValueTranscoder {
 	)
 }
 
-// encodeFooType creates a new encoder for the Postgres 'foo_type' composite type query params.
-func encodeFooType(p FooType) textEncoder {
-	dec := newFooTypeDecoder()
-	dec.Set([]interface{}{
-		p.Alpha,
-	})
-	return textEncoder{ValueTranscoder: dec}
-}
-
-// encodeSomeTable creates a new encoder for the Postgres 'some_table' composite type query params.
-func encodeSomeTable(p SomeTable) textEncoder {
+// newSomeTableEncoder creates a new encoder for the Postgres 'some_table' composite type query params.
+func newSomeTableEncoder(p SomeTable) textEncoder {
 	dec := newSomeTableDecoder()
 	dec.Set([]interface{}{
-		encodeFooType(p.Foo),
+		assignFooTypeComposite(p.Foo),
 		p.BarBaz,
 	})
 	return textEncoder{ValueTranscoder: dec}

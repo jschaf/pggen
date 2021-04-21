@@ -46,28 +46,39 @@ func (d DeclarerSet) ListAll() []Declarer {
 // the input parameters. Returns nil if no declarers are needed.
 func FindInputDeclarers(typ gotype.Type) DeclarerSet {
 	decls := NewDeclarerSet()
-	findInputDeclsHelper(typ, decls, false)
-	findOutputDeclsHelper(typ, decls, false) // inputs depend on output transcoders
+	// Only top level types need the encoder. Descendant types need the assigner.
+	switch typ := typ.(type) {
+	case gotype.CompositeType:
+		decls.AddAll(NewCompositeEncoderDeclarer(typ))
+	case gotype.ArrayType:
+		switch typ.Elem.(type) {
+		case gotype.CompositeType, gotype.EnumType:
+			decls.AddAll(NewArrayEncoderDeclarer(typ))
+		}
+	}
+	findInputDeclsHelper(typ, decls /*isFirst*/, true)
+	// Inputs depend on output transcoders.
+	findOutputDeclsHelper(typ, decls /*hadCompositeParent*/, false)
 	return decls
 }
 
-func findInputDeclsHelper(typ gotype.Type, decls DeclarerSet, hadCompositeParent bool) {
+func findInputDeclsHelper(typ gotype.Type, decls DeclarerSet, isFirst bool) {
 	switch typ := typ.(type) {
 	case gotype.CompositeType:
-		decls.AddAll(
-			NewTextEncoderDeclarer(),
-			NewCompositeEncoderDeclarer(typ),
-		)
+		decls.AddAll(NewTextEncoderDeclarer())
+		if !isFirst {
+			decls.AddAll(NewCompositeAssignerDeclarer(typ))
+		}
 		for _, childType := range typ.FieldTypes {
-			findInputDeclsHelper(childType, decls, true)
+			findInputDeclsHelper(childType, decls, false)
 		}
 
 	case gotype.ArrayType:
-		decls.AddAll(
-			NewTextEncoderDeclarer(),
-			NewArrayEncoderDeclarer(typ),
-		)
-		findInputDeclsHelper(typ.Elem, decls, hadCompositeParent)
+		decls.AddAll(NewTextEncoderDeclarer())
+		if !isFirst {
+			decls.AddAll(NewArrayAssignerDeclarer(typ))
+		}
+		findInputDeclsHelper(typ.Elem, decls, false)
 
 	default:
 		return

@@ -7,12 +7,25 @@ import (
 	"strings"
 )
 
+// NameArrayDecoderFunc returns the function name that creates a
+// pgtype.ValueTranscoder for the array type that's used to decode rows returned
+// by Postgres.
 func NameArrayDecoderFunc(typ gotype.ArrayType) string {
 	return "new" + strings.TrimPrefix(typ.Name, "[]") + "ArrayDecoder"
 }
 
+// NameArrayEncoderFunc returns the function name that creates a textEncoder for
+// the array type that's used to encode query parameters. This function is only
+// necessary for top-level types. Descendant types use the assigner functions.
 func NameArrayEncoderFunc(typ gotype.ArrayType) string {
-	return "encode" + typ.Name
+	return "new" + typ.Name + "ArrayEncoder"
+}
+
+// NameArrayAssignerFunc returns the function name that create the []interface{}
+// array for the array type so that we can use it with a parent encoder
+// function, like NameCompositeEncoderFunc, in the pgtype.Value Set call.
+func NameArrayAssignerFunc(typ gotype.ArrayType) string {
+	return "assign" + typ.Name + "Array"
 }
 
 // ArrayDecoderDeclarer declares a new Go function that creates a pgx
@@ -121,6 +134,50 @@ func (c ArrayEncoderDeclarer) Declare(string) (string, error) {
 	sb.WriteString("\n\t")
 	sb.WriteString("})")
 	sb.WriteString("\n")
+	sb.WriteString("}")
+	return sb.String(), nil
+}
+
+// ArrayAssignerDeclarer declares a new Go function that returns all fields
+// as a generic array: []interface{}. Necessary because we can only set
+// pgtype.ArrayType from a []interface{}.
+type ArrayAssignerDeclarer struct {
+	typ gotype.ArrayType
+}
+
+func NewArrayAssignerDeclarer(typ gotype.ArrayType) ArrayAssignerDeclarer {
+	return ArrayAssignerDeclarer{typ}
+}
+
+func (c ArrayAssignerDeclarer) DedupeKey() string {
+	return "array_assigner::" + c.typ.Name
+}
+
+func (c ArrayAssignerDeclarer) Declare(string) (string, error) {
+	funcName := NameArrayAssignerFunc(c.typ)
+	sb := &strings.Builder{}
+	sb.Grow(256)
+
+	// Doc comment
+	sb.WriteString("// ")
+	sb.WriteString(funcName)
+	sb.WriteString(" returns all elements for the Postgres '")
+	sb.WriteString(c.typ.PgArray.Name)
+	sb.WriteString("' array type as a\n")
+	sb.WriteString("// slice of interface{} for use with the pgtype.Value Set method.\n")
+
+	// Function signature
+	sb.WriteString("func ")
+	sb.WriteString(funcName)
+	sb.WriteString("(ps ")
+	sb.WriteString(c.typ.Name)
+	sb.WriteString(") []interface{} {\n\t")
+
+	// Function body
+	sb.WriteString("elems := make([]interface{}, len(p))\n\t")
+	sb.WriteString("for i, p := range ps {\n\t\t")
+	sb.WriteString("elems[i] = p\n\t")
+	sb.WriteString("}\n")
 	sb.WriteString("}")
 	return sb.String(), nil
 }
