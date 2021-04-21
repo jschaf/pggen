@@ -107,3 +107,18 @@ const ignoredOIDDecl = `// ignoredOID means we don't know or care about the OID 
 const ignoredOID = 0`
 
 var ignoredOIDDeclarer = NewConstantDeclarer("const::ignoredOID", ignoredOIDDecl)
+
+const textEncoderDecl = `// textEncoder wraps a pgtype.ValueTranscoder and sets the preferred encoding
+// format to text instead binary (the default). pggen must use the text format
+// because the Postgres binary format requires the type OID but pggen doesn't 
+// necessarily know the OIDs of the types, hence ignoredOID.
+type textEncoder struct {
+	pgtype.ValueTranscoder
+}
+
+// PreferredParamFormat implements pgtype.ParamFormatPreferrer.
+func (t textEncoder) PreferredParamFormat() int16 { return pgtype.TextFormatCode }`
+
+func NewTextEncoderDeclarer() ConstantDeclarer {
+	return NewConstantDeclarer("const::textEncoder", textEncoderDecl)
+}
