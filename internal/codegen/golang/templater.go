@@ -153,6 +153,7 @@ func (tm Templater) templateFile(file codegen.QueryFile) (TemplatedFile, Declare
 				UpperName: tm.chooseUpperName(input.PgName, "UnnamedParam", i, len(query.Inputs)),
 				LowerName: tm.chooseLowerName(input.PgName, "unnamedParam", i, len(query.Inputs)),
 				QualType:  goType.QualifyRel(pkgPath),
+				Type:      goType,
 			}
 			ds := FindInputDeclarers(goType).ListAll()
 			declarers.AddAll(ds...)

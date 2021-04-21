@@ -46,6 +46,7 @@ type TemplatedParam struct {
 	UpperName string // name of the param in UpperCamelCase, like 'FirstName' from pggen.arg('FirstName')
 	LowerName string // name of the param in lowerCamelCase, like 'firstName' from pggen.arg('FirstName')
 	QualType  string // package-qualified Go type to use for this param
+	Type      gotype.Type
 }
 
 type TemplatedColumn struct {
