@@ -29,6 +29,13 @@ type Querier interface {
 	ParamNested2Batch(batch *pgx.Batch, image ProductImageType)
 	// ParamNested2Scan scans the result of an executed ParamNested2Batch query.
 	ParamNested2Scan(results pgx.BatchResults) (ProductImageType, error)
+
+	ParamNested2Array(ctx context.Context, images []ProductImageType) ([]ProductImageType, error)
+	// ParamNested2ArrayBatch enqueues a ParamNested2Array query into batch to be executed
+	// later by the batch.
+	ParamNested2ArrayBatch(batch *pgx.Batch, images []ProductImageType)
+	// ParamNested2ArrayScan scans the result of an executed ParamNested2ArrayBatch query.
+	ParamNested2ArrayScan(results pgx.BatchResults) ([]ProductImageType, error)
 }
 
 type DBQuerier struct {
@@ -89,7 +96,34 @@ func PrepareAllQueries(ctx context.Context, p preparer) error {
 	if _, err := p.Prepare(ctx, paramNested2SQL, paramNested2SQL); err != nil {
 		return fmt.Errorf("prepare query 'ParamNested2': %w", err)
 	}
+	if _, err := p.Prepare(ctx, paramNested2ArraySQL, paramNested2ArraySQL); err != nil {
+		return fmt.Errorf("prepare query 'ParamNested2Array': %w", err)
+	}
 	return nil
+}
+
+// assignProductImageTypeArray returns all elements for the Postgres '_product_image_type' array type as a
+// slice of interface{} for use with the pgtype.Value Set method.
+func assignProductImageTypeArray(ps []ProductImageType) []interface{} {
+	elems := make([]interface{}, len(ps))
+	for i, p := range ps {
+		elems[i] = assignProductImageTypeComposite(p)
+	}
+	return elems
+}
+
+// newProductImageTypeArrayDecoder creates a new decoder for the Postgres '_product_image_type' array type.
+func newProductImageTypeArrayDecoder() pgtype.ValueTranscoder {
+	return pgtype.NewArrayType("_product_image_type", ignoredOID, newProductImageTypeDecoder)
+}
+
+// newProductImageTypeArrayEncoder creates a new encoder for the Postgres '_product_image_type' array type query params.
+func newProductImageTypeArrayEncoder(ps []ProductImageType) textEncoder {
+	dec := newProductImageTypeArrayDecoder()
+	if err := dec.Set(assignProductImageTypeArray(ps)); err != nil {
+		panic("encode []ProductImageType: " + err.Error()) // should always succeed
+	}
+	return textEncoder{ValueTranscoder: dec}
 }
 
 // Dimensions represents the Postgres composite type "dimensions".
@@ -111,6 +145,16 @@ func assignDimensionsComposite(p Dimensions) []interface{} {
 	return []interface{}{
 		p.Width,
 		p.Height,
+	}
+}
+
+// assignProductImageTypeComposite returns all composite fields for the Postgres
+// 'product_image_type' composite type as a slice of interface{} for use with the
+// pgtype.Value Set method.
+func assignProductImageTypeComposite(p ProductImageType) []interface{} {
+	return []interface{}{
+		p.Source,
+		assignDimensionsComposite(p.Dimensions),
 	}
 }
 
@@ -137,20 +181,18 @@ func newProductImageTypeDecoder() pgtype.ValueTranscoder {
 // newDimensionsEncoder creates a new encoder for the Postgres 'dimensions' composite type query params.
 func newDimensionsEncoder(p Dimensions) textEncoder {
 	dec := newDimensionsDecoder()
-	dec.Set([]interface{}{
-		p.Width,
-		p.Height,
-	})
+	if err := dec.Set(assignDimensionsComposite(p)); err != nil {
+		panic("encode Dimensions: " + err.Error()) // should always succeed
+	}
 	return textEncoder{ValueTranscoder: dec}
 }
 
 // newProductImageTypeEncoder creates a new encoder for the Postgres 'product_image_type' composite type query params.
 func newProductImageTypeEncoder(p ProductImageType) textEncoder {
 	dec := newProductImageTypeDecoder()
-	dec.Set([]interface{}{
-		p.Source,
-		assignDimensionsComposite(p.Dimensions),
-	})
+	if err := dec.Set(assignProductImageTypeComposite(p)); err != nil {
+		panic("encode ProductImageType: " + err.Error()) // should always succeed
+	}
 	return textEncoder{ValueTranscoder: dec}
 }
 
@@ -248,6 +290,41 @@ func (q *DBQuerier) ParamNested2Scan(results pgx.BatchResults) (ProductImageType
 	}
 	if err := productImageTypeRow.AssignTo(&item); err != nil {
 		return item, fmt.Errorf("assign ParamNested2 row: %w", err)
+	}
+	return item, nil
+}
+
+const paramNested2ArraySQL = `SELECT $1::product_image_type[];`
+
+// ParamNested2Array implements Querier.ParamNested2Array.
+func (q *DBQuerier) ParamNested2Array(ctx context.Context, images []ProductImageType) ([]ProductImageType, error) {
+	row := q.conn.QueryRow(ctx, paramNested2ArraySQL, newProductImageTypeArrayEncoder(images))
+	item := []ProductImageType{}
+	productImageTypeArray := newProductImageTypeArrayDecoder()
+	if err := row.Scan(productImageTypeArray); err != nil {
+		return item, fmt.Errorf("query ParamNested2Array: %w", err)
+	}
+	if err := productImageTypeArray.AssignTo(&item); err != nil {
+		return item, fmt.Errorf("assign ParamNested2Array row: %w", err)
+	}
+	return item, nil
+}
+
+// ParamNested2ArrayBatch implements Querier.ParamNested2ArrayBatch.
+func (q *DBQuerier) ParamNested2ArrayBatch(batch *pgx.Batch, images []ProductImageType) {
+	batch.Queue(paramNested2ArraySQL, newProductImageTypeArrayEncoder(images))
+}
+
+// ParamNested2ArrayScan implements Querier.ParamNested2ArrayScan.
+func (q *DBQuerier) ParamNested2ArrayScan(results pgx.BatchResults) ([]ProductImageType, error) {
+	row := results.QueryRow()
+	item := []ProductImageType{}
+	productImageTypeArray := newProductImageTypeArrayDecoder()
+	if err := row.Scan(productImageTypeArray); err != nil {
+		return item, fmt.Errorf("scan ParamNested2ArrayBatch row: %w", err)
+	}
+	if err := productImageTypeArray.AssignTo(&item); err != nil {
+		return item, fmt.Errorf("assign ParamNested2Array row: %w", err)
 	}
 	return item, nil
 }

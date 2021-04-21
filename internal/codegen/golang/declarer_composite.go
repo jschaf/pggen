@@ -1,6 +1,7 @@
 package golang
 
 import (
+	"fmt"
 	"github.com/jschaf/pggen/internal/codegen/golang/gotype"
 	"github.com/jschaf/pggen/internal/pg"
 	"strconv"
@@ -254,35 +255,12 @@ func (c CompositeEncoderDeclarer) Declare(string) (string, error) {
 	sb.WriteString("dec := ")
 	sb.WriteString(NameCompositeDecoderFunc(c.typ))
 	sb.WriteString("()\n\t")
-	sb.WriteString("dec.Set([]interface{}{")
-
-	// Field encoders of the composite type
-	for i, fieldType := range c.typ.FieldTypes {
-		fieldName := c.typ.FieldNames[i]
-		sb.WriteString("\n\t\t")
-		switch fieldType := fieldType.(type) {
-		case gotype.CompositeType:
-			childFuncName := NameCompositeAssignerFunc(fieldType)
-			sb.WriteString(childFuncName)
-			sb.WriteString("(p.")
-			sb.WriteString(fieldName)
-			sb.WriteString(")")
-		case gotype.ArrayType:
-			sb.WriteString(NameArrayAssignerFunc(fieldType))
-			sb.WriteString("(p.")
-			sb.WriteString(fieldName)
-			sb.WriteString(")")
-		case gotype.VoidType:
-			sb.WriteString("nil") // TODO: does this work?
-		default:
-			sb.WriteString("p.")
-			sb.WriteString(fieldName)
-		}
-		sb.WriteString(",")
-	}
-	sb.WriteString("\n\t")
-	sb.WriteString("})")
-	sb.WriteString("\n\t")
+	sb.WriteString("if err := dec.Set(")
+	sb.WriteString(NameCompositeAssignerFunc(c.typ))
+	sb.WriteString("(p)); err != nil {\n\t\t")
+	sb.WriteString(fmt.Sprintf(`panic("encode %s: " + err.Error())`, c.typ.Name))
+	sb.WriteString(" // should always succeed\n\t")
+	sb.WriteString("}\n\t")
 	sb.WriteString("return textEncoder{ValueTranscoder: dec}\n")
 	sb.WriteString("}")
 	return sb.String(), nil

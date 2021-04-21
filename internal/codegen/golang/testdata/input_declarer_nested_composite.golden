@@ -18,6 +18,16 @@ func assignFooTypeComposite(p FooType) []interface{} {
 	}
 }
 
+// assignSomeTableComposite returns all composite fields for the Postgres
+// 'some_table' composite type as a slice of interface{} for use with the
+// pgtype.Value Set method.
+func assignSomeTableComposite(p SomeTable) []interface{} {
+	return []interface{}{
+		assignFooTypeComposite(p.Foo),
+		p.BarBaz,
+	}
+}
+
 // newFooTypeDecoder creates a new decoder for the Postgres 'foo_type' composite type.
 func newFooTypeDecoder() pgtype.ValueTranscoder {
 	return newCompositeType(
@@ -40,10 +50,9 @@ func newSomeTableDecoder() pgtype.ValueTranscoder {
 // newSomeTableEncoder creates a new encoder for the Postgres 'some_table' composite type query params.
 func newSomeTableEncoder(p SomeTable) textEncoder {
 	dec := newSomeTableDecoder()
-	dec.Set([]interface{}{
-		assignFooTypeComposite(p.Foo),
-		p.BarBaz,
-	})
+	if err := dec.Set(assignSomeTableComposite(p)); err != nil {
+		panic("encode SomeTable: " + err.Error()) // should always succeed
+	}
 	return textEncoder{ValueTranscoder: dec}
 }
 

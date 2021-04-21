@@ -3,6 +3,15 @@ type SomeTable struct {
 	Foo DeviceType `json:"foo"`
 }
 
+// assignSomeTableComposite returns all composite fields for the Postgres
+// 'some_table' composite type as a slice of interface{} for use with the
+// pgtype.Value Set method.
+func assignSomeTableComposite(p SomeTable) []interface{} {
+	return []interface{}{
+		p.Foo,
+	}
+}
+
 // newSomeTableDecoder creates a new decoder for the Postgres 'some_table' composite type.
 func newSomeTableDecoder() pgtype.ValueTranscoder {
 	return newCompositeType(
@@ -15,9 +24,9 @@ func newSomeTableDecoder() pgtype.ValueTranscoder {
 // newSomeTableEncoder creates a new encoder for the Postgres 'some_table' composite type query params.
 func newSomeTableEncoder(p SomeTable) textEncoder {
 	dec := newSomeTableDecoder()
-	dec.Set([]interface{}{
-		p.Foo,
-	})
+	if err := dec.Set(assignSomeTableComposite(p)); err != nil {
+		panic("encode SomeTable: " + err.Error()) // should always succeed
+	}
 	return textEncoder{ValueTranscoder: dec}
 }
 

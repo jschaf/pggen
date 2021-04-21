@@ -18,14 +18,14 @@ func NameArrayDecoderFunc(typ gotype.ArrayType) string {
 // the array type that's used to encode query parameters. This function is only
 // necessary for top-level types. Descendant types use the assigner functions.
 func NameArrayEncoderFunc(typ gotype.ArrayType) string {
-	return "new" + typ.Name + "ArrayEncoder"
+	return "new" + strings.TrimPrefix(typ.Name, "[]") + "ArrayEncoder"
 }
 
 // NameArrayAssignerFunc returns the function name that create the []interface{}
 // array for the array type so that we can use it with a parent encoder
 // function, like NameCompositeEncoderFunc, in the pgtype.Value Set call.
 func NameArrayAssignerFunc(typ gotype.ArrayType) string {
-	return "assign" + typ.Name + "Array"
+	return "assign" + strings.TrimPrefix(typ.Name, "[]") + "Array"
 }
 
 // ArrayDecoderDeclarer declares a new Go function that creates a pgx
@@ -119,21 +119,21 @@ func (c ArrayEncoderDeclarer) Declare(string) (string, error) {
 	// Function signature
 	sb.WriteString("func ")
 	sb.WriteString(funcName)
-	sb.WriteString("(p ")
+	sb.WriteString("(ps ")
 	sb.WriteString(c.typ.Name)
 	sb.WriteString(") textEncoder {\n\t")
 
 	// Function body
 	sb.WriteString("dec := ")
-	sb.WriteString(funcName)
+	sb.WriteString(NameArrayDecoderFunc(c.typ))
 	sb.WriteString("()\n\t")
-	sb.WriteString("dec.Set([]interface[}{")
-
-	// TODO: Create interface array containing each element.
-
-	sb.WriteString("\n\t")
-	sb.WriteString("})")
-	sb.WriteString("\n")
+	sb.WriteString("if err := dec.Set(")
+	sb.WriteString(NameArrayAssignerFunc(c.typ))
+	sb.WriteString("(ps)); err != nil {\n\t\t")
+	sb.WriteString(fmt.Sprintf(`panic("encode %s: " + err.Error())`, c.typ.Name))
+	sb.WriteString(" // should always succeed\n\t")
+	sb.WriteString("}\n\t")
+	sb.WriteString("return textEncoder{ValueTranscoder: dec}\n")
 	sb.WriteString("}")
 	return sb.String(), nil
 }
@@ -174,10 +174,19 @@ func (c ArrayAssignerDeclarer) Declare(string) (string, error) {
 	sb.WriteString(") []interface{} {\n\t")
 
 	// Function body
-	sb.WriteString("elems := make([]interface{}, len(p))\n\t")
+	sb.WriteString("elems := make([]interface{}, len(ps))\n\t")
 	sb.WriteString("for i, p := range ps {\n\t\t")
-	sb.WriteString("elems[i] = p\n\t")
-	sb.WriteString("}\n")
+	sb.WriteString("elems[i] = ")
+	switch elem := c.typ.Elem.(type) {
+	case gotype.CompositeType:
+		sb.WriteString(NameCompositeAssignerFunc(elem))
+		sb.WriteString("(p)")
+	default:
+		sb.WriteString("p")
+	}
+	sb.WriteString("\n\t")
+	sb.WriteString("}\n\t")
+	sb.WriteString("return elems\n")
 	sb.WriteString("}")
 	return sb.String(), nil
 }

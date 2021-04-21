@@ -1,13 +1,25 @@
+// assignSomeArrayArray returns all elements for the Postgres '' array type as a
+// slice of interface{} for use with the pgtype.Value Set method.
+func assignSomeArrayArray(ps SomeArray) []interface{} {
+	elems := make([]interface{}, len(ps))
+	for i, p := range ps {
+		elems[i] = assignSomeTableComposite(p)
+	}
+	return elems
+}
+
 // newSomeArrayArrayDecoder creates a new decoder for the Postgres '' array type.
 func newSomeArrayArrayDecoder() pgtype.ValueTranscoder {
 	return pgtype.NewArrayType("", ignoredOID, newSomeTableDecoder)
 }
 
 // newSomeArrayArrayEncoder creates a new encoder for the Postgres '' array type query params.
-func newSomeArrayArrayEncoder(p SomeArray) textEncoder {
-	dec := newSomeArrayArrayEncoder()
-	dec.Set([]interface[}{
-	})
+func newSomeArrayArrayEncoder(ps SomeArray) textEncoder {
+	dec := newSomeArrayArrayDecoder()
+	if err := dec.Set(assignSomeArrayArray(ps)); err != nil {
+		panic("encode SomeArray: " + err.Error()) // should always succeed
+	}
+	return textEncoder{ValueTranscoder: dec}
 }
 
 // SomeTable represents the Postgres composite type "some_table".
