@@ -148,16 +148,6 @@ type User struct {
 	Name *string `json:"name"`
 }
 
-// newUserDecoder creates a new decoder for the Postgres 'user' composite type.
-func newUserDecoder() pgtype.ValueTranscoder {
-	return newCompositeType(
-		"user",
-		[]string{"id", "name"},
-		&pgtype.Int8{},
-		&pgtype.Text{},
-	)
-}
-
 // ignoredOID means we don't know or care about the OID for a type. This is okay
 // because pgx only uses the OID to encode values and lookup a decoder. We only
 // use ignoredOID for decoding and we always specify a concrete decoder for scan
@@ -187,6 +177,17 @@ func newCompositeType(name string, fieldNames []string, vals ...pgtype.ValueTran
 	// names does not equal the number of ValueTranscoders.
 	rowType, _ := pgtype.NewCompositeTypeValues(name, fields, vals)
 	return rowType
+}
+
+// newUser creates a new pgtype.ValueTranscoder for the Postgres
+// composite type 'user'.
+func newUser() pgtype.ValueTranscoder {
+	return newCompositeType(
+		"user",
+		[]string{"id", "name"},
+		&pgtype.Int8{},
+		&pgtype.Text{},
+	)
 }
 
 const findDevicesByUserSQL = `SELECT
@@ -270,7 +271,7 @@ func (q *DBQuerier) CompositeUser(ctx context.Context) ([]CompositeUserRow, erro
 	}
 	defer rows.Close()
 	items := []CompositeUserRow{}
-	userRow := newUserDecoder()
+	userRow := newUser()
 	for rows.Next() {
 		var item CompositeUserRow
 		if err := rows.Scan(&item.Mac, &item.Type, userRow); err != nil {
@@ -300,7 +301,7 @@ func (q *DBQuerier) CompositeUserScan(results pgx.BatchResults) ([]CompositeUser
 	}
 	defer rows.Close()
 	items := []CompositeUserRow{}
-	userRow := newUserDecoder()
+	userRow := newUser()
 	for rows.Next() {
 		var item CompositeUserRow
 		if err := rows.Scan(&item.Mac, &item.Type, userRow); err != nil {
@@ -323,7 +324,7 @@ const compositeUserOneSQL = `SELECT ROW (15, 'qux')::"user" AS "user";`
 func (q *DBQuerier) CompositeUserOne(ctx context.Context) (User, error) {
 	row := q.conn.QueryRow(ctx, compositeUserOneSQL)
 	var item User
-	userRow := newUserDecoder()
+	userRow := newUser()
 	if err := row.Scan(userRow); err != nil {
 		return item, fmt.Errorf("query CompositeUserOne: %w", err)
 	}
@@ -342,7 +343,7 @@ func (q *DBQuerier) CompositeUserOneBatch(batch *pgx.Batch) {
 func (q *DBQuerier) CompositeUserOneScan(results pgx.BatchResults) (User, error) {
 	row := results.QueryRow()
 	var item User
-	userRow := newUserDecoder()
+	userRow := newUser()
 	if err := row.Scan(userRow); err != nil {
 		return item, fmt.Errorf("scan CompositeUserOneBatch row: %w", err)
 	}
@@ -363,7 +364,7 @@ type CompositeUserOneTwoColsRow struct {
 func (q *DBQuerier) CompositeUserOneTwoCols(ctx context.Context) (CompositeUserOneTwoColsRow, error) {
 	row := q.conn.QueryRow(ctx, compositeUserOneTwoColsSQL)
 	var item CompositeUserOneTwoColsRow
-	userRow := newUserDecoder()
+	userRow := newUser()
 	if err := row.Scan(&item.Num, userRow); err != nil {
 		return item, fmt.Errorf("query CompositeUserOneTwoCols: %w", err)
 	}
@@ -382,7 +383,7 @@ func (q *DBQuerier) CompositeUserOneTwoColsBatch(batch *pgx.Batch) {
 func (q *DBQuerier) CompositeUserOneTwoColsScan(results pgx.BatchResults) (CompositeUserOneTwoColsRow, error) {
 	row := results.QueryRow()
 	var item CompositeUserOneTwoColsRow
-	userRow := newUserDecoder()
+	userRow := newUser()
 	if err := row.Scan(&item.Num, userRow); err != nil {
 		return item, fmt.Errorf("scan CompositeUserOneTwoColsBatch row: %w", err)
 	}
@@ -402,7 +403,7 @@ func (q *DBQuerier) CompositeUserMany(ctx context.Context) ([]User, error) {
 	}
 	defer rows.Close()
 	items := []User{}
-	userRow := newUserDecoder()
+	userRow := newUser()
 	for rows.Next() {
 		var item User
 		if err := rows.Scan(userRow); err != nil {
@@ -432,7 +433,7 @@ func (q *DBQuerier) CompositeUserManyScan(results pgx.BatchResults) ([]User, err
 	}
 	defer rows.Close()
 	items := []User{}
-	userRow := newUserDecoder()
+	userRow := newUser()
 	for rows.Next() {
 		var item User
 		if err := rows.Scan(userRow); err != nil {

@@ -18,40 +18,27 @@ func TestDeclarers(t *testing.T) {
 	caser := casing.NewCaser()
 	caser.AddAcronym("ios", "IOS")
 	emptyPkgPath := ""
+	pgTypeSomeTable := pg.CompositeType{
+		Name:        "some_table",
+		ColumnNames: []string{"foo", "bar_baz"},
+		ColumnTypes: []pg.Type{pg.Int2, pg.Text},
+	}
+	goTypeSomeTable := gotype.CompositeType{
+		PgComposite: pgTypeSomeTable,
+		PkgPath:     "example.com/foo",
+		Pkg:         "foo",
+		Name:        "SomeTable",
+		FieldNames:  []string{"Foo", "BarBaz"},
+		FieldTypes:  []gotype.Type{gotype.Int16, gotype.PgText},
+	}
 	tests := []struct {
 		name    string
 		typ     gotype.Type
 		pkgPath string
 	}{
 		{
-			name: "enum_simple",
-			typ: gotype.NewEnumType(
-				emptyPkgPath,
-				pg.EnumType{Name: "device_type", Labels: []string{"ios", "mobile"}},
-				caser,
-			),
-		},
-		{
-			name: "enum_escaping",
-			typ: gotype.NewEnumType(
-				emptyPkgPath,
-				pg.EnumType{Name: "quoting", Labels: []string{"\"\n\t", "`\"`"}},
-				casing.NewCaser(),
-			),
-		},
-		{
-			name: "composite",
-			typ: gotype.CompositeType{
-				PgComposite: pg.CompositeType{
-					Name:        "some_table",
-					ColumnNames: []string{"foo", "bar_baz"},
-				},
-				PkgPath:    "example.com/foo",
-				Pkg:        "foo",
-				Name:       "SomeTable",
-				FieldNames: []string{"Foo", "BarBaz"},
-				FieldTypes: []gotype.Type{gotype.Int16, gotype.PgText},
-			},
+			name:    "composite",
+			typ:     goTypeSomeTable,
 			pkgPath: "example.com/foo",
 		},
 		{
@@ -60,33 +47,57 @@ func TestDeclarers(t *testing.T) {
 				PkgPath: "example.com/arr",
 				Pkg:     "bar",
 				Name:    "SomeArray",
-				Elem: gotype.CompositeType{
-					PgComposite: pg.CompositeType{Name: "some_table", ColumnNames: []string{"foo", "bar_baz"}},
-					PkgPath:     "example.com/foo",
-					Pkg:         "foo",
-					Name:        "SomeTable",
-					FieldNames:  []string{"Foo", "BarBaz"},
-					FieldTypes:  []gotype.Type{gotype.Int16, gotype.PgText},
+				PgArray: pg.ArrayType{Name: "_some_array", ElemType: pgTypeSomeTable},
+				Elem:    goTypeSomeTable,
+			},
+			pkgPath: "example.com/foo",
+		},
+		{
+			name: "composite_enum",
+			typ: gotype.CompositeType{
+				PgComposite: pg.CompositeType{
+					Name:        "some_table_enum",
+					ColumnNames: []string{"foo", "bar_baz"},
+				},
+				PkgPath:    "example.com/foo",
+				Pkg:        "foo",
+				Name:       "SomeTableEnum",
+				FieldNames: []string{"Foo"},
+				FieldTypes: []gotype.Type{
+					gotype.NewEnumType(
+						emptyPkgPath,
+						pg.EnumType{Name: "device_type", Labels: []string{"ios", "mobile"}},
+						caser,
+					),
 				},
 			},
 			pkgPath: "example.com/foo",
 		},
 		{
-			name: "nested_composite",
+			name: "composite_nested",
 			typ: gotype.CompositeType{
 				PgComposite: pg.CompositeType{
-					Name:        "some_table",
+					Name:        "some_table_nested",
 					ColumnNames: []string{"foo", "bar_baz"},
+					ColumnTypes: []pg.Type{
+						pg.CompositeType{
+							Name:        "foo_type",
+							ColumnNames: []string{"alpha"},
+							ColumnTypes: []pg.Type{pg.Text},
+						},
+						pg.Text,
+					},
 				},
 				PkgPath:    "example.com/foo",
 				Pkg:        "foo",
-				Name:       "SomeTable",
+				Name:       "SomeTableNested",
 				FieldNames: []string{"Foo", "BarBaz"},
 				FieldTypes: []gotype.Type{
 					gotype.CompositeType{
 						PgComposite: pg.CompositeType{
 							Name:        "foo_type",
 							ColumnNames: []string{"alpha"},
+							ColumnTypes: []pg.Type{pg.Text},
 						},
 						PkgPath:    "example.com/foo",
 						Pkg:        "foo",
@@ -100,30 +111,25 @@ func TestDeclarers(t *testing.T) {
 			pkgPath: "example.com/foo",
 		},
 		{
-			name: "composite_enum",
-			typ: gotype.CompositeType{
-				PgComposite: pg.CompositeType{
-					Name:        "some_table",
-					ColumnNames: []string{"foo", "bar_baz"},
-				},
-				PkgPath:    "example.com/foo",
-				Pkg:        "foo",
-				Name:       "SomeTable",
-				FieldNames: []string{"Foo"},
-				FieldTypes: []gotype.Type{
-					gotype.NewEnumType(
-						emptyPkgPath,
-						pg.EnumType{Name: "device_type", Labels: []string{"ios", "mobile"}},
-						caser,
-					),
-				},
-			},
-			pkgPath: "example.com/foo",
+			name: "enum_escaping",
+			typ: gotype.NewEnumType(
+				emptyPkgPath,
+				pg.EnumType{Name: "quoting", Labels: []string{"\"\n\t", "`\"`"}},
+				casing.NewCaser(),
+			),
+		},
+		{
+			name: "enum_simple",
+			typ: gotype.NewEnumType(
+				emptyPkgPath,
+				pg.EnumType{Name: "device_type", Labels: []string{"ios", "mobile"}},
+				caser,
+			),
 		},
 	}
 	for _, tt := range tests {
-		t.Run("input  "+tt.name, func(t *testing.T) {
-			golden := "testdata/input_declarer_" + tt.name + ".golden"
+		t.Run(tt.name+"_input", func(t *testing.T) {
+			golden := "testdata/declarer_" + tt.name + ".input.golden"
 			decls := FindInputDeclarers(tt.typ).ListAll()
 			sb := &strings.Builder{}
 			for i, decl := range decls {
@@ -149,8 +155,8 @@ func TestDeclarers(t *testing.T) {
 			assert.Equal(t, string(want), got)
 		})
 
-		t.Run("output "+tt.name, func(t *testing.T) {
-			golden := "testdata/output_declarer_" + tt.name + ".golden"
+		t.Run(tt.name+"_output", func(t *testing.T) {
+			golden := "testdata/declarer_" + tt.name + ".output.golden"
 			decls := FindOutputDeclarers(tt.typ).ListAll()
 			sb := &strings.Builder{}
 			for i, decl := range decls {

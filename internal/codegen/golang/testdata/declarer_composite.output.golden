@@ -4,16 +4,6 @@ type SomeTable struct {
 	BarBaz pgtype.Text `json:"bar_baz"`
 }
 
-// newSomeTableDecoder creates a new decoder for the Postgres 'some_table' composite type.
-func newSomeTableDecoder() pgtype.ValueTranscoder {
-	return newCompositeType(
-		"some_table",
-		[]string{"foo", "bar_baz"},
-		&nil,
-		&nil,
-	)
-}
-
 // ignoredOID means we don't know or care about the OID for a type. This is okay
 // because pgx only uses the OID to encode values and lookup a decoder. We only
 // use ignoredOID for decoding and we always specify a concrete decoder for scan
@@ -29,4 +19,15 @@ func newCompositeType(name string, fieldNames []string, vals ...pgtype.ValueTran
 	// names does not equal the number of ValueTranscoders.
 	rowType, _ := pgtype.NewCompositeTypeValues(name, fields, vals)
 	return rowType
+}
+
+// newSomeTable creates a new pgtype.ValueTranscoder for the Postgres
+// composite type 'some_table'.
+func newSomeTable() pgtype.ValueTranscoder {
+	return newCompositeType(
+		"some_table",
+		[]string{"foo", "bar_baz"},
+		&pgtype.Int2{},
+		&pgtype.Text{},
+	)
 }

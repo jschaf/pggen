@@ -46,14 +46,21 @@ func (d DeclarerSet) ListAll() []Declarer {
 // the input parameters. Returns nil if no declarers are needed.
 func FindInputDeclarers(typ gotype.Type) DeclarerSet {
 	decls := NewDeclarerSet()
-	// Only top level types need the encoder. Descendant types need the assigner.
+	// Only top level types need the init declarer. Descendant types need the
+	// raw declarer.
 	switch typ := typ.(type) {
 	case gotype.CompositeType:
-		decls.AddAll(NewCompositeEncoderDeclarer(typ))
+		decls.AddAll(
+			NewSetValueDeclarer(),
+			NewCompositeInitDeclarer(typ),
+		)
 	case gotype.ArrayType:
 		switch typ.Elem.(type) {
 		case gotype.CompositeType, gotype.EnumType:
-			decls.AddAll(NewArrayEncoderDeclarer(typ))
+			decls.AddAll(
+				NewSetValueDeclarer(),
+				NewArrayInitDeclarer(typ),
+			)
 		}
 	}
 	findInputDeclsHelper(typ, decls)
@@ -67,7 +74,7 @@ func findInputDeclsHelper(typ gotype.Type, decls DeclarerSet) {
 	case gotype.CompositeType:
 		decls.AddAll(
 			NewTextEncoderDeclarer(),
-			NewCompositeAssignerDeclarer(typ),
+			NewCompositeRawDeclarer(typ),
 		)
 		for _, childType := range typ.FieldTypes {
 			findInputDeclsHelper(childType, decls)
@@ -76,7 +83,7 @@ func findInputDeclsHelper(typ gotype.Type, decls DeclarerSet) {
 	case gotype.ArrayType:
 		decls.AddAll(
 			NewTextEncoderDeclarer(),
-			NewArrayAssignerDeclarer(typ),
+			NewArrayRawDeclarer(typ),
 		)
 		findInputDeclsHelper(typ.Elem, decls)
 
@@ -102,13 +109,13 @@ func findOutputDeclsHelper(typ gotype.Type, decls DeclarerSet, hadCompositeParen
 		if hadCompositeParent {
 			// We can use a string as the decoder except if the enum is part of a
 			// composite type.
-			decls.AddAll(NewEnumDecoderDeclarer(typ))
+			decls.AddAll(NewEnumTranscoderDeclarer(typ))
 		}
 
 	case gotype.CompositeType:
 		decls.AddAll(
 			NewCompositeTypeDeclarer(typ),
-			NewCompositeDecoderDeclarer(typ),
+			NewCompositeTranscoderDeclarer(typ),
 			ignoredOIDDeclarer,
 			newCompositeTypeDeclarer,
 		)
@@ -163,4 +170,17 @@ func (t textEncoder) PreferredParamFormat() int16 { return pgtype.TextFormatCode
 
 func NewTextEncoderDeclarer() ConstantDeclarer {
 	return NewConstantDeclarer("const::textEncoder", textEncoderDecl)
+}
+
+const setValueDecl = `// setValue sets the value of a ValueTranscoder to a value that should always
+// work and panics if it fails.
+func setValue(vt pgtype.ValueTranscoder, val interface{}) pgtype.ValueTranscoder {
+	if err := vt.Set(val); err != nil {
+		panic(fmt.Sprintf("set ValueTranscoder %T to %+v: %s", vt, val, err))
+	}
+	return vt
+}`
+
+func NewSetValueDeclarer() ConstantDeclarer {
+	return NewConstantDeclarer("const::setValue", setValueDecl)
 }

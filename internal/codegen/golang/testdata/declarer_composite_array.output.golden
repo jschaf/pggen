@@ -1,31 +1,7 @@
-// FooType represents the Postgres composite type "foo_type".
-type FooType struct {
-	Alpha pgtype.Text `json:"alpha"`
-}
-
 // SomeTable represents the Postgres composite type "some_table".
 type SomeTable struct {
-	Foo    FooType     `json:"foo"`
+	Foo    int16       `json:"foo"`
 	BarBaz pgtype.Text `json:"bar_baz"`
-}
-
-// newFooTypeDecoder creates a new decoder for the Postgres 'foo_type' composite type.
-func newFooTypeDecoder() pgtype.ValueTranscoder {
-	return newCompositeType(
-		"foo_type",
-		[]string{"alpha"},
-		&nil,
-	)
-}
-
-// newSomeTableDecoder creates a new decoder for the Postgres 'some_table' composite type.
-func newSomeTableDecoder() pgtype.ValueTranscoder {
-	return newCompositeType(
-		"some_table",
-		[]string{"foo", "bar_baz"},
-		newFooTypeDecoder(),
-		&nil,
-	)
 }
 
 // ignoredOID means we don't know or care about the OID for a type. This is okay
@@ -43,4 +19,21 @@ func newCompositeType(name string, fieldNames []string, vals ...pgtype.ValueTran
 	// names does not equal the number of ValueTranscoders.
 	rowType, _ := pgtype.NewCompositeTypeValues(name, fields, vals)
 	return rowType
+}
+
+// newSomeTableArray creates a new pgtype.ValueTranscoder for the Postgres
+// '_some_array' array type.
+func newSomeTableArray() pgtype.ValueTranscoder {
+	return pgtype.NewArrayType("_some_array", ignoredOID, newSomeTable)
+}
+
+// newSomeTable creates a new pgtype.ValueTranscoder for the Postgres
+// composite type 'some_table'.
+func newSomeTable() pgtype.ValueTranscoder {
+	return newCompositeType(
+		"some_table",
+		[]string{"foo", "bar_baz"},
+		&pgtype.Int2{},
+		&pgtype.Text{},
+	)
 }

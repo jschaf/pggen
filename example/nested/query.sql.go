@@ -92,11 +92,6 @@ func PrepareAllQueries(ctx context.Context, p preparer) error {
 	return nil
 }
 
-// newProductImageTypeArrayDecoder creates a new decoder for the Postgres '_product_image_type' array type.
-func newProductImageTypeArrayDecoder() pgtype.ValueTranscoder {
-	return pgtype.NewArrayType("_product_image_type", ignoredOID, newProductImageTypeDecoder)
-}
-
 // Dimensions represents the Postgres composite type "dimensions".
 type Dimensions struct {
 	Width  int `json:"width"`
@@ -116,37 +111,6 @@ type ProductImageType struct {
 	Dimensions Dimensions `json:"dimensions"`
 }
 
-// newDimensionsDecoder creates a new decoder for the Postgres 'dimensions' composite type.
-func newDimensionsDecoder() pgtype.ValueTranscoder {
-	return newCompositeType(
-		"dimensions",
-		[]string{"width", "height"},
-		&pgtype.Int4{},
-		&pgtype.Int4{},
-	)
-}
-
-// newProductImageSetTypeDecoder creates a new decoder for the Postgres 'product_image_set_type' composite type.
-func newProductImageSetTypeDecoder() pgtype.ValueTranscoder {
-	return newCompositeType(
-		"product_image_set_type",
-		[]string{"name", "orig_image", "images"},
-		&pgtype.Text{},
-		newProductImageTypeDecoder(),
-		newProductImageTypeArrayDecoder(),
-	)
-}
-
-// newProductImageTypeDecoder creates a new decoder for the Postgres 'product_image_type' composite type.
-func newProductImageTypeDecoder() pgtype.ValueTranscoder {
-	return newCompositeType(
-		"product_image_type",
-		[]string{"source", "dimensions"},
-		&pgtype.Text{},
-		newDimensionsDecoder(),
-	)
-}
-
 // ignoredOID means we don't know or care about the OID for a type. This is okay
 // because pgx only uses the OID to encode values and lookup a decoder. We only
 // use ignoredOID for decoding and we always specify a concrete decoder for scan
@@ -164,6 +128,46 @@ func newCompositeType(name string, fieldNames []string, vals ...pgtype.ValueTran
 	return rowType
 }
 
+// newProductImageTypeArray creates a new pgtype.ValueTranscoder for the Postgres
+// '_product_image_type' array type.
+func newProductImageTypeArray() pgtype.ValueTranscoder {
+	return pgtype.NewArrayType("_product_image_type", ignoredOID, newProductImageType)
+}
+
+// newDimensions creates a new pgtype.ValueTranscoder for the Postgres
+// composite type 'dimensions'.
+func newDimensions() pgtype.ValueTranscoder {
+	return newCompositeType(
+		"dimensions",
+		[]string{"width", "height"},
+		&pgtype.Int4{},
+		&pgtype.Int4{},
+	)
+}
+
+// newProductImageSetType creates a new pgtype.ValueTranscoder for the Postgres
+// composite type 'product_image_set_type'.
+func newProductImageSetType() pgtype.ValueTranscoder {
+	return newCompositeType(
+		"product_image_set_type",
+		[]string{"name", "orig_image", "images"},
+		&pgtype.Text{},
+		newProductImageType(),
+		newProductImageTypeArray(),
+	)
+}
+
+// newProductImageType creates a new pgtype.ValueTranscoder for the Postgres
+// composite type 'product_image_type'.
+func newProductImageType() pgtype.ValueTranscoder {
+	return newCompositeType(
+		"product_image_type",
+		[]string{"source", "dimensions"},
+		&pgtype.Text{},
+		newDimensions(),
+	)
+}
+
 const arrayNested2SQL = `SELECT
   ARRAY [
     ROW ('img2', ROW (22, 22)::dimensions)::product_image_type,
@@ -174,7 +178,7 @@ const arrayNested2SQL = `SELECT
 func (q *DBQuerier) ArrayNested2(ctx context.Context) ([]ProductImageType, error) {
 	row := q.conn.QueryRow(ctx, arrayNested2SQL)
 	item := []ProductImageType{}
-	imagesArray := newProductImageTypeArrayDecoder()
+	imagesArray := newProductImageTypeArray()
 	if err := row.Scan(imagesArray); err != nil {
 		return item, fmt.Errorf("query ArrayNested2: %w", err)
 	}
@@ -193,7 +197,7 @@ func (q *DBQuerier) ArrayNested2Batch(batch *pgx.Batch) {
 func (q *DBQuerier) ArrayNested2Scan(results pgx.BatchResults) ([]ProductImageType, error) {
 	row := results.QueryRow()
 	item := []ProductImageType{}
-	imagesArray := newProductImageTypeArrayDecoder()
+	imagesArray := newProductImageTypeArray()
 	if err := row.Scan(imagesArray); err != nil {
 		return item, fmt.Errorf("scan ArrayNested2Batch row: %w", err)
 	}
@@ -221,7 +225,7 @@ func (q *DBQuerier) Nested3(ctx context.Context) ([]ProductImageSetType, error) 
 	}
 	defer rows.Close()
 	items := []ProductImageSetType{}
-	rowRow := newProductImageSetTypeDecoder()
+	rowRow := newProductImageSetType()
 	for rows.Next() {
 		var item ProductImageSetType
 		if err := rows.Scan(rowRow); err != nil {
@@ -251,7 +255,7 @@ func (q *DBQuerier) Nested3Scan(results pgx.BatchResults) ([]ProductImageSetType
 	}
 	defer rows.Close()
 	items := []ProductImageSetType{}
-	rowRow := newProductImageSetTypeDecoder()
+	rowRow := newProductImageSetType()
 	for rows.Next() {
 		var item ProductImageSetType
 		if err := rows.Scan(rowRow); err != nil {

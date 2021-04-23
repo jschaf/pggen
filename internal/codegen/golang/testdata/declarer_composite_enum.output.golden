@@ -1,15 +1,6 @@
-// SomeTable represents the Postgres composite type "some_table".
-type SomeTable struct {
+// SomeTableEnum represents the Postgres composite type "some_table_enum".
+type SomeTableEnum struct {
 	Foo DeviceType `json:"foo"`
-}
-
-// newSomeTableDecoder creates a new decoder for the Postgres 'some_table' composite type.
-func newSomeTableDecoder() pgtype.ValueTranscoder {
-	return newCompositeType(
-		"some_table",
-		[]string{"foo"},
-		newDeviceTypeEnumDecoder(),
-	)
 }
 
 // ignoredOID means we don't know or care about the OID for a type. This is okay
@@ -18,8 +9,9 @@ func newSomeTableDecoder() pgtype.ValueTranscoder {
 // methods.
 const ignoredOID = 0
 
-// newDeviceTypeEnumDecoder creates a new decoder for the Postgres 'device_type' enum type.
-func newDeviceTypeEnumDecoder() pgtype.ValueTranscoder {
+// newDeviceTypeEnum creates a new pgtype.ValueTranscoder for the
+// Postgres enum type 'device_type'.
+func newDeviceTypeEnum() pgtype.ValueTranscoder {
 	return pgtype.NewEnumType(
 		"device_type",
 		[]string{
@@ -48,4 +40,14 @@ func newCompositeType(name string, fieldNames []string, vals ...pgtype.ValueTran
 	// names does not equal the number of ValueTranscoders.
 	rowType, _ := pgtype.NewCompositeTypeValues(name, fields, vals)
 	return rowType
+}
+
+// newSomeTableEnum creates a new pgtype.ValueTranscoder for the Postgres
+// composite type 'some_table_enum'.
+func newSomeTableEnum() pgtype.ValueTranscoder {
+	return newCompositeType(
+		"some_table_enum",
+		[]string{"foo"},
+		newDeviceTypeEnum(),
+	)
 }

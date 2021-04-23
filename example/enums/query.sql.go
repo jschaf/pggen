@@ -136,25 +136,10 @@ func PrepareAllQueries(ctx context.Context, p preparer) error {
 	return nil
 }
 
-// newDeviceTypeArrayDecoder creates a new decoder for the Postgres '_device_type' array type.
-func newDeviceTypeArrayDecoder() pgtype.ValueTranscoder {
-	return pgtype.NewArrayType("_device_type", ignoredOID, newDeviceTypeEnumDecoder)
-}
-
 // Device represents the Postgres composite type "device".
 type Device struct {
 	Mac  pgtype.Macaddr `json:"mac"`
 	Type DeviceType     `json:"type"`
-}
-
-// newDeviceDecoder creates a new decoder for the Postgres 'device' composite type.
-func newDeviceDecoder() pgtype.ValueTranscoder {
-	return newCompositeType(
-		"device",
-		[]string{"mac", "type"},
-		&pgtype.Macaddr{},
-		newDeviceTypeEnumDecoder(),
-	)
 }
 
 // ignoredOID means we don't know or care about the OID for a type. This is okay
@@ -163,8 +148,9 @@ func newDeviceDecoder() pgtype.ValueTranscoder {
 // methods.
 const ignoredOID = 0
 
-// newDeviceTypeEnumDecoder creates a new decoder for the Postgres 'device_type' enum type.
-func newDeviceTypeEnumDecoder() pgtype.ValueTranscoder {
+// newDeviceTypeEnum creates a new pgtype.ValueTranscoder for the
+// Postgres enum type 'device_type'.
+func newDeviceTypeEnum() pgtype.ValueTranscoder {
 	return pgtype.NewEnumType(
 		"device_type",
 		[]string{
@@ -201,6 +187,23 @@ func newCompositeType(name string, fieldNames []string, vals ...pgtype.ValueTran
 	// names does not equal the number of ValueTranscoders.
 	rowType, _ := pgtype.NewCompositeTypeValues(name, fields, vals)
 	return rowType
+}
+
+// newDeviceTypeArray creates a new pgtype.ValueTranscoder for the Postgres
+// '_device_type' array type.
+func newDeviceTypeArray() pgtype.ValueTranscoder {
+	return pgtype.NewArrayType("_device_type", ignoredOID, newDeviceTypeEnum)
+}
+
+// newDevice creates a new pgtype.ValueTranscoder for the Postgres
+// composite type 'device'.
+func newDevice() pgtype.ValueTranscoder {
+	return newCompositeType(
+		"device",
+		[]string{"mac", "type"},
+		&pgtype.Macaddr{},
+		newDeviceTypeEnum(),
+	)
 }
 
 const findAllDevicesSQL = `SELECT mac, type
@@ -290,7 +293,7 @@ const findOneDeviceArraySQL = `SELECT enum_range(NULL::device_type) AS device_ty
 func (q *DBQuerier) FindOneDeviceArray(ctx context.Context) ([]DeviceType, error) {
 	row := q.conn.QueryRow(ctx, findOneDeviceArraySQL)
 	item := []DeviceType{}
-	deviceTypesArray := newDeviceTypeArrayDecoder()
+	deviceTypesArray := newDeviceTypeArray()
 	if err := row.Scan(deviceTypesArray); err != nil {
 		return item, fmt.Errorf("query FindOneDeviceArray: %w", err)
 	}
@@ -309,7 +312,7 @@ func (q *DBQuerier) FindOneDeviceArrayBatch(batch *pgx.Batch) {
 func (q *DBQuerier) FindOneDeviceArrayScan(results pgx.BatchResults) ([]DeviceType, error) {
 	row := results.QueryRow()
 	item := []DeviceType{}
-	deviceTypesArray := newDeviceTypeArrayDecoder()
+	deviceTypesArray := newDeviceTypeArray()
 	if err := row.Scan(deviceTypesArray); err != nil {
 		return item, fmt.Errorf("scan FindOneDeviceArrayBatch row: %w", err)
 	}
@@ -331,7 +334,7 @@ func (q *DBQuerier) FindManyDeviceArray(ctx context.Context) ([][]DeviceType, er
 	}
 	defer rows.Close()
 	items := [][]DeviceType{}
-	deviceTypesArray := newDeviceTypeArrayDecoder()
+	deviceTypesArray := newDeviceTypeArray()
 	for rows.Next() {
 		var item []DeviceType
 		if err := rows.Scan(deviceTypesArray); err != nil {
@@ -361,7 +364,7 @@ func (q *DBQuerier) FindManyDeviceArrayScan(results pgx.BatchResults) ([][]Devic
 	}
 	defer rows.Close()
 	items := [][]DeviceType{}
-	deviceTypesArray := newDeviceTypeArrayDecoder()
+	deviceTypesArray := newDeviceTypeArray()
 	for rows.Next() {
 		var item []DeviceType
 		if err := rows.Scan(deviceTypesArray); err != nil {
@@ -395,7 +398,7 @@ func (q *DBQuerier) FindManyDeviceArrayWithNum(ctx context.Context) ([]FindManyD
 	}
 	defer rows.Close()
 	items := []FindManyDeviceArrayWithNumRow{}
-	deviceTypesArray := newDeviceTypeArrayDecoder()
+	deviceTypesArray := newDeviceTypeArray()
 	for rows.Next() {
 		var item FindManyDeviceArrayWithNumRow
 		if err := rows.Scan(&item.Num, deviceTypesArray); err != nil {
@@ -425,7 +428,7 @@ func (q *DBQuerier) FindManyDeviceArrayWithNumScan(results pgx.BatchResults) ([]
 	}
 	defer rows.Close()
 	items := []FindManyDeviceArrayWithNumRow{}
-	deviceTypesArray := newDeviceTypeArrayDecoder()
+	deviceTypesArray := newDeviceTypeArray()
 	for rows.Next() {
 		var item FindManyDeviceArrayWithNumRow
 		if err := rows.Scan(&item.Num, deviceTypesArray); err != nil {
@@ -448,7 +451,7 @@ const enumInsideCompositeSQL = `SELECT ROW('08:00:2b:01:02:03'::macaddr, 'phone'
 func (q *DBQuerier) EnumInsideComposite(ctx context.Context) (Device, error) {
 	row := q.conn.QueryRow(ctx, enumInsideCompositeSQL)
 	var item Device
-	rowRow := newDeviceDecoder()
+	rowRow := newDevice()
 	if err := row.Scan(rowRow); err != nil {
 		return item, fmt.Errorf("query EnumInsideComposite: %w", err)
 	}
@@ -467,7 +470,7 @@ func (q *DBQuerier) EnumInsideCompositeBatch(batch *pgx.Batch) {
 func (q *DBQuerier) EnumInsideCompositeScan(results pgx.BatchResults) (Device, error) {
 	row := results.QueryRow()
 	var item Device
-	rowRow := newDeviceDecoder()
+	rowRow := newDevice()
 	if err := row.Scan(rowRow); err != nil {
 		return item, fmt.Errorf("scan EnumInsideCompositeBatch row: %w", err)
 	}

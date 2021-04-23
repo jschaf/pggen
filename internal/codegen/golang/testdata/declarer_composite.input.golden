@@ -4,40 +4,20 @@ type SomeTable struct {
 	BarBaz pgtype.Text `json:"bar_baz"`
 }
 
-// assignSomeTableComposite returns all composite fields for the Postgres
-// 'some_table' composite type as a slice of interface{} for use with the
-// pgtype.Value Set method.
-func assignSomeTableComposite(p SomeTable) []interface{} {
-	return []interface{}{
-		p.Foo,
-		p.BarBaz,
-	}
-}
-
-// newSomeTableDecoder creates a new decoder for the Postgres 'some_table' composite type.
-func newSomeTableDecoder() pgtype.ValueTranscoder {
-	return newCompositeType(
-		"some_table",
-		[]string{"foo", "bar_baz"},
-		&nil,
-		&nil,
-	)
-}
-
-// newSomeTableEncoder creates a new encoder for the Postgres 'some_table' composite type query params.
-func newSomeTableEncoder(p SomeTable) textEncoder {
-	dec := newSomeTableDecoder()
-	if err := dec.Set(assignSomeTableComposite(p)); err != nil {
-		panic("encode SomeTable: " + err.Error()) // should always succeed
-	}
-	return textEncoder{ValueTranscoder: dec}
-}
-
 // ignoredOID means we don't know or care about the OID for a type. This is okay
 // because pgx only uses the OID to encode values and lookup a decoder. We only
 // use ignoredOID for decoding and we always specify a concrete decoder for scan
 // methods.
 const ignoredOID = 0
+
+// setValue sets the value of a ValueTranscoder to a value that should always
+// work and panics if it fails.
+func setValue(vt pgtype.ValueTranscoder, val interface{}) pgtype.ValueTranscoder {
+	if err := vt.Set(val); err != nil {
+		panic(fmt.Sprintf("set ValueTranscoder %T to %+v: %s", vt, val, err))
+	}
+	return vt
+}
 
 // textEncoder wraps a pgtype.ValueTranscoder and sets the preferred encoding
 // format to text instead binary (the default). pggen must use the text format
@@ -59,4 +39,30 @@ func newCompositeType(name string, fieldNames []string, vals ...pgtype.ValueTran
 	// names does not equal the number of ValueTranscoders.
 	rowType, _ := pgtype.NewCompositeTypeValues(name, fields, vals)
 	return rowType
+}
+
+// newSomeTable creates a new pgtype.ValueTranscoder for the Postgres
+// composite type 'some_table'.
+func newSomeTable() pgtype.ValueTranscoder {
+	return newCompositeType(
+		"some_table",
+		[]string{"foo", "bar_baz"},
+		&pgtype.Int2{},
+		&pgtype.Text{},
+	)
+}
+
+// newSomeTableInit creates an initialized pgtype.ValueTranscoder for the
+// Postgres composite type 'some_table' to encode query parameters.
+func newSomeTableInit(v SomeTable) pgtype.ValueTranscoder {
+	return textEncoder{setValue(newSomeTable(), newSomeTableRaw(v))}
+}
+
+// newSomeTableRaw returns all composite fields for the Postgres composite
+// type 'some_table' as a slice of interface{} to encode query parameters.
+func newSomeTableRaw(v SomeTable) []interface{} {
+	return []interface{}{
+		v.Foo,
+		v.BarBaz,
+	}
 }

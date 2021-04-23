@@ -1,34 +1,33 @@
 package golang
 
 import (
-	"fmt"
 	"github.com/jschaf/pggen/internal/codegen/golang/gotype"
 	"github.com/jschaf/pggen/internal/pg"
 	"strconv"
 	"strings"
 )
 
-// NameCompositeDecoderFunc returns the function name that creates a
+// NameCompositeTranscoderFunc returns the function name that creates a
 // pgtype.ValueTranscoder for the composite type that's used to decode rows
 // returned by Postgres.
-func NameCompositeDecoderFunc(typ gotype.CompositeType) string {
-	return "new" + typ.Name + "Decoder"
+func NameCompositeTranscoderFunc(typ gotype.CompositeType) string {
+	return "new" + typ.Name
 }
 
-// NameCompositeEncoderFunc returns the function name that creates a textEncoder
-// for the composite type that's used to encode query parameters. This function
-// is only necessary for top-level types. Descendant types use the assigner
-// functions.
-func NameCompositeEncoderFunc(typ gotype.CompositeType) string {
-	return "new" + typ.Name + "Encoder"
+// NameCompositeInitFunc returns the name of the function that creates an
+// initialized pgtype.ValueTranscoder for the composite type used as a query
+// parameters. This function is only necessary for top-level types. Descendant
+// types use the raw functions, named by NameCompositeRawFunc.
+func NameCompositeInitFunc(typ gotype.CompositeType) string {
+	return "new" + typ.Name + "Init"
 }
 
-// NameCompositeAssignerFunc returns the function name that create the
+// NameCompositeRawFunc returns the function name that create the
 // []interface{} array for the composite type so that we can use it with a
-// parent encoder function, like NameCompositeEncoderFunc, in the pgtype.Value
+// parent encoder function, like NameCompositeInitFunc, in the pgtype.Value
 // Set call.
-func NameCompositeAssignerFunc(typ gotype.CompositeType) string {
-	return "assign" + typ.Name + "Composite"
+func NameCompositeRawFunc(typ gotype.CompositeType) string {
+	return "new" + typ.Name + "Raw"
 }
 
 const newCompositeTypeDecl = `func newCompositeType(name string, fieldNames []string, vals ...pgtype.ValueTranscoder) *pgtype.CompositeType {
@@ -120,31 +119,32 @@ func getLongestNameTypes(typ gotype.CompositeType, pkgPath string) (int, int) {
 	return nameLen, typeLen
 }
 
-// CompositeDecoderDeclarer declares a new Go function that creates a pgx
+// CompositeTranscoderDeclarer declares a new Go function that creates a pgx
 // decoder for the Postgres type represented by the gotype.CompositeType.
-type CompositeDecoderDeclarer struct {
+type CompositeTranscoderDeclarer struct {
 	typ gotype.CompositeType
 }
 
-func NewCompositeDecoderDeclarer(typ gotype.CompositeType) CompositeDecoderDeclarer {
-	return CompositeDecoderDeclarer{typ}
+func NewCompositeTranscoderDeclarer(typ gotype.CompositeType) CompositeTranscoderDeclarer {
+	return CompositeTranscoderDeclarer{typ}
 }
 
-func (c CompositeDecoderDeclarer) DedupeKey() string {
-	return "composite_decoder::" + c.typ.Name
+func (c CompositeTranscoderDeclarer) DedupeKey() string {
+	return "types_composite::" + c.typ.Name + "_01_transcoder"
 }
 
-func (c CompositeDecoderDeclarer) Declare(pkgPath string) (string, error) {
-	funcName := NameCompositeDecoderFunc(c.typ)
+func (c CompositeTranscoderDeclarer) Declare(pkgPath string) (string, error) {
+	funcName := NameCompositeTranscoderFunc(c.typ)
 	sb := &strings.Builder{}
 	sb.Grow(256)
 
 	// Doc comment
 	sb.WriteString("// ")
 	sb.WriteString(funcName)
-	sb.WriteString(" creates a new decoder for the Postgres '")
+	sb.WriteString(" creates a new pgtype.ValueTranscoder for the Postgres\n")
+	sb.WriteString("// composite type '")
 	sb.WriteString(c.typ.PgComposite.Name)
-	sb.WriteString("' composite type.\n")
+	sb.WriteString("'.\n")
 
 	// Function signature
 	sb.WriteString("func ")
@@ -169,18 +169,18 @@ func (c CompositeDecoderDeclarer) Declare(pkgPath string) (string, error) {
 	sb.WriteString("},")
 
 	// newCompositeType - child decoders
-	for _, fieldType := range c.typ.FieldTypes {
+	for i, fieldType := range c.typ.FieldTypes {
 		sb.WriteString("\n\t\t")
 		switch fieldType := fieldType.(type) {
 		case gotype.CompositeType:
-			childFuncName := NameCompositeDecoderFunc(fieldType)
+			childFuncName := NameCompositeTranscoderFunc(fieldType)
 			sb.WriteString(childFuncName)
 			sb.WriteString("(),")
 		case gotype.EnumType:
-			sb.WriteString(NameEnumDecoderFunc(fieldType))
+			sb.WriteString(NameEnumTranscoderFunc(fieldType))
 			sb.WriteString("(),")
 		case gotype.ArrayType:
-			sb.WriteString(NameArrayDecoderFunc(fieldType))
+			sb.WriteString(NameArrayTranscoderFunc(fieldType))
 			sb.WriteString("(),")
 		case gotype.VoidType:
 			// skip
@@ -188,7 +188,7 @@ func (c CompositeDecoderDeclarer) Declare(pkgPath string) (string, error) {
 			sb.WriteString("&") // pgx needs pointers to types
 			// TODO: support builtin types and builtin wrappers that use a different
 			// initialization syntax.
-			pgType := fieldType.PgType()
+			pgType := c.typ.PgComposite.ColumnTypes[i]
 			if pgType == nil || pgType == (pg.VoidType{}) {
 				sb.WriteString("nil,")
 			} else {
@@ -197,6 +197,7 @@ func (c CompositeDecoderDeclarer) Declare(pkgPath string) (string, error) {
 				if decoderType, ok := gotype.FindKnownTypePgx(pgType.OID()); ok {
 					fieldType = decoderType
 				}
+
 				sb.WriteString(fieldType.QualifyRel(pkgPath))
 				sb.WriteString("{},")
 			}
@@ -209,8 +210,9 @@ func (c CompositeDecoderDeclarer) Declare(pkgPath string) (string, error) {
 	return sb.String(), nil
 }
 
-// CompositeEncoderDeclarer declares a new Go function that creates a pgx
-// Encoder for the Postgres type represented by the gotype.CompositeType.
+// CompositeInitDeclarer declares a new Go function that creates an initialized
+// pgtype.ValueTranscoder for the Postgres type represented by the
+// gotype.CompositeType.
 //
 // We need a separate encoder because setting a pgtype.ValueTranscoder is much
 // less flexible on the values allowed compared to AssignTo. We can assign a
@@ -220,85 +222,83 @@ func (c CompositeDecoderDeclarer) Declare(pkgPath string) (string, error) {
 // Additionally, we need to use the Postgres text format exclusively because the
 // Postgres binary format requires the type OID but pggen doesn't necessarily
 // know the OIDs of the types. The text format, however, doesn't require OIDs.
-type CompositeEncoderDeclarer struct {
+type CompositeInitDeclarer struct {
 	typ gotype.CompositeType
 }
 
-func NewCompositeEncoderDeclarer(typ gotype.CompositeType) CompositeEncoderDeclarer {
-	return CompositeEncoderDeclarer{typ}
+func NewCompositeInitDeclarer(typ gotype.CompositeType) CompositeInitDeclarer {
+	return CompositeInitDeclarer{typ}
 }
 
-func (c CompositeEncoderDeclarer) DedupeKey() string {
-	return "composite_encoder::" + c.typ.Name
+func (c CompositeInitDeclarer) DedupeKey() string {
+	return "types_composite::" + c.typ.Name + "_02_init"
 }
 
-func (c CompositeEncoderDeclarer) Declare(string) (string, error) {
-	funcName := NameCompositeEncoderFunc(c.typ)
+func (c CompositeInitDeclarer) Declare(string) (string, error) {
+	funcName := NameCompositeInitFunc(c.typ)
 	sb := &strings.Builder{}
 	sb.Grow(256)
 
 	// Doc comment
 	sb.WriteString("// ")
 	sb.WriteString(funcName)
-	sb.WriteString(" creates a new encoder for the Postgres '")
+	sb.WriteString(" creates an initialized pgtype.ValueTranscoder for the\n")
+	sb.WriteString("// Postgres composite type '")
 	sb.WriteString(c.typ.PgComposite.Name)
-	sb.WriteString("' composite type query params.\n")
+	sb.WriteString("' to encode query parameters.\n")
 
 	// Function signature
 	sb.WriteString("func ")
 	sb.WriteString(funcName)
-	sb.WriteString("(p ")
+	sb.WriteString("(v ")
 	sb.WriteString(c.typ.Name)
-	sb.WriteString(") textEncoder {\n\t")
+	sb.WriteString(") pgtype.ValueTranscoder {\n\t")
 
 	// Function body
-	sb.WriteString("dec := ")
-	sb.WriteString(NameCompositeDecoderFunc(c.typ))
-	sb.WriteString("()\n\t")
-	sb.WriteString("if err := dec.Set(")
-	sb.WriteString(NameCompositeAssignerFunc(c.typ))
-	sb.WriteString("(p)); err != nil {\n\t\t")
-	sb.WriteString(fmt.Sprintf(`panic("encode %s: " + err.Error())`, c.typ.Name))
-	sb.WriteString(" // should always succeed\n\t")
-	sb.WriteString("}\n\t")
-	sb.WriteString("return textEncoder{ValueTranscoder: dec}\n")
+	sb.WriteString("return textEncoder{setValue(")
+	sb.WriteString(NameCompositeTranscoderFunc(c.typ))
+	sb.WriteString("(), ")
+	sb.WriteString(NameCompositeRawFunc(c.typ))
+	sb.WriteString("(v))}\n")
 	sb.WriteString("}")
 	return sb.String(), nil
 }
 
-// CompositeAssignerDeclarer declares a new Go function that returns all fields
-// as a generic array: []interface{}. Necessary because we can only set
-// pgtype.CompositeType from a []interface{}.
-type CompositeAssignerDeclarer struct {
+// CompositeRawDeclarer declares a new Go function that returns all fields
+// of a composite type as a generic array: []interface{}. Necessary because we
+// can only set pgtype.CompositeType from a []interface{}.
+//
+// Revisit after https://github.com/jackc/pgtype/pull/100 to see if we can
+// simplify
+type CompositeRawDeclarer struct {
 	typ gotype.CompositeType
 }
 
-func NewCompositeAssignerDeclarer(typ gotype.CompositeType) CompositeAssignerDeclarer {
-	return CompositeAssignerDeclarer{typ}
+func NewCompositeRawDeclarer(typ gotype.CompositeType) CompositeRawDeclarer {
+	return CompositeRawDeclarer{typ}
 }
 
-func (c CompositeAssignerDeclarer) DedupeKey() string {
-	return "composite_assigner::" + c.typ.Name
+func (c CompositeRawDeclarer) DedupeKey() string {
+	return "types_composite::" + c.typ.Name + "_03_raw"
 }
 
-func (c CompositeAssignerDeclarer) Declare(string) (string, error) {
-	funcName := NameCompositeAssignerFunc(c.typ)
+func (c CompositeRawDeclarer) Declare(string) (string, error) {
+	funcName := NameCompositeRawFunc(c.typ)
 	sb := &strings.Builder{}
 	sb.Grow(256)
 
 	// Doc comment
 	sb.WriteString("// ")
 	sb.WriteString(funcName)
-	sb.WriteString(" returns all composite fields for the Postgres\n")
-	sb.WriteString("// '")
+	sb.WriteString(" returns all composite fields for the Postgres composite\n")
+	sb.WriteString("// type '")
 	sb.WriteString(c.typ.PgComposite.Name)
-	sb.WriteString("' composite type as a slice of interface{} for use with the\n")
-	sb.WriteString("// pgtype.Value Set method.\n")
+	sb.WriteString("' as a slice of interface{} to encode query parameters.\n")
 
 	// Function signature
 	sb.WriteString("func ")
 	sb.WriteString(funcName)
-	sb.WriteString("(p ")
+	sb.WriteString("(v ")
 	sb.WriteString(c.typ.Name)
 	sb.WriteString(") []interface{} {\n\t")
 
@@ -311,20 +311,20 @@ func (c CompositeAssignerDeclarer) Declare(string) (string, error) {
 		sb.WriteString("\n\t\t")
 		switch fieldType := fieldType.(type) {
 		case gotype.CompositeType:
-			childFuncName := NameCompositeAssignerFunc(fieldType)
+			childFuncName := NameCompositeRawFunc(fieldType)
 			sb.WriteString(childFuncName)
-			sb.WriteString("(p.")
+			sb.WriteString("(v.")
 			sb.WriteString(fieldName)
 			sb.WriteString(")")
 		case gotype.ArrayType:
-			sb.WriteString(NameArrayAssignerFunc(fieldType))
-			sb.WriteString("(p.")
+			sb.WriteString(NameArrayRawFunc(fieldType))
+			sb.WriteString("(v.")
 			sb.WriteString(fieldName)
 			sb.WriteString(")")
 		case gotype.VoidType:
-			sb.WriteString("nil") // TODO: does this work?
+			sb.WriteString("nil")
 		default:
-			sb.WriteString("p.")
+			sb.WriteString("v.")
 			sb.WriteString(fieldName)
 		}
 		sb.WriteString(",")

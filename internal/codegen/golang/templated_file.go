@@ -136,12 +136,12 @@ func (tq TemplatedQuery) EmitParamNames() string {
 	appendParam := func(sb *strings.Builder, typ gotype.Type, name string) {
 		switch typ := typ.(type) {
 		case gotype.CompositeType:
-			sb.WriteString(NameCompositeEncoderFunc(typ))
+			sb.WriteString(NameCompositeInitFunc(typ))
 			sb.WriteString("(")
 			sb.WriteString(name)
 			sb.WriteString(")")
 		case gotype.ArrayType:
-			sb.WriteString(NameArrayEncoderFunc(typ))
+			sb.WriteString(NameArrayInitFunc(typ))
 			sb.WriteString("(")
 			sb.WriteString(name)
 			sb.WriteString(")")
@@ -287,7 +287,7 @@ func (tq TemplatedQuery) EmitResultDecoders() (string, error) {
 			sb.WriteString(indent)
 			sb.WriteString(out.LowerName)
 			sb.WriteString("Row := ")
-			sb.WriteString(NameCompositeDecoderFunc(typ))
+			sb.WriteString(NameCompositeTranscoderFunc(typ))
 			sb.WriteString("()")
 		case gotype.ArrayType:
 			switch typ.Elem.(type) {
@@ -296,7 +296,7 @@ func (tq TemplatedQuery) EmitResultDecoders() (string, error) {
 				sb.WriteString(indent)
 				sb.WriteString(out.LowerName)
 				sb.WriteString("Array := ")
-				sb.WriteString(NameArrayDecoderFunc(typ))
+				sb.WriteString(NameArrayTranscoderFunc(typ))
 				sb.WriteString("()")
 			}
 		default:

@@ -102,27 +102,11 @@ func PrepareAllQueries(ctx context.Context, p preparer) error {
 	return nil
 }
 
-// newBlocksArrayDecoder creates a new decoder for the Postgres '_blocks' array type.
-func newBlocksArrayDecoder() pgtype.ValueTranscoder {
-	return pgtype.NewArrayType("_blocks", ignoredOID, newBlocksDecoder)
-}
-
 // Blocks represents the Postgres composite type "blocks".
 type Blocks struct {
 	ID           int    `json:"id"`
 	ScreenshotID int    `json:"screenshot_id"`
 	Body         string `json:"body"`
-}
-
-// newBlocksDecoder creates a new decoder for the Postgres 'blocks' composite type.
-func newBlocksDecoder() pgtype.ValueTranscoder {
-	return newCompositeType(
-		"blocks",
-		[]string{"id", "screenshot_id", "body"},
-		&pgtype.Int4{},
-		&pgtype.Int8{},
-		&pgtype.Text{},
-	)
 }
 
 // ignoredOID means we don't know or care about the OID for a type. This is okay
@@ -140,6 +124,24 @@ func newCompositeType(name string, fieldNames []string, vals ...pgtype.ValueTran
 	// names does not equal the number of ValueTranscoders.
 	rowType, _ := pgtype.NewCompositeTypeValues(name, fields, vals)
 	return rowType
+}
+
+// newBlocksArray creates a new pgtype.ValueTranscoder for the Postgres
+// '_blocks' array type.
+func newBlocksArray() pgtype.ValueTranscoder {
+	return pgtype.NewArrayType("_blocks", ignoredOID, newBlocks)
+}
+
+// newBlocks creates a new pgtype.ValueTranscoder for the Postgres
+// composite type 'blocks'.
+func newBlocks() pgtype.ValueTranscoder {
+	return newCompositeType(
+		"blocks",
+		[]string{"id", "screenshot_id", "body"},
+		&pgtype.Int4{},
+		&pgtype.Int8{},
+		&pgtype.Text{},
+	)
 }
 
 const searchScreenshotsSQL = `SELECT
@@ -171,7 +173,7 @@ func (q *DBQuerier) SearchScreenshots(ctx context.Context, params SearchScreensh
 	}
 	defer rows.Close()
 	items := []SearchScreenshotsRow{}
-	blocksArray := newBlocksArrayDecoder()
+	blocksArray := newBlocksArray()
 	for rows.Next() {
 		var item SearchScreenshotsRow
 		if err := rows.Scan(&item.ID, blocksArray); err != nil {
@@ -201,7 +203,7 @@ func (q *DBQuerier) SearchScreenshotsScan(results pgx.BatchResults) ([]SearchScr
 	}
 	defer rows.Close()
 	items := []SearchScreenshotsRow{}
-	blocksArray := newBlocksArrayDecoder()
+	blocksArray := newBlocksArray()
 	for rows.Next() {
 		var item SearchScreenshotsRow
 		if err := rows.Scan(&item.ID, blocksArray); err != nil {
@@ -241,7 +243,7 @@ func (q *DBQuerier) SearchScreenshotsOneCol(ctx context.Context, params SearchSc
 	}
 	defer rows.Close()
 	items := [][]Blocks{}
-	blocksArray := newBlocksArrayDecoder()
+	blocksArray := newBlocksArray()
 	for rows.Next() {
 		var item []Blocks
 		if err := rows.Scan(blocksArray); err != nil {
@@ -271,7 +273,7 @@ func (q *DBQuerier) SearchScreenshotsOneColScan(results pgx.BatchResults) ([][]B
 	}
 	defer rows.Close()
 	items := [][]Blocks{}
-	blocksArray := newBlocksArrayDecoder()
+	blocksArray := newBlocksArray()
 	for rows.Next() {
 		var item []Blocks
 		if err := rows.Scan(blocksArray); err != nil {

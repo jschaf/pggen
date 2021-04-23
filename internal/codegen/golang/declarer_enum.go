@@ -6,8 +6,8 @@ import (
 	"strings"
 )
 
-func NameEnumDecoderFunc(typ gotype.EnumType) string {
-	return "new" + typ.Name + "EnumDecoder"
+func NameEnumTranscoderFunc(typ gotype.EnumType) string {
+	return "new" + typ.Name + "Enum"
 }
 
 // EnumTypeDeclarer declares a new string type and the const values to map to a
@@ -68,30 +68,31 @@ func (e EnumTypeDeclarer) Declare(string) (string, error) {
 	return sb.String(), nil
 }
 
-// EnumDecoderDeclarer declares a new Go function that creates a pgx decoder
+// EnumTranscoderDeclarer declares a new Go function that creates a pgx decoder
 // for the Postgres type represented by the gotype.EnumType.
-type EnumDecoderDeclarer struct {
+type EnumTranscoderDeclarer struct {
 	typ gotype.EnumType
 }
 
-func NewEnumDecoderDeclarer(enum gotype.EnumType) EnumDecoderDeclarer {
-	return EnumDecoderDeclarer{typ: enum}
+func NewEnumTranscoderDeclarer(enum gotype.EnumType) EnumTranscoderDeclarer {
+	return EnumTranscoderDeclarer{typ: enum}
 }
 
-func (e EnumDecoderDeclarer) DedupeKey() string {
+func (e EnumTranscoderDeclarer) DedupeKey() string {
 	return "enum_decoder::" + e.typ.Name
 }
 
-func (e EnumDecoderDeclarer) Declare(string) (string, error) {
+func (e EnumTranscoderDeclarer) Declare(string) (string, error) {
 	sb := &strings.Builder{}
-	funcName := NameEnumDecoderFunc(e.typ)
+	funcName := NameEnumTranscoderFunc(e.typ)
 
 	// Doc comment
 	sb.WriteString("// ")
 	sb.WriteString(funcName)
-	sb.WriteString(" creates a new decoder for the Postgres '")
+	sb.WriteString(" creates a new pgtype.ValueTranscoder for the\n")
+	sb.WriteString("// Postgres enum type '")
 	sb.WriteString(e.typ.PgEnum.Name)
-	sb.WriteString("' enum type.\n")
+	sb.WriteString("'.\n")
 
 	// Function signature
 	sb.WriteString("func ")
