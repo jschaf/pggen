@@ -5,8 +5,8 @@ import (
 	"github.com/jschaf/pggen/internal/pg/pgoid"
 )
 
-// FindKnownTypeNullable returns the native pgx type, like pgtype.Text, if
-// known, for a Postgres OID. If there is no known type, returns nil.
+// FindKnownTypePgx returns the native pgx type, like pgtype.Text, if known, for
+// a Postgres OID. If there is no known type, returns nil.
 func FindKnownTypePgx(oid pgtype.OID) (Type, bool) {
 	typ, ok := knownTypesByOID[oid]
 	return typ.pgNative, ok
