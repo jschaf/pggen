@@ -23,6 +23,13 @@ type Querier interface {
 	// AlphaNestedScan scans the result of an executed AlphaNestedBatch query.
 	AlphaNestedScan(results pgx.BatchResults) (string, error)
 
+	AlphaCompositeArray(ctx context.Context) ([]Alpha, error)
+	// AlphaCompositeArrayBatch enqueues a AlphaCompositeArray query into batch to be executed
+	// later by the batch.
+	AlphaCompositeArrayBatch(batch *pgx.Batch)
+	// AlphaCompositeArrayScan scans the result of an executed AlphaCompositeArrayBatch query.
+	AlphaCompositeArrayScan(results pgx.BatchResults) ([]Alpha, error)
+
 	Alpha(ctx context.Context) (string, error)
 	// AlphaBatch enqueues a Alpha query into batch to be executed
 	// later by the batch.
@@ -108,6 +115,9 @@ func PrepareAllQueries(ctx context.Context, p preparer) error {
 	if _, err := p.Prepare(ctx, alphaNestedSQL, alphaNestedSQL); err != nil {
 		return fmt.Errorf("prepare query 'AlphaNested': %w", err)
 	}
+	if _, err := p.Prepare(ctx, alphaCompositeArraySQL, alphaCompositeArraySQL); err != nil {
+		return fmt.Errorf("prepare query 'AlphaCompositeArray': %w", err)
+	}
 	if _, err := p.Prepare(ctx, alphaSQL, alphaSQL); err != nil {
 		return fmt.Errorf("prepare query 'Alpha': %w", err)
 	}
@@ -115,6 +125,11 @@ func PrepareAllQueries(ctx context.Context, p preparer) error {
 		return fmt.Errorf("prepare query 'Bravo': %w", err)
 	}
 	return nil
+}
+
+// Alpha represents the Postgres composite type "alpha".
+type Alpha struct {
+	Key *string `json:"key"`
 }
 
 // typeResolver looks up the pgtype.ValueTranscoder by Postgres type name.
@@ -152,6 +167,72 @@ func (tr *typeResolver) setValue(vt pgtype.ValueTranscoder, val interface{}) pgt
 	return vt
 }
 
+type compositeField struct {
+	name       string                 // name of the field
+	typeName   string                 // Postgres type name
+	defaultVal pgtype.ValueTranscoder // default value to use
+}
+
+func (tr *typeResolver) newCompositeValue(name string, fields ...compositeField) pgtype.ValueTranscoder {
+	if _, val, ok := tr.findValue(name); ok {
+		return val
+	}
+	fs := make([]pgtype.CompositeTypeField, len(fields))
+	vals := make([]pgtype.ValueTranscoder, len(fields))
+	isBinaryOk := true
+	for i, field := range fields {
+		oid, val, ok := tr.findValue(field.typeName)
+		if !ok {
+			oid = unknownOID
+			val = field.defaultVal
+		}
+		isBinaryOk = isBinaryOk && oid != unknownOID
+		fs[i] = pgtype.CompositeTypeField{Name: field.name, OID: oid}
+		vals[i] = val
+	}
+	// Okay to ignore error because it's only thrown when the number of field
+	// names does not equal the number of ValueTranscoders.
+	typ, _ := pgtype.NewCompositeTypeValues(name, fs, vals)
+	if !isBinaryOk {
+		return textPreferrer{typ, name}
+	}
+	return typ
+}
+
+func (tr *typeResolver) newArrayValue(name, elemName string, defaultVal func() pgtype.ValueTranscoder) pgtype.ValueTranscoder {
+	if _, val, ok := tr.findValue(name); ok {
+		return val
+	}
+	elemOID, elemVal, ok := tr.findValue(elemName)
+	elemValFunc := func() pgtype.ValueTranscoder {
+		return pgtype.NewValue(elemVal).(pgtype.ValueTranscoder)
+	}
+	if !ok {
+		elemOID = unknownOID
+		elemValFunc = defaultVal
+	}
+	typ := pgtype.NewArrayType(name, elemOID, elemValFunc)
+	if elemOID == unknownOID {
+		return textPreferrer{typ, name}
+	}
+	return typ
+}
+
+// newAlpha creates a new pgtype.ValueTranscoder for the Postgres
+// composite type 'alpha'.
+func (tr *typeResolver) newAlpha() pgtype.ValueTranscoder {
+	return tr.newCompositeValue(
+		"alpha",
+		compositeField{"key", "text", &pgtype.Text{}},
+	)
+}
+
+// newAlphaArray creates a new pgtype.ValueTranscoder for the Postgres
+// '_alpha' array type.
+func (tr *typeResolver) newAlphaArray() pgtype.ValueTranscoder {
+	return tr.newArrayValue("_alpha", "alpha", tr.newAlpha)
+}
+
 const alphaNestedSQL = `SELECT 'alpha_nested' as output;`
 
 // AlphaNested implements Querier.AlphaNested.
@@ -175,6 +256,41 @@ func (q *DBQuerier) AlphaNestedScan(results pgx.BatchResults) (string, error) {
 	var item string
 	if err := row.Scan(&item); err != nil {
 		return item, fmt.Errorf("scan AlphaNestedBatch row: %w", err)
+	}
+	return item, nil
+}
+
+const alphaCompositeArraySQL = `SELECT ARRAY[ROW('key')]::alpha[];`
+
+// AlphaCompositeArray implements Querier.AlphaCompositeArray.
+func (q *DBQuerier) AlphaCompositeArray(ctx context.Context) ([]Alpha, error) {
+	row := q.conn.QueryRow(ctx, alphaCompositeArraySQL)
+	item := []Alpha{}
+	arrayArray := q.types.newAlphaArray()
+	if err := row.Scan(arrayArray); err != nil {
+		return item, fmt.Errorf("query AlphaCompositeArray: %w", err)
+	}
+	if err := arrayArray.AssignTo(&item); err != nil {
+		return item, fmt.Errorf("assign AlphaCompositeArray row: %w", err)
+	}
+	return item, nil
+}
+
+// AlphaCompositeArrayBatch implements Querier.AlphaCompositeArrayBatch.
+func (q *DBQuerier) AlphaCompositeArrayBatch(batch *pgx.Batch) {
+	batch.Queue(alphaCompositeArraySQL)
+}
+
+// AlphaCompositeArrayScan implements Querier.AlphaCompositeArrayScan.
+func (q *DBQuerier) AlphaCompositeArrayScan(results pgx.BatchResults) ([]Alpha, error) {
+	row := results.QueryRow()
+	item := []Alpha{}
+	arrayArray := q.types.newAlphaArray()
+	if err := row.Scan(arrayArray); err != nil {
+		return item, fmt.Errorf("scan AlphaCompositeArrayBatch row: %w", err)
+	}
+	if err := arrayArray.AssignTo(&item); err != nil {
+		return item, fmt.Errorf("assign AlphaCompositeArray row: %w", err)
 	}
 	return item, nil
 }

@@ -35,7 +35,7 @@ func NewTemplater(opts TemplaterOpts) Templater {
 // TemplateAll creates query template files for each codegen.QueryFile.
 func (tm Templater) TemplateAll(files []codegen.QueryFile) ([]TemplatedFile, error) {
 	goQueryFiles := make([]TemplatedFile, 0, len(files))
-	var declarers DeclarerSet
+	allDeclarers := NewDeclarerSet()
 
 	// Pick leader file to define common structs and interfaces via Declarer.
 	firstIndex := -1
@@ -50,18 +50,15 @@ func (tm Templater) TemplateAll(files []codegen.QueryFile) ([]TemplatedFile, err
 	for i, queryFile := range files {
 		isLeader := i == firstIndex
 		goFile, decls, err := tm.templateFile(queryFile, isLeader)
-		declarers = decls
 		if err != nil {
 			return nil, fmt.Errorf("template query file %s for go: %w", queryFile.SourcePath, err)
 		}
 		goQueryFiles = append(goQueryFiles, goFile)
-		ds := decls.ListAll()
-		declarers.AddAll(ds...)
+		allDeclarers.AddAll(decls.ListAll()...)
 	}
 
-	if len(declarers) > 0 {
-		goQueryFiles[firstIndex].Declarers = declarers.ListAll()
-	}
+	// Add declarers to leader file.
+	goQueryFiles[firstIndex].Declarers = allDeclarers.ListAll()
 
 	// Remove unneeded pgconn import if possible.
 	for i, file := range goQueryFiles {
