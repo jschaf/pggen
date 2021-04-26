@@ -7,11 +7,10 @@ tl;dr:
 First, read [ARCHITECTURE.md](ARCHITECTURE.md) to get a lay of the land.
 
 ```shell
-# Dependencies
-go get github.com/rakyll/statik
-brew install golangci-lint # macOS only, see below for other OS's
+# Dependencies - see Setup below
 
-# Start a long-lived postgres for integration tests
+# Start a long-lived Postgres server in Docker for integration tests.
+# Connect with "make psql"
 make start 
 
 # Hack
@@ -24,7 +23,7 @@ make lint && make test && make acceptance-test
 
 # Send PR to GitHub. Check that tests and lints passed.
 
-# Stop docker.
+# Stop Postgres server running in Docker.
 make stop
 ```
 
@@ -38,23 +37,14 @@ make stop
     features to control output, prefer that over adding more controls to pggen.
   
 -   Correctness over convenience. Prefer to expose the nitty-gritty details of
-    Postgres instead of providing ergonomic APIs. For example, pggen uses the
-    pgtype structs like `pgtype.Text` instead of `string` for columns that might
-    be null. `pgtext.Text` has a state field that encodes null values.
+    Postgres instead of providing ergonomic APIs.
     
 -   Generated code should look like a human wrote it. The generated code should
-    be near perfect, including formatting. pggen doesn't depend on gofmt.
+    be near perfect, including formatting. pggen output doesn't depend on gofmt.
 
 ## Setup
 
-You need to install 2 dependencies:
-
--   [statik] to embed the Go template into the pggen binary. Once Go 1.16 is
-    released, we'll use the native go:embed command.
-    
-    ```shell
-    go get github.com/rakyll/statik
-    ```
+You need to install 1 dependency:
 
 -   [golangci-lint] to lint the project locally.
 
@@ -72,7 +62,6 @@ You need to install 2 dependencies:
     golangci-lint --version
     ````
 
-[statik]: https://github.com/rakyll/statik
 [golangci-lint]: https://golangci-lint.run/
 
 ## Testing
