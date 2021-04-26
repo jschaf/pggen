@@ -34,7 +34,8 @@ type Querier interface {
 }
 
 type DBQuerier struct {
-	conn genericConn
+	conn  genericConn   // underlying Postgres transport to use
+	types *typeResolver // resolve types by name
 }
 
 var _ Querier = &DBQuerier{}
@@ -61,9 +62,23 @@ type genericConn interface {
 // NewQuerier creates a DBQuerier that implements Querier. conn is typically
 // *pgx.Conn, pgx.Tx, or *pgxpool.Pool.
 func NewQuerier(conn genericConn) *DBQuerier {
-	return &DBQuerier{
-		conn: conn,
-	}
+	return NewQuerierConfig(conn, QuerierConfig{})
+}
+
+type QuerierConfig struct {
+	// DataTypes contains pgtype.Value to use for encoding and decoding instead of
+	// pggen-generated pgtype.ValueTranscoder.
+	//
+	// If OIDs are available for an input parameter type and all of its transative
+	// dependencies, pggen will use the binary encoding format for the input
+	// parameter.
+	DataTypes []pgtype.DataType
+}
+
+// NewQuerierConfig creates a DBQuerier that implements Querier with the given
+// config. conn is typically *pgx.Conn, pgx.Tx, or *pgxpool.Pool.
+func NewQuerierConfig(conn genericConn, cfg QuerierConfig) *DBQuerier {
+	return &DBQuerier{conn: conn, types: newTypeResolver(cfg.DataTypes)}
 }
 
 // WithTx creates a new DBQuerier that uses the transaction to run all queries.
@@ -187,6 +202,35 @@ func (q *DBQuerier) {{.Name}}Scan(results pgx.BatchResults) ({{ $q.EmitResultTyp
 	return cmdTag, err
 {{- end }}
 }
+{{- end -}}
+
+{{- if .IsLeader -}}
+{{- "\n\n" -}}
+// textPreferrer wraps a pgtype.ValueTranscoder and sets the preferred encoding
+// format to text instead binary (the default). pggen uses the text format
+// when the OID is unknownOID because the binary format requires the OID.
+// Typically occurs if the results from QueryAllDataTypes aren't passed to
+// NewQuerierConfig.
+type textPreferrer struct {
+	pgtype.ValueTranscoder
+	typeName string
+}
+
+// PreferredParamFormat implements pgtype.ParamFormatPreferrer.
+func (t textPreferrer) PreferredParamFormat() int16 { return pgtype.TextFormatCode }
+
+func (t textPreferrer) NewTypeValue() pgtype.Value {
+	return textPreferrer{pgtype.NewValue(t.ValueTranscoder).(pgtype.ValueTranscoder), t.typeName}
+}
+
+func (t textPreferrer) TypeName() string {
+	return t.typeName
+}
+
+// unknownOID means we don't know the OID for a type. This is okay for decoding
+// because pgx call DecodeText or DecodeBinary without requiring the OID. For
+// encoding parameters, pggen uses textPreferrer if the OID is unknown.
+const unknownOID = 0
 {{- end -}}
 {{- "\n" -}}
 {{- end -}}

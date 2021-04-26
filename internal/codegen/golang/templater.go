@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"github.com/jschaf/pggen/internal/casing"
 	"github.com/jschaf/pggen/internal/codegen"
-	"github.com/jschaf/pggen/internal/codegen/golang/gotype"
 	"github.com/jschaf/pggen/internal/gomod"
 	"strconv"
 	"strings"
@@ -38,8 +37,19 @@ func (tm Templater) TemplateAll(files []codegen.QueryFile) ([]TemplatedFile, err
 	goQueryFiles := make([]TemplatedFile, 0, len(files))
 	var declarers DeclarerSet
 
-	for _, queryFile := range files {
-		goFile, decls, err := tm.templateFile(queryFile)
+	// Pick leader file to define common structs and interfaces via Declarer.
+	firstIndex := -1
+	firstName := string(unicode.MaxRune)
+	for i, f := range files {
+		if f.SourcePath < firstName {
+			firstIndex = i
+			firstName = f.SourcePath
+		}
+	}
+
+	for i, queryFile := range files {
+		isLeader := i == firstIndex
+		goFile, decls, err := tm.templateFile(queryFile, isLeader)
 		declarers = decls
 		if err != nil {
 			return nil, fmt.Errorf("template query file %s for go: %w", queryFile.SourcePath, err)
@@ -48,17 +58,6 @@ func (tm Templater) TemplateAll(files []codegen.QueryFile) ([]TemplatedFile, err
 		ds := decls.ListAll()
 		declarers.AddAll(ds...)
 	}
-
-	// Pick leader file to define common structs and interfaces via Declarer.
-	firstIndex := -1
-	firstName := string(unicode.MaxRune)
-	for i, goFile := range goQueryFiles {
-		if goFile.SourcePath < firstName {
-			firstIndex = i
-			firstName = goFile.SourcePath
-		}
-	}
-	goQueryFiles[firstIndex].IsLeader = true
 
 	if len(declarers) > 0 {
 		goQueryFiles[firstIndex].Declarers = declarers.ListAll()
@@ -108,11 +107,14 @@ func (tm Templater) TemplateAll(files []codegen.QueryFile) ([]TemplatedFile, err
 // templateFile creates the data needed to build a Go file for a query file.
 // Also returns any declarations needed by this query file. The caller must
 // dedupe declarations.
-func (tm Templater) templateFile(file codegen.QueryFile) (TemplatedFile, DeclarerSet, error) {
+func (tm Templater) templateFile(file codegen.QueryFile, isLeader bool) (TemplatedFile, DeclarerSet, error) {
 	imports := NewImportSet()
 	imports.AddPackage("context")
 	imports.AddPackage("fmt")
 	imports.AddPackage("github.com/jackc/pgconn")
+	if isLeader {
+		imports.AddPackage("github.com/jackc/pgtype")
+	}
 	imports.AddPackage("github.com/jackc/pgx/v4")
 
 	pkgPath := ""
@@ -167,12 +169,6 @@ func (tm Templater) templateFile(file codegen.QueryFile) (TemplatedFile, Declare
 				return TemplatedFile{}, nil, err
 			}
 			imports.AddType(goType)
-			if isCompositeArray(goType) {
-				imports.AddPackage("github.com/jackc/pgtype") // needed for decoder types
-			}
-			if gotype.HasCompositeType(goType) {
-				imports.AddPackage("github.com/jackc/pgtype") // needed for newCompositeType
-			}
 			outputs[i] = TemplatedColumn{
 				PgName:    out.PgName,
 				UpperName: tm.chooseUpperName(out.PgName, "UnnamedColumn", i, len(query.Outputs)),
@@ -201,6 +197,7 @@ func (tm Templater) templateFile(file codegen.QueryFile) (TemplatedFile, Declare
 		SourcePath: file.SourcePath,
 		Queries:    queries,
 		Imports:    imports.SortedPackages(),
+		IsLeader:   isLeader,
 	}, declarers, nil
 }
 
@@ -230,13 +227,4 @@ func (tm Templater) chooseLowerName(pgName string, fallback string, idx int, num
 		suffix = fmt.Sprintf("%2d", idx)
 	}
 	return fallback + suffix
-}
-
-func isCompositeArray(typ gotype.Type) bool {
-	if typ, ok := typ.(gotype.ArrayType); !ok {
-		return false
-	} else if _, ok := typ.Elem.(gotype.CompositeType); !ok {
-		return false
-	}
-	return true
 }

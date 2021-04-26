@@ -15,7 +15,7 @@ require (
 	github.com/gorilla/mux v1.8.0 // indirect
 	github.com/jackc/pgconn v1.8.1
 	github.com/jackc/pgproto3/v2 v2.0.6
-	github.com/jackc/pgtype v1.7.0
+	github.com/jackc/pgtype v1.7.1-0.20210424130834-4380e23ae1c8
 	github.com/jackc/pgx/v4 v4.11.0
 	github.com/moby/term v0.0.0-20201216013528-df9cb8a40635 // indirect
 	github.com/morikuni/aec v1.0.0 // indirect

@@ -3,12 +3,6 @@ type SomeTableEnum struct {
 	Foo DeviceType `json:"foo"`
 }
 
-// ignoredOID means we don't know or care about the OID for a type. This is okay
-// because pgx only uses the OID to encode values and lookup a decoder. We only
-// use ignoredOID for decoding and we always specify a concrete decoder for scan
-// methods.
-const ignoredOID = 0
-
 // newDeviceTypeEnum creates a new pgtype.ValueTranscoder for the
 // Postgres enum type 'device_type'.
 func newDeviceTypeEnum() pgtype.ValueTranscoder {
@@ -31,23 +25,97 @@ const (
 
 func (d DeviceType) String() string { return string(d) }
 
-func newCompositeType(name string, fieldNames []string, vals ...pgtype.ValueTranscoder) *pgtype.CompositeType {
-	fields := make([]pgtype.CompositeTypeField, len(fieldNames))
-	for i, name := range fieldNames {
-		fields[i] = pgtype.CompositeTypeField{Name: name, OID: ignoredOID}
+// typeResolver looks up the pgtype.ValueTranscoder by Postgres type name.
+type typeResolver struct {
+	connInfo *pgtype.ConnInfo // types by Postgres type name
+}
+
+func newTypeResolver(types []pgtype.DataType) *typeResolver {
+	ci := pgtype.NewConnInfo()
+	for _, typ := range types {
+		if txt, ok := typ.Value.(textPreferrer); ok && typ.OID != unknownOID {
+			typ.Value = txt.ValueTranscoder
+		}
+		ci.RegisterDataType(typ)
+	}
+	return &typeResolver{connInfo: ci}
+}
+
+// findValue find the OID, and pgtype.ValueTranscoder for a Postgres type name.
+func (tr *typeResolver) findValue(name string) (uint32, pgtype.ValueTranscoder, bool) {
+	typ, ok := tr.connInfo.DataTypeForName(name)
+	if !ok {
+		return 0, nil, false
+	}
+	v := pgtype.NewValue(typ.Value)
+	return typ.OID, v.(pgtype.ValueTranscoder), true
+}
+
+// setValue sets the value of a ValueTranscoder to a value that should always
+// work and panics if it fails.
+func (tr *typeResolver) setValue(vt pgtype.ValueTranscoder, val interface{}) pgtype.ValueTranscoder {
+	if err := vt.Set(val); err != nil {
+		panic(fmt.Sprintf("set ValueTranscoder %T to %+v: %s", vt, val, err))
+	}
+	return vt
+}
+
+type compositeField struct {
+	name       string                 // name of the field
+	typeName   string                 // Postgres type name
+	defaultVal pgtype.ValueTranscoder // default value to use
+}
+
+func (tr *typeResolver) newCompositeValue(name string, fields ...compositeField) pgtype.ValueTranscoder {
+	if _, val, ok := tr.findValue(name); ok {
+		return val
+	}
+	fs := make([]pgtype.CompositeTypeField, len(fields))
+	vals := make([]pgtype.ValueTranscoder, len(fields))
+	isBinaryOk := true
+	for i, field := range fields {
+		oid, val, ok := tr.findValue(field.typeName)
+		if !ok {
+			oid = unknownOID
+			val = field.defaultVal
+		}
+		isBinaryOk = isBinaryOk && oid != unknownOID
+		fs[i] = pgtype.CompositeTypeField{Name: field.name, OID: oid}
+		vals[i] = val
 	}
 	// Okay to ignore error because it's only thrown when the number of field
 	// names does not equal the number of ValueTranscoders.
-	rowType, _ := pgtype.NewCompositeTypeValues(name, fields, vals)
-	return rowType
+	typ, _ := pgtype.NewCompositeTypeValues(name, fs, vals)
+	if !isBinaryOk {
+		return textPreferrer{typ, name}
+	}
+	return typ
+}
+
+func (tr *typeResolver) newArrayValue(name, elemName string, defaultVal func() pgtype.ValueTranscoder) pgtype.ValueTranscoder {
+	if _, val, ok := tr.findValue(name); ok {
+		return val
+	}
+	elemOID, elemVal, ok := tr.findValue(elemName)
+	elemValFunc := func() pgtype.ValueTranscoder {
+		return pgtype.NewValue(elemVal).(pgtype.ValueTranscoder)
+	}
+	if !ok {
+		elemOID = unknownOID
+		elemValFunc = defaultVal
+	}
+	typ := pgtype.NewArrayType(name, elemOID, elemValFunc)
+	if elemOID == unknownOID {
+		return textPreferrer{typ, name}
+	}
+	return typ
 }
 
 // newSomeTableEnum creates a new pgtype.ValueTranscoder for the Postgres
 // composite type 'some_table_enum'.
-func newSomeTableEnum() pgtype.ValueTranscoder {
-	return newCompositeType(
+func (tr *typeResolver) newSomeTableEnum() pgtype.ValueTranscoder {
+	return tr.newCompositeValue(
 		"some_table_enum",
-		[]string{"foo"},
-		newDeviceTypeEnum(),
+		compositeField{"foo", "some_table_enum", newDeviceTypeEnum()},
 	)
 }

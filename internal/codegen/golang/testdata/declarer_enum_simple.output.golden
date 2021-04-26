@@ -7,3 +7,38 @@ const (
 )
 
 func (d DeviceType) String() string { return string(d) }
+
+// typeResolver looks up the pgtype.ValueTranscoder by Postgres type name.
+type typeResolver struct {
+	connInfo *pgtype.ConnInfo // types by Postgres type name
+}
+
+func newTypeResolver(types []pgtype.DataType) *typeResolver {
+	ci := pgtype.NewConnInfo()
+	for _, typ := range types {
+		if txt, ok := typ.Value.(textPreferrer); ok && typ.OID != unknownOID {
+			typ.Value = txt.ValueTranscoder
+		}
+		ci.RegisterDataType(typ)
+	}
+	return &typeResolver{connInfo: ci}
+}
+
+// findValue find the OID, and pgtype.ValueTranscoder for a Postgres type name.
+func (tr *typeResolver) findValue(name string) (uint32, pgtype.ValueTranscoder, bool) {
+	typ, ok := tr.connInfo.DataTypeForName(name)
+	if !ok {
+		return 0, nil, false
+	}
+	v := pgtype.NewValue(typ.Value)
+	return typ.OID, v.(pgtype.ValueTranscoder), true
+}
+
+// setValue sets the value of a ValueTranscoder to a value that should always
+// work and panics if it fails.
+func (tr *typeResolver) setValue(vt pgtype.ValueTranscoder, val interface{}) pgtype.ValueTranscoder {
+	if err := vt.Set(val); err != nil {
+		panic(fmt.Sprintf("set ValueTranscoder %T to %+v: %s", vt, val, err))
+	}
+	return vt
+}

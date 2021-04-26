@@ -51,18 +51,19 @@ func FindInputDeclarers(typ gotype.Type) DeclarerSet {
 	switch typ := typ.(type) {
 	case gotype.CompositeType:
 		decls.AddAll(
-			NewSetValueDeclarer(),
+			NewTypeResolverDeclarer(),
 			NewCompositeInitDeclarer(typ),
 		)
 	case gotype.ArrayType:
 		switch typ.Elem.(type) {
 		case gotype.CompositeType, gotype.EnumType:
 			decls.AddAll(
-				NewSetValueDeclarer(),
+				NewTypeResolverDeclarer(),
 				NewArrayInitDeclarer(typ),
 			)
 		}
 	}
+	decls.AddAll(NewTypeResolverInitDeclarer()) // always add
 	findInputDeclsHelper(typ, decls)
 	// Inputs depend on output transcoders.
 	findOutputDeclsHelper(typ, decls /*hadCompositeParent*/, false)
@@ -73,7 +74,6 @@ func findInputDeclsHelper(typ gotype.Type, decls DeclarerSet) {
 	switch typ := typ.(type) {
 	case gotype.CompositeType:
 		decls.AddAll(
-			NewTextEncoderDeclarer(),
 			NewCompositeRawDeclarer(typ),
 		)
 		for _, childType := range typ.FieldTypes {
@@ -82,7 +82,6 @@ func findInputDeclsHelper(typ gotype.Type, decls DeclarerSet) {
 
 	case gotype.ArrayType:
 		decls.AddAll(
-			NewTextEncoderDeclarer(),
 			NewArrayRawDeclarer(typ),
 		)
 		findInputDeclsHelper(typ.Elem, decls)
@@ -96,6 +95,7 @@ func findInputDeclsHelper(typ gotype.Type, decls DeclarerSet) {
 // the output rows. Returns nil if no declarers are needed.
 func FindOutputDeclarers(typ gotype.Type) DeclarerSet {
 	decls := NewDeclarerSet()
+	decls.AddAll(NewTypeResolverInitDeclarer()) // always add
 	findOutputDeclsHelper(typ, decls, false)
 	return decls
 }
@@ -116,15 +116,14 @@ func findOutputDeclsHelper(typ gotype.Type, decls DeclarerSet, hadCompositeParen
 		decls.AddAll(
 			NewCompositeTypeDeclarer(typ),
 			NewCompositeTranscoderDeclarer(typ),
-			ignoredOIDDeclarer,
-			newCompositeTypeDeclarer,
+			NewTypeResolverDeclarer(),
 		)
 		for _, childType := range typ.FieldTypes {
 			findOutputDeclsHelper(childType, decls, true)
 		}
 
 	case gotype.ArrayType:
-		decls.AddAll(ignoredOIDDeclarer)
+		decls.AddAll(NewTypeResolverDeclarer())
 		switch typ.Elem.(type) {
 		case gotype.CompositeType, gotype.EnumType:
 			decls.AddAll(NewArrayDecoderDeclarer(typ))
@@ -149,38 +148,98 @@ func NewConstantDeclarer(key, str string) ConstantDeclarer {
 func (c ConstantDeclarer) DedupeKey() string              { return c.key }
 func (c ConstantDeclarer) Declare(string) (string, error) { return c.str, nil }
 
-const ignoredOIDDecl = `// ignoredOID means we don't know or care about the OID for a type. This is okay
-// because pgx only uses the OID to encode values and lookup a decoder. We only
-// use ignoredOID for decoding and we always specify a concrete decoder for scan
-// methods.
-const ignoredOID = 0`
-
-var ignoredOIDDeclarer = NewConstantDeclarer("const::ignoredOID", ignoredOIDDecl)
-
-const textEncoderDecl = `// textEncoder wraps a pgtype.ValueTranscoder and sets the preferred encoding
-// format to text instead binary (the default). pggen must use the text format
-// because the Postgres binary format requires the type OID but pggen doesn't
-// necessarily know the OIDs of the types, hence ignoredOID.
-type textEncoder struct {
-	pgtype.ValueTranscoder
+const typeResolverInitDecl = `// typeResolver looks up the pgtype.ValueTranscoder by Postgres type name.
+type typeResolver struct {
+	connInfo *pgtype.ConnInfo // types by Postgres type name
 }
 
-// PreferredParamFormat implements pgtype.ParamFormatPreferrer.
-func (t textEncoder) PreferredParamFormat() int16 { return pgtype.TextFormatCode }`
-
-func NewTextEncoderDeclarer() ConstantDeclarer {
-	return NewConstantDeclarer("const::textEncoder", textEncoderDecl)
+func newTypeResolver(types []pgtype.DataType) *typeResolver {
+	ci := pgtype.NewConnInfo()
+	for _, typ := range types {
+		if txt, ok := typ.Value.(textPreferrer); ok && typ.OID != unknownOID {
+			typ.Value = txt.ValueTranscoder
+		}
+		ci.RegisterDataType(typ)
+	}
+	return &typeResolver{connInfo: ci}
 }
 
-const setValueDecl = `// setValue sets the value of a ValueTranscoder to a value that should always
+// findValue find the OID, and pgtype.ValueTranscoder for a Postgres type name.
+func (tr *typeResolver) findValue(name string) (uint32, pgtype.ValueTranscoder, bool) {
+	typ, ok := tr.connInfo.DataTypeForName(name)
+	if !ok {
+		return 0, nil, false
+	}
+	v := pgtype.NewValue(typ.Value)
+	return typ.OID, v.(pgtype.ValueTranscoder), true
+}
+
+// setValue sets the value of a ValueTranscoder to a value that should always
 // work and panics if it fails.
-func setValue(vt pgtype.ValueTranscoder, val interface{}) pgtype.ValueTranscoder {
+func (tr *typeResolver) setValue(vt pgtype.ValueTranscoder, val interface{}) pgtype.ValueTranscoder {
 	if err := vt.Set(val); err != nil {
 		panic(fmt.Sprintf("set ValueTranscoder %T to %+v: %s", vt, val, err))
 	}
 	return vt
 }`
 
-func NewSetValueDeclarer() ConstantDeclarer {
-	return NewConstantDeclarer("const::setValue", setValueDecl)
+// NewTypeResolverInitDeclarer declare type resolver init code always needed.
+func NewTypeResolverInitDeclarer() ConstantDeclarer {
+	return NewConstantDeclarer("type_resolver::00_common", typeResolverInitDecl)
+}
+
+const typeResolverBodyDecl = `type compositeField struct {
+	name       string                 // name of the field
+	typeName   string                 // Postgres type name
+	defaultVal pgtype.ValueTranscoder // default value to use
+}
+
+func (tr *typeResolver) newCompositeValue(name string, fields ...compositeField) pgtype.ValueTranscoder {
+	if _, val, ok := tr.findValue(name); ok {
+		return val
+	}
+	fs := make([]pgtype.CompositeTypeField, len(fields))
+	vals := make([]pgtype.ValueTranscoder, len(fields))
+	isBinaryOk := true
+	for i, field := range fields {
+		oid, val, ok := tr.findValue(field.typeName)
+		if !ok {
+			oid = unknownOID
+			val = field.defaultVal
+		}
+		isBinaryOk = isBinaryOk && oid != unknownOID
+		fs[i] = pgtype.CompositeTypeField{Name: field.name, OID: oid}
+		vals[i] = val
+	}
+	// Okay to ignore error because it's only thrown when the number of field
+	// names does not equal the number of ValueTranscoders.
+	typ, _ := pgtype.NewCompositeTypeValues(name, fs, vals)
+	if !isBinaryOk {
+		return textPreferrer{typ, name}
+	}
+	return typ
+}
+
+func (tr *typeResolver) newArrayValue(name, elemName string, defaultVal func() pgtype.ValueTranscoder) pgtype.ValueTranscoder {
+	if _, val, ok := tr.findValue(name); ok {
+		return val
+	}
+	elemOID, elemVal, ok := tr.findValue(elemName)
+	elemValFunc := func() pgtype.ValueTranscoder {
+		return pgtype.NewValue(elemVal).(pgtype.ValueTranscoder)
+	}
+	if !ok {
+		elemOID = unknownOID
+		elemValFunc = defaultVal
+	}
+	typ := pgtype.NewArrayType(name, elemOID, elemValFunc)
+	if elemOID == unknownOID {
+		return textPreferrer{typ, name}
+	}
+	return typ
+}`
+
+// NewTypeResolverDeclarer declares type resolver body code sometimes needed.
+func NewTypeResolverDeclarer() ConstantDeclarer {
+	return NewConstantDeclarer("type_resolver::01_common", typeResolverBodyDecl)
 }

@@ -40,7 +40,7 @@ func NewArrayDecoderDeclarer(typ gotype.ArrayType) ArrayTranscoderDeclarer {
 }
 
 func (a ArrayTranscoderDeclarer) DedupeKey() string {
-	return "types_array::" + a.typ.Name + "_01_transcoder"
+	return "type_resolver::" + a.typ.Name + "_01_transcoder"
 }
 
 func (a ArrayTranscoderDeclarer) Declare(string) (string, error) {
@@ -56,20 +56,21 @@ func (a ArrayTranscoderDeclarer) Declare(string) (string, error) {
 	sb.WriteString("' array type.\n")
 
 	// Function signature
-	sb.WriteString("func ")
+	sb.WriteString("func (tr *typeResolver) ")
 	sb.WriteString(funcName)
 	sb.WriteString("() pgtype.ValueTranscoder {\n\t")
 
-	// NewArrayType call
-	sb.WriteString("return pgtype.NewArrayType(")
+	// newArrayValue call
+	sb.WriteString("return tr.newArrayValue(")
 	sb.WriteString(strconv.Quote(a.typ.PgArray.Name))
 	sb.WriteString(", ")
-	sb.WriteString("ignoredOID")
+	sb.WriteString(strconv.Quote(a.typ.PgArray.ElemType.String()))
 	sb.WriteString(", ")
 
-	// Element decoder
+	// Default element transcoder
 	switch elem := a.typ.Elem.(type) {
 	case gotype.CompositeType:
+		sb.WriteString("tr.")
 		sb.WriteString(NameCompositeTranscoderFunc(elem))
 	case gotype.EnumType:
 		sb.WriteString(NameEnumTranscoderFunc(elem))
@@ -104,7 +105,7 @@ func NewArrayInitDeclarer(typ gotype.ArrayType) ArrayInitDeclarer {
 }
 
 func (a ArrayInitDeclarer) DedupeKey() string {
-	return "types_array::" + a.typ.Name + "_02_init"
+	return "type_resolver::" + a.typ.Name + "_02_init"
 }
 
 func (a ArrayInitDeclarer) Declare(string) (string, error) {
@@ -121,23 +122,25 @@ func (a ArrayInitDeclarer) Declare(string) (string, error) {
 	sb.WriteString("' to encode query parameters.\n")
 
 	// Function signature
-	sb.WriteString("func ")
+	sb.WriteString("func (tr *typeResolver) ")
 	sb.WriteString(funcName)
 	sb.WriteString("(ps ")
 	sb.WriteString(a.typ.Name)
-	sb.WriteString(") textEncoder {\n\t")
+	sb.WriteString(") pgtype.ValueTranscoder {\n\t")
 
 	// Function body
-	sb.WriteString("dec := ")
+	sb.WriteString("dec := tr.")
 	sb.WriteString(NameArrayTranscoderFunc(a.typ))
 	sb.WriteString("()\n\t")
-	sb.WriteString("if err := dec.Set(")
+	sb.WriteString("if err := dec.Set(tr.")
 	sb.WriteString(NameArrayRawFunc(a.typ))
 	sb.WriteString("(ps)); err != nil {\n\t\t")
 	sb.WriteString(fmt.Sprintf(`panic("encode %s: " + err.Error())`, a.typ.Name))
 	sb.WriteString(" // should always succeed\n\t")
 	sb.WriteString("}\n\t")
-	sb.WriteString("return textEncoder{ValueTranscoder: dec}\n")
+	sb.WriteString("return textPreferrer{ValueTranscoder: dec, typeName: ")
+	sb.WriteString(strconv.Quote(a.typ.PgArray.Name))
+	sb.WriteString("}\n")
 	sb.WriteString("}")
 	return sb.String(), nil
 }
@@ -154,7 +157,7 @@ func NewArrayRawDeclarer(typ gotype.ArrayType) ArrayRawDeclarer {
 }
 
 func (a ArrayRawDeclarer) DedupeKey() string {
-	return "types_array::" + a.typ.Name + "_03_raw"
+	return "type_resolver::" + a.typ.Name + "_03_raw"
 }
 
 func (a ArrayRawDeclarer) Declare(string) (string, error) {
@@ -170,7 +173,7 @@ func (a ArrayRawDeclarer) Declare(string) (string, error) {
 	sb.WriteString("'\n// as a slice of interface{} for use with the pgtype.Value Set method.\n")
 
 	// Function signature
-	sb.WriteString("func ")
+	sb.WriteString("func (tr *typeResolver) ")
 	sb.WriteString(funcName)
 	sb.WriteString("(vs ")
 	sb.WriteString(a.typ.Name)
@@ -182,6 +185,7 @@ func (a ArrayRawDeclarer) Declare(string) (string, error) {
 	sb.WriteString("elems[i] = ")
 	switch elem := a.typ.Elem.(type) {
 	case gotype.CompositeType:
+		sb.WriteString("tr.")
 		sb.WriteString(NameCompositeRawFunc(elem))
 		sb.WriteString("(v)")
 	default:

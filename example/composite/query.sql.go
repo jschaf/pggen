@@ -39,7 +39,8 @@ type Querier interface {
 }
 
 type DBQuerier struct {
-	conn genericConn
+	conn  genericConn   // underlying Postgres transport to use
+	types *typeResolver // resolve types by name
 }
 
 var _ Querier = &DBQuerier{}
@@ -66,9 +67,23 @@ type genericConn interface {
 // NewQuerier creates a DBQuerier that implements Querier. conn is typically
 // *pgx.Conn, pgx.Tx, or *pgxpool.Pool.
 func NewQuerier(conn genericConn) *DBQuerier {
-	return &DBQuerier{
-		conn: conn,
-	}
+	return NewQuerierConfig(conn, QuerierConfig{})
+}
+
+type QuerierConfig struct {
+	// DataTypes contains pgtype.Value to use for encoding and decoding instead of
+	// pggen-generated pgtype.ValueTranscoder.
+	//
+	// If OIDs are available for an input parameter type and all of its transative
+	// dependencies, pggen will use the binary encoding format for the input
+	// parameter.
+	DataTypes []pgtype.DataType
+}
+
+// NewQuerierConfig creates a DBQuerier that implements Querier with the given
+// config. conn is typically *pgx.Conn, pgx.Tx, or *pgxpool.Pool.
+func NewQuerierConfig(conn genericConn, cfg QuerierConfig) *DBQuerier {
+	return &DBQuerier{conn: conn, types: newTypeResolver(cfg.DataTypes)}
 }
 
 // WithTx creates a new DBQuerier that uses the transaction to run all queries.
@@ -109,39 +124,107 @@ type Blocks struct {
 	Body         string `json:"body"`
 }
 
-// ignoredOID means we don't know or care about the OID for a type. This is okay
-// because pgx only uses the OID to encode values and lookup a decoder. We only
-// use ignoredOID for decoding and we always specify a concrete decoder for scan
-// methods.
-const ignoredOID = 0
+// typeResolver looks up the pgtype.ValueTranscoder by Postgres type name.
+type typeResolver struct {
+	connInfo *pgtype.ConnInfo // types by Postgres type name
+}
 
-func newCompositeType(name string, fieldNames []string, vals ...pgtype.ValueTranscoder) *pgtype.CompositeType {
-	fields := make([]pgtype.CompositeTypeField, len(fieldNames))
-	for i, name := range fieldNames {
-		fields[i] = pgtype.CompositeTypeField{Name: name, OID: ignoredOID}
+func newTypeResolver(types []pgtype.DataType) *typeResolver {
+	ci := pgtype.NewConnInfo()
+	for _, typ := range types {
+		if txt, ok := typ.Value.(textPreferrer); ok && typ.OID != unknownOID {
+			typ.Value = txt.ValueTranscoder
+		}
+		ci.RegisterDataType(typ)
+	}
+	return &typeResolver{connInfo: ci}
+}
+
+// findValue find the OID, and pgtype.ValueTranscoder for a Postgres type name.
+func (tr *typeResolver) findValue(name string) (uint32, pgtype.ValueTranscoder, bool) {
+	typ, ok := tr.connInfo.DataTypeForName(name)
+	if !ok {
+		return 0, nil, false
+	}
+	v := pgtype.NewValue(typ.Value)
+	return typ.OID, v.(pgtype.ValueTranscoder), true
+}
+
+// setValue sets the value of a ValueTranscoder to a value that should always
+// work and panics if it fails.
+func (tr *typeResolver) setValue(vt pgtype.ValueTranscoder, val interface{}) pgtype.ValueTranscoder {
+	if err := vt.Set(val); err != nil {
+		panic(fmt.Sprintf("set ValueTranscoder %T to %+v: %s", vt, val, err))
+	}
+	return vt
+}
+
+type compositeField struct {
+	name       string                 // name of the field
+	typeName   string                 // Postgres type name
+	defaultVal pgtype.ValueTranscoder // default value to use
+}
+
+func (tr *typeResolver) newCompositeValue(name string, fields ...compositeField) pgtype.ValueTranscoder {
+	if _, val, ok := tr.findValue(name); ok {
+		return val
+	}
+	fs := make([]pgtype.CompositeTypeField, len(fields))
+	vals := make([]pgtype.ValueTranscoder, len(fields))
+	isBinaryOk := true
+	for i, field := range fields {
+		oid, val, ok := tr.findValue(field.typeName)
+		if !ok {
+			oid = unknownOID
+			val = field.defaultVal
+		}
+		isBinaryOk = isBinaryOk && oid != unknownOID
+		fs[i] = pgtype.CompositeTypeField{Name: field.name, OID: oid}
+		vals[i] = val
 	}
 	// Okay to ignore error because it's only thrown when the number of field
 	// names does not equal the number of ValueTranscoders.
-	rowType, _ := pgtype.NewCompositeTypeValues(name, fields, vals)
-	return rowType
+	typ, _ := pgtype.NewCompositeTypeValues(name, fs, vals)
+	if !isBinaryOk {
+		return textPreferrer{typ, name}
+	}
+	return typ
 }
 
-// newBlocksArray creates a new pgtype.ValueTranscoder for the Postgres
-// '_blocks' array type.
-func newBlocksArray() pgtype.ValueTranscoder {
-	return pgtype.NewArrayType("_blocks", ignoredOID, newBlocks)
+func (tr *typeResolver) newArrayValue(name, elemName string, defaultVal func() pgtype.ValueTranscoder) pgtype.ValueTranscoder {
+	if _, val, ok := tr.findValue(name); ok {
+		return val
+	}
+	elemOID, elemVal, ok := tr.findValue(elemName)
+	elemValFunc := func() pgtype.ValueTranscoder {
+		return pgtype.NewValue(elemVal).(pgtype.ValueTranscoder)
+	}
+	if !ok {
+		elemOID = unknownOID
+		elemValFunc = defaultVal
+	}
+	typ := pgtype.NewArrayType(name, elemOID, elemValFunc)
+	if elemOID == unknownOID {
+		return textPreferrer{typ, name}
+	}
+	return typ
 }
 
 // newBlocks creates a new pgtype.ValueTranscoder for the Postgres
 // composite type 'blocks'.
-func newBlocks() pgtype.ValueTranscoder {
-	return newCompositeType(
+func (tr *typeResolver) newBlocks() pgtype.ValueTranscoder {
+	return tr.newCompositeValue(
 		"blocks",
-		[]string{"id", "screenshot_id", "body"},
-		&pgtype.Int4{},
-		&pgtype.Int8{},
-		&pgtype.Text{},
+		compositeField{"id", "int4", &pgtype.Int4{}},
+		compositeField{"screenshot_id", "int8", &pgtype.Int8{}},
+		compositeField{"body", "text", &pgtype.Text{}},
 	)
+}
+
+// newBlocksArray creates a new pgtype.ValueTranscoder for the Postgres
+// '_blocks' array type.
+func (tr *typeResolver) newBlocksArray() pgtype.ValueTranscoder {
+	return tr.newArrayValue("_blocks", "blocks", tr.newBlocks)
 }
 
 const searchScreenshotsSQL = `SELECT
@@ -173,7 +256,7 @@ func (q *DBQuerier) SearchScreenshots(ctx context.Context, params SearchScreensh
 	}
 	defer rows.Close()
 	items := []SearchScreenshotsRow{}
-	blocksArray := newBlocksArray()
+	blocksArray := q.types.newBlocksArray()
 	for rows.Next() {
 		var item SearchScreenshotsRow
 		if err := rows.Scan(&item.ID, blocksArray); err != nil {
@@ -203,7 +286,7 @@ func (q *DBQuerier) SearchScreenshotsScan(results pgx.BatchResults) ([]SearchScr
 	}
 	defer rows.Close()
 	items := []SearchScreenshotsRow{}
-	blocksArray := newBlocksArray()
+	blocksArray := q.types.newBlocksArray()
 	for rows.Next() {
 		var item SearchScreenshotsRow
 		if err := rows.Scan(&item.ID, blocksArray); err != nil {
@@ -243,7 +326,7 @@ func (q *DBQuerier) SearchScreenshotsOneCol(ctx context.Context, params SearchSc
 	}
 	defer rows.Close()
 	items := [][]Blocks{}
-	blocksArray := newBlocksArray()
+	blocksArray := q.types.newBlocksArray()
 	for rows.Next() {
 		var item []Blocks
 		if err := rows.Scan(blocksArray); err != nil {
@@ -273,7 +356,7 @@ func (q *DBQuerier) SearchScreenshotsOneColScan(results pgx.BatchResults) ([][]B
 	}
 	defer rows.Close()
 	items := [][]Blocks{}
-	blocksArray := newBlocksArray()
+	blocksArray := q.types.newBlocksArray()
 	for rows.Next() {
 		var item []Blocks
 		if err := rows.Scan(blocksArray); err != nil {
@@ -329,3 +412,29 @@ func (q *DBQuerier) InsertScreenshotBlocksScan(results pgx.BatchResults) (Insert
 	}
 	return item, nil
 }
+
+// textPreferrer wraps a pgtype.ValueTranscoder and sets the preferred encoding
+// format to text instead binary (the default). pggen uses the text format
+// when the OID is unknownOID because the binary format requires the OID.
+// Typically occurs if the results from QueryAllDataTypes aren't passed to
+// NewQuerierConfig.
+type textPreferrer struct {
+	pgtype.ValueTranscoder
+	typeName string
+}
+
+// PreferredParamFormat implements pgtype.ParamFormatPreferrer.
+func (t textPreferrer) PreferredParamFormat() int16 { return pgtype.TextFormatCode }
+
+func (t textPreferrer) NewTypeValue() pgtype.Value {
+	return textPreferrer{pgtype.NewValue(t.ValueTranscoder).(pgtype.ValueTranscoder), t.typeName}
+}
+
+func (t textPreferrer) TypeName() string {
+	return t.typeName
+}
+
+// unknownOID means we don't know the OID for a type. This is okay for decoding
+// because pgx call DecodeText or DecodeBinary without requiring the OID. For
+// encoding parameters, pggen uses textPreferrer if the OID is unknown.
+const unknownOID = 0

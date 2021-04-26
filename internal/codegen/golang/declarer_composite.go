@@ -30,19 +30,6 @@ func NameCompositeRawFunc(typ gotype.CompositeType) string {
 	return "new" + typ.Name + "Raw"
 }
 
-const newCompositeTypeDecl = `func newCompositeType(name string, fieldNames []string, vals ...pgtype.ValueTranscoder) *pgtype.CompositeType {
-	fields := make([]pgtype.CompositeTypeField, len(fieldNames))
-	for i, name := range fieldNames {
-		fields[i] = pgtype.CompositeTypeField{Name: name, OID: ignoredOID}
-	}
-	// Okay to ignore error because it's only thrown when the number of field
-	// names does not equal the number of ValueTranscoders.
-	rowType, _ := pgtype.NewCompositeTypeValues(name, fields, vals)
-	return rowType
-}`
-
-var newCompositeTypeDeclarer = NewConstantDeclarer("func::newCompositeType", newCompositeTypeDecl)
-
 // CompositeTypeDeclarer declares a new Go struct to represent a Postgres
 // composite type.
 type CompositeTypeDeclarer struct {
@@ -130,7 +117,7 @@ func NewCompositeTranscoderDeclarer(typ gotype.CompositeType) CompositeTranscode
 }
 
 func (c CompositeTranscoderDeclarer) DedupeKey() string {
-	return "types_composite::" + c.typ.Name + "_01_transcoder"
+	return "type_resolver::" + c.typ.Name + "_01_transcoder"
 }
 
 func (c CompositeTranscoderDeclarer) Declare(pkgPath string) (string, error) {
@@ -147,41 +134,38 @@ func (c CompositeTranscoderDeclarer) Declare(pkgPath string) (string, error) {
 	sb.WriteString("'.\n")
 
 	// Function signature
-	sb.WriteString("func ")
+	sb.WriteString("func (tr *typeResolver) ")
 	sb.WriteString(funcName)
 	sb.WriteString("() pgtype.ValueTranscoder {\n\t")
 
-	// newCompositeType call
-	sb.WriteString("return newCompositeType(\n\t\t")
+	// newCompositeValue call
+	sb.WriteString("return tr.newCompositeValue(\n\t\t")
 	sb.WriteString(strconv.Quote(c.typ.PgComposite.Name))
-	sb.WriteString(",\n\t\t")
+	sb.WriteString(",")
 
-	// newCompositeType - field names of the composite type
-	sb.WriteString(`[]string{`)
+	// newCompositeValue - field names of the composite type
 	for i := range c.typ.FieldNames {
-		sb.WriteByte('"')
-		sb.WriteString(c.typ.PgComposite.ColumnNames[i])
-		sb.WriteByte('"')
-		if i < len(c.typ.FieldNames)-1 {
-			sb.WriteString(", ")
-		}
-	}
-	sb.WriteString("},")
-
-	// newCompositeType - child decoders
-	for i, fieldType := range c.typ.FieldTypes {
 		sb.WriteString("\n\t\t")
-		switch fieldType := fieldType.(type) {
+		sb.WriteString(`compositeField{`)
+		sb.WriteString(strconv.Quote(c.typ.PgComposite.ColumnNames[i])) // field name
+		sb.WriteString(", ")
+		sb.WriteString(strconv.Quote(c.typ.PgComposite.ColumnTypes[i].String())) // field type name
+		sb.WriteString(", ")
+
+		// field default pgtype.ValueTranscoder
+		switch fieldType := c.typ.FieldTypes[i].(type) {
 		case gotype.CompositeType:
 			childFuncName := NameCompositeTranscoderFunc(fieldType)
+			sb.WriteString("tr.")
 			sb.WriteString(childFuncName)
-			sb.WriteString("(),")
+			sb.WriteString("()")
 		case gotype.EnumType:
 			sb.WriteString(NameEnumTranscoderFunc(fieldType))
-			sb.WriteString("(),")
+			sb.WriteString("()")
 		case gotype.ArrayType:
+			sb.WriteString("tr.")
 			sb.WriteString(NameArrayTranscoderFunc(fieldType))
-			sb.WriteString("(),")
+			sb.WriteString("()")
 		case gotype.VoidType:
 			// skip
 		default:
@@ -193,16 +177,18 @@ func (c CompositeTranscoderDeclarer) Declare(pkgPath string) (string, error) {
 				sb.WriteString("nil,")
 			} else {
 				// We need the pgx variant because it matches the interface expected by
-				// newCompositeType, pgtype.ValueTranscoder.
+				// newCompositeValue, pgtype.ValueTranscoder.
 				if decoderType, ok := gotype.FindKnownTypePgx(pgType.OID()); ok {
 					fieldType = decoderType
 				}
 
 				sb.WriteString(fieldType.QualifyRel(pkgPath))
-				sb.WriteString("{},")
+				sb.WriteString("{}")
 			}
 		}
+		sb.WriteString(`},`)
 	}
+
 	sb.WriteString("\n\t")
 	sb.WriteString(")")
 	sb.WriteString("\n")
@@ -231,7 +217,7 @@ func NewCompositeInitDeclarer(typ gotype.CompositeType) CompositeInitDeclarer {
 }
 
 func (c CompositeInitDeclarer) DedupeKey() string {
-	return "types_composite::" + c.typ.Name + "_02_init"
+	return "type_resolver::" + c.typ.Name + "_02_init"
 }
 
 func (c CompositeInitDeclarer) Declare(string) (string, error) {
@@ -248,18 +234,20 @@ func (c CompositeInitDeclarer) Declare(string) (string, error) {
 	sb.WriteString("' to encode query parameters.\n")
 
 	// Function signature
-	sb.WriteString("func ")
+	sb.WriteString("func (tr *typeResolver) ")
 	sb.WriteString(funcName)
 	sb.WriteString("(v ")
 	sb.WriteString(c.typ.Name)
 	sb.WriteString(") pgtype.ValueTranscoder {\n\t")
 
 	// Function body
-	sb.WriteString("return textEncoder{setValue(")
+	sb.WriteString("return textPreferrer{tr.setValue(tr.")
 	sb.WriteString(NameCompositeTranscoderFunc(c.typ))
-	sb.WriteString("(), ")
+	sb.WriteString("(), tr.")
 	sb.WriteString(NameCompositeRawFunc(c.typ))
-	sb.WriteString("(v))}\n")
+	sb.WriteString("(v)), ")
+	sb.WriteString(strconv.Quote(c.typ.PgComposite.Name))
+	sb.WriteString("}\n")
 	sb.WriteString("}")
 	return sb.String(), nil
 }
@@ -279,7 +267,7 @@ func NewCompositeRawDeclarer(typ gotype.CompositeType) CompositeRawDeclarer {
 }
 
 func (c CompositeRawDeclarer) DedupeKey() string {
-	return "types_composite::" + c.typ.Name + "_03_raw"
+	return "type_resolver::" + c.typ.Name + "_03_raw"
 }
 
 func (c CompositeRawDeclarer) Declare(string) (string, error) {
@@ -296,7 +284,7 @@ func (c CompositeRawDeclarer) Declare(string) (string, error) {
 	sb.WriteString("' as a slice of interface{} to encode query parameters.\n")
 
 	// Function signature
-	sb.WriteString("func ")
+	sb.WriteString("func (tr *typeResolver) ")
 	sb.WriteString(funcName)
 	sb.WriteString("(v ")
 	sb.WriteString(c.typ.Name)
@@ -312,11 +300,13 @@ func (c CompositeRawDeclarer) Declare(string) (string, error) {
 		switch fieldType := fieldType.(type) {
 		case gotype.CompositeType:
 			childFuncName := NameCompositeRawFunc(fieldType)
+			sb.WriteString("tr.")
 			sb.WriteString(childFuncName)
 			sb.WriteString("(v.")
 			sb.WriteString(fieldName)
 			sb.WriteString(")")
 		case gotype.ArrayType:
+			sb.WriteString("tr.")
 			sb.WriteString(NameArrayRawFunc(fieldType))
 			sb.WriteString("(v.")
 			sb.WriteString(fieldName)

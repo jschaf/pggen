@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/jackc/pgconn"
+	"github.com/jackc/pgtype"
 	"github.com/jackc/pgx/v4"
 )
 
@@ -82,7 +83,8 @@ type Querier interface {
 }
 
 type DBQuerier struct {
-	conn genericConn
+	conn  genericConn   // underlying Postgres transport to use
+	types *typeResolver // resolve types by name
 }
 
 var _ Querier = &DBQuerier{}
@@ -109,9 +111,23 @@ type genericConn interface {
 // NewQuerier creates a DBQuerier that implements Querier. conn is typically
 // *pgx.Conn, pgx.Tx, or *pgxpool.Pool.
 func NewQuerier(conn genericConn) *DBQuerier {
-	return &DBQuerier{
-		conn: conn,
-	}
+	return NewQuerierConfig(conn, QuerierConfig{})
+}
+
+type QuerierConfig struct {
+	// DataTypes contains pgtype.Value to use for encoding and decoding instead of
+	// pggen-generated pgtype.ValueTranscoder.
+	//
+	// If OIDs are available for an input parameter type and all of its transative
+	// dependencies, pggen will use the binary encoding format for the input
+	// parameter.
+	DataTypes []pgtype.DataType
+}
+
+// NewQuerierConfig creates a DBQuerier that implements Querier with the given
+// config. conn is typically *pgx.Conn, pgx.Tx, or *pgxpool.Pool.
+func NewQuerierConfig(conn genericConn, cfg QuerierConfig) *DBQuerier {
+	return &DBQuerier{conn: conn, types: newTypeResolver(cfg.DataTypes)}
 }
 
 // WithTx creates a new DBQuerier that uses the transaction to run all queries.
@@ -158,6 +174,41 @@ func PrepareAllQueries(ctx context.Context, p preparer) error {
 		return fmt.Errorf("prepare query 'InsertAuthorSuffix': %w", err)
 	}
 	return nil
+}
+
+// typeResolver looks up the pgtype.ValueTranscoder by Postgres type name.
+type typeResolver struct {
+	connInfo *pgtype.ConnInfo // types by Postgres type name
+}
+
+func newTypeResolver(types []pgtype.DataType) *typeResolver {
+	ci := pgtype.NewConnInfo()
+	for _, typ := range types {
+		if txt, ok := typ.Value.(textPreferrer); ok && typ.OID != unknownOID {
+			typ.Value = txt.ValueTranscoder
+		}
+		ci.RegisterDataType(typ)
+	}
+	return &typeResolver{connInfo: ci}
+}
+
+// findValue find the OID, and pgtype.ValueTranscoder for a Postgres type name.
+func (tr *typeResolver) findValue(name string) (uint32, pgtype.ValueTranscoder, bool) {
+	typ, ok := tr.connInfo.DataTypeForName(name)
+	if !ok {
+		return 0, nil, false
+	}
+	v := pgtype.NewValue(typ.Value)
+	return typ.OID, v.(pgtype.ValueTranscoder), true
+}
+
+// setValue sets the value of a ValueTranscoder to a value that should always
+// work and panics if it fails.
+func (tr *typeResolver) setValue(vt pgtype.ValueTranscoder, val interface{}) pgtype.ValueTranscoder {
+	if err := vt.Set(val); err != nil {
+		panic(fmt.Sprintf("set ValueTranscoder %T to %+v: %s", vt, val, err))
+	}
+	return vt
 }
 
 const findAuthorByIDSQL = `SELECT * FROM author WHERE author_id = $1;`
@@ -459,3 +510,29 @@ func (q *DBQuerier) InsertAuthorSuffixScan(results pgx.BatchResults) (InsertAuth
 	}
 	return item, nil
 }
+
+// textPreferrer wraps a pgtype.ValueTranscoder and sets the preferred encoding
+// format to text instead binary (the default). pggen uses the text format
+// when the OID is unknownOID because the binary format requires the OID.
+// Typically occurs if the results from QueryAllDataTypes aren't passed to
+// NewQuerierConfig.
+type textPreferrer struct {
+	pgtype.ValueTranscoder
+	typeName string
+}
+
+// PreferredParamFormat implements pgtype.ParamFormatPreferrer.
+func (t textPreferrer) PreferredParamFormat() int16 { return pgtype.TextFormatCode }
+
+func (t textPreferrer) NewTypeValue() pgtype.Value {
+	return textPreferrer{pgtype.NewValue(t.ValueTranscoder).(pgtype.ValueTranscoder), t.typeName}
+}
+
+func (t textPreferrer) TypeName() string {
+	return t.typeName
+}
+
+// unknownOID means we don't know the OID for a type. This is okay for decoding
+// because pgx call DecodeText or DecodeBinary without requiring the OID. For
+// encoding parameters, pggen uses textPreferrer if the OID is unknown.
+const unknownOID = 0

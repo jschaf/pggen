@@ -57,7 +57,8 @@ func TestDeclarers(t *testing.T) {
 			typ: gotype.CompositeType{
 				PgComposite: pg.CompositeType{
 					Name:        "some_table_enum",
-					ColumnNames: []string{"foo", "bar_baz"},
+					ColumnNames: []string{"foo"},
+					ColumnTypes: []pg.Type{pg.EnumType{Name: "some_table_enum"}},
 				},
 				PkgPath:    "example.com/foo",
 				Pkg:        "foo",
