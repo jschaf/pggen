@@ -123,7 +123,7 @@ func (tr *typeResolver) newSomeTableEnum() pgtype.ValueTranscoder {
 // newSomeTableEnumInit creates an initialized pgtype.ValueTranscoder for the
 // Postgres composite type 'some_table_enum' to encode query parameters.
 func (tr *typeResolver) newSomeTableEnumInit(v SomeTableEnum) pgtype.ValueTranscoder {
-	return textPreferrer{tr.setValue(tr.newSomeTableEnum(), tr.newSomeTableEnumRaw(v)), "some_table_enum"}
+	return tr.setValue(tr.newSomeTableEnum(), tr.newSomeTableEnumRaw(v))
 }
 
 // newSomeTableEnumRaw returns all composite fields for the Postgres composite

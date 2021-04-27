@@ -241,13 +241,11 @@ func (c CompositeInitDeclarer) Declare(string) (string, error) {
 	sb.WriteString(") pgtype.ValueTranscoder {\n\t")
 
 	// Function body
-	sb.WriteString("return textPreferrer{tr.setValue(tr.")
+	sb.WriteString("return tr.setValue(tr.")
 	sb.WriteString(NameCompositeTranscoderFunc(c.typ))
 	sb.WriteString("(), tr.")
 	sb.WriteString(NameCompositeRawFunc(c.typ))
-	sb.WriteString("(v)), ")
-	sb.WriteString(strconv.Quote(c.typ.PgComposite.Name))
-	sb.WriteString("}\n")
+	sb.WriteString("(v))\n")
 	sb.WriteString("}")
 	return sb.String(), nil
 }

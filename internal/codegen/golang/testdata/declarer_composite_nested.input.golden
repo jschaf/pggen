@@ -125,7 +125,7 @@ func (tr *typeResolver) newSomeTableNested() pgtype.ValueTranscoder {
 // newSomeTableNestedInit creates an initialized pgtype.ValueTranscoder for the
 // Postgres composite type 'some_table_nested' to encode query parameters.
 func (tr *typeResolver) newSomeTableNestedInit(v SomeTableNested) pgtype.ValueTranscoder {
-	return textPreferrer{tr.setValue(tr.newSomeTableNested(), tr.newSomeTableNestedRaw(v)), "some_table_nested"}
+	return tr.setValue(tr.newSomeTableNested(), tr.newSomeTableNestedRaw(v))
 }
 
 // newSomeTableNestedRaw returns all composite fields for the Postgres composite

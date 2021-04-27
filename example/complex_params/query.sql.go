@@ -255,7 +255,7 @@ func (tr *typeResolver) newDimensions() pgtype.ValueTranscoder {
 // newDimensionsInit creates an initialized pgtype.ValueTranscoder for the
 // Postgres composite type 'dimensions' to encode query parameters.
 func (tr *typeResolver) newDimensionsInit(v Dimensions) pgtype.ValueTranscoder {
-	return textPreferrer{tr.setValue(tr.newDimensions(), tr.newDimensionsRaw(v)), "dimensions"}
+	return tr.setValue(tr.newDimensions(), tr.newDimensionsRaw(v))
 }
 
 // newDimensionsRaw returns all composite fields for the Postgres composite
@@ -281,7 +281,7 @@ func (tr *typeResolver) newProductImageSetType() pgtype.ValueTranscoder {
 // newProductImageSetTypeInit creates an initialized pgtype.ValueTranscoder for the
 // Postgres composite type 'product_image_set_type' to encode query parameters.
 func (tr *typeResolver) newProductImageSetTypeInit(v ProductImageSetType) pgtype.ValueTranscoder {
-	return textPreferrer{tr.setValue(tr.newProductImageSetType(), tr.newProductImageSetTypeRaw(v)), "product_image_set_type"}
+	return tr.setValue(tr.newProductImageSetType(), tr.newProductImageSetTypeRaw(v))
 }
 
 // newProductImageSetTypeRaw returns all composite fields for the Postgres composite
@@ -307,7 +307,7 @@ func (tr *typeResolver) newProductImageType() pgtype.ValueTranscoder {
 // newProductImageTypeInit creates an initialized pgtype.ValueTranscoder for the
 // Postgres composite type 'product_image_type' to encode query parameters.
 func (tr *typeResolver) newProductImageTypeInit(v ProductImageType) pgtype.ValueTranscoder {
-	return textPreferrer{tr.setValue(tr.newProductImageType(), tr.newProductImageTypeRaw(v)), "product_image_type"}
+	return tr.setValue(tr.newProductImageType(), tr.newProductImageTypeRaw(v))
 }
 
 // newProductImageTypeRaw returns all composite fields for the Postgres composite
