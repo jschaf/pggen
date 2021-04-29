@@ -64,12 +64,12 @@ func NewQuerier(conn genericConn) *DBQuerier {
 }
 
 type QuerierConfig struct {
-	// DataTypes contains pgtype.Value to use for encoding and decoding instead of
-	// pggen-generated pgtype.ValueTranscoder.
+	// DataTypes contains pgtype.Value to use for encoding and decoding instead
+	// of pggen-generated pgtype.ValueTranscoder.
 	//
-	// If OIDs are available for an input parameter type and all of its transative
-	// dependencies, pggen will use the binary encoding format for the input
-	// parameter.
+	// If OIDs are available for an input parameter type and all of its
+	// transitive dependencies, pggen will use the binary encoding format for
+	// the input parameter.
 	DataTypes []pgtype.DataType
 }
 
@@ -257,6 +257,7 @@ const arrayNested2SQL = `SELECT
 
 // ArrayNested2 implements Querier.ArrayNested2.
 func (q *DBQuerier) ArrayNested2(ctx context.Context) ([]ProductImageType, error) {
+	ctx = context.WithValue(ctx, "pggen_query_name", "ArrayNested2")
 	row := q.conn.QueryRow(ctx, arrayNested2SQL)
 	item := []ProductImageType{}
 	imagesArray := q.types.newProductImageTypeArray()
@@ -300,6 +301,7 @@ const nested3SQL = `SELECT
 
 // Nested3 implements Querier.Nested3.
 func (q *DBQuerier) Nested3(ctx context.Context) ([]ProductImageSetType, error) {
+	ctx = context.WithValue(ctx, "pggen_query_name", "Nested3")
 	rows, err := q.conn.Query(ctx, nested3SQL)
 	if err != nil {
 		return nil, fmt.Errorf("query Nested3: %w", err)

@@ -12,6 +12,7 @@ const alphaSQL = `SELECT 'alpha' as output;`
 
 // Alpha implements Querier.Alpha.
 func (q *DBQuerier) Alpha(ctx context.Context) (string, error) {
+	ctx = context.WithValue(ctx, "pggen_query_name", "Alpha")
 	row := q.conn.QueryRow(ctx, alphaSQL)
 	var item string
 	if err := row.Scan(&item); err != nil {

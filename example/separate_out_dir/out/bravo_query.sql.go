@@ -12,6 +12,7 @@ const bravoSQL = `SELECT 'bravo' as output;`
 
 // Bravo implements Querier.Bravo.
 func (q *DBQuerier) Bravo(ctx context.Context) (string, error) {
+	ctx = context.WithValue(ctx, "pggen_query_name", "Bravo")
 	row := q.conn.QueryRow(ctx, bravoSQL)
 	var item string
 	if err := row.Scan(&item); err != nil {

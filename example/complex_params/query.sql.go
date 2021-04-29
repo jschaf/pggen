@@ -85,12 +85,12 @@ func NewQuerier(conn genericConn) *DBQuerier {
 }
 
 type QuerierConfig struct {
-	// DataTypes contains pgtype.Value to use for encoding and decoding instead of
-	// pggen-generated pgtype.ValueTranscoder.
+	// DataTypes contains pgtype.Value to use for encoding and decoding instead
+	// of pggen-generated pgtype.ValueTranscoder.
 	//
-	// If OIDs are available for an input parameter type and all of its transative
-	// dependencies, pggen will use the binary encoding format for the input
-	// parameter.
+	// If OIDs are available for an input parameter type and all of its
+	// transitive dependencies, pggen will use the binary encoding format for
+	// the input parameter.
 	DataTypes []pgtype.DataType
 }
 
@@ -349,6 +349,7 @@ const paramArrayIntSQL = `SELECT $1::bigint[];`
 
 // ParamArrayInt implements Querier.ParamArrayInt.
 func (q *DBQuerier) ParamArrayInt(ctx context.Context, ints []int) ([]int, error) {
+	ctx = context.WithValue(ctx, "pggen_query_name", "ParamArrayInt")
 	row := q.conn.QueryRow(ctx, paramArrayIntSQL, ints)
 	item := []int{}
 	if err := row.Scan(&item); err != nil {
@@ -376,6 +377,7 @@ const paramNested1SQL = `SELECT $1::dimensions;`
 
 // ParamNested1 implements Querier.ParamNested1.
 func (q *DBQuerier) ParamNested1(ctx context.Context, dimensions Dimensions) (Dimensions, error) {
+	ctx = context.WithValue(ctx, "pggen_query_name", "ParamNested1")
 	row := q.conn.QueryRow(ctx, paramNested1SQL, q.types.newDimensionsInit(dimensions))
 	var item Dimensions
 	dimensionsRow := q.types.newDimensions()
@@ -411,6 +413,7 @@ const paramNested2SQL = `SELECT $1::product_image_type;`
 
 // ParamNested2 implements Querier.ParamNested2.
 func (q *DBQuerier) ParamNested2(ctx context.Context, image ProductImageType) (ProductImageType, error) {
+	ctx = context.WithValue(ctx, "pggen_query_name", "ParamNested2")
 	row := q.conn.QueryRow(ctx, paramNested2SQL, q.types.newProductImageTypeInit(image))
 	var item ProductImageType
 	productImageTypeRow := q.types.newProductImageType()
@@ -446,6 +449,7 @@ const paramNested2ArraySQL = `SELECT $1::product_image_type[];`
 
 // ParamNested2Array implements Querier.ParamNested2Array.
 func (q *DBQuerier) ParamNested2Array(ctx context.Context, images []ProductImageType) ([]ProductImageType, error) {
+	ctx = context.WithValue(ctx, "pggen_query_name", "ParamNested2Array")
 	row := q.conn.QueryRow(ctx, paramNested2ArraySQL, q.types.newProductImageTypeArrayInit(images))
 	item := []ProductImageType{}
 	productImageTypeArray := q.types.newProductImageTypeArray()
@@ -481,6 +485,7 @@ const paramNested3SQL = `SELECT $1::product_image_set_type;`
 
 // ParamNested3 implements Querier.ParamNested3.
 func (q *DBQuerier) ParamNested3(ctx context.Context, imageSet ProductImageSetType) (ProductImageSetType, error) {
+	ctx = context.WithValue(ctx, "pggen_query_name", "ParamNested3")
 	row := q.conn.QueryRow(ctx, paramNested3SQL, q.types.newProductImageSetTypeInit(imageSet))
 	var item ProductImageSetType
 	productImageSetTypeRow := q.types.newProductImageSetType()

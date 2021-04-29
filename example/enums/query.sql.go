@@ -96,12 +96,12 @@ func NewQuerier(conn genericConn) *DBQuerier {
 }
 
 type QuerierConfig struct {
-	// DataTypes contains pgtype.Value to use for encoding and decoding instead of
-	// pggen-generated pgtype.ValueTranscoder.
+	// DataTypes contains pgtype.Value to use for encoding and decoding instead
+	// of pggen-generated pgtype.ValueTranscoder.
 	//
-	// If OIDs are available for an input parameter type and all of its transative
-	// dependencies, pggen will use the binary encoding format for the input
-	// parameter.
+	// If OIDs are available for an input parameter type and all of its
+	// transitive dependencies, pggen will use the binary encoding format for
+	// the input parameter.
 	DataTypes []pgtype.DataType
 }
 
@@ -299,6 +299,7 @@ type FindAllDevicesRow struct {
 
 // FindAllDevices implements Querier.FindAllDevices.
 func (q *DBQuerier) FindAllDevices(ctx context.Context) ([]FindAllDevicesRow, error) {
+	ctx = context.WithValue(ctx, "pggen_query_name", "FindAllDevices")
 	rows, err := q.conn.Query(ctx, findAllDevicesSQL)
 	if err != nil {
 		return nil, fmt.Errorf("query FindAllDevices: %w", err)
@@ -349,6 +350,7 @@ VALUES ($1, $2);`
 
 // InsertDevice implements Querier.InsertDevice.
 func (q *DBQuerier) InsertDevice(ctx context.Context, mac pgtype.Macaddr, typePg DeviceType) (pgconn.CommandTag, error) {
+	ctx = context.WithValue(ctx, "pggen_query_name", "InsertDevice")
 	cmdTag, err := q.conn.Exec(ctx, insertDeviceSQL, mac, typePg)
 	if err != nil {
 		return cmdTag, fmt.Errorf("exec query InsertDevice: %w", err)
@@ -374,6 +376,7 @@ const findOneDeviceArraySQL = `SELECT enum_range(NULL::device_type) AS device_ty
 
 // FindOneDeviceArray implements Querier.FindOneDeviceArray.
 func (q *DBQuerier) FindOneDeviceArray(ctx context.Context) ([]DeviceType, error) {
+	ctx = context.WithValue(ctx, "pggen_query_name", "FindOneDeviceArray")
 	row := q.conn.QueryRow(ctx, findOneDeviceArraySQL)
 	item := []DeviceType{}
 	deviceTypesArray := q.types.newDeviceTypeArray()
@@ -411,6 +414,7 @@ SELECT enum_range(NULL::device_type) AS device_types;`
 
 // FindManyDeviceArray implements Querier.FindManyDeviceArray.
 func (q *DBQuerier) FindManyDeviceArray(ctx context.Context) ([][]DeviceType, error) {
+	ctx = context.WithValue(ctx, "pggen_query_name", "FindManyDeviceArray")
 	rows, err := q.conn.Query(ctx, findManyDeviceArraySQL)
 	if err != nil {
 		return nil, fmt.Errorf("query FindManyDeviceArray: %w", err)
@@ -475,6 +479,7 @@ type FindManyDeviceArrayWithNumRow struct {
 
 // FindManyDeviceArrayWithNum implements Querier.FindManyDeviceArrayWithNum.
 func (q *DBQuerier) FindManyDeviceArrayWithNum(ctx context.Context) ([]FindManyDeviceArrayWithNumRow, error) {
+	ctx = context.WithValue(ctx, "pggen_query_name", "FindManyDeviceArrayWithNum")
 	rows, err := q.conn.Query(ctx, findManyDeviceArrayWithNumSQL)
 	if err != nil {
 		return nil, fmt.Errorf("query FindManyDeviceArrayWithNum: %w", err)
@@ -532,6 +537,7 @@ const enumInsideCompositeSQL = `SELECT ROW('08:00:2b:01:02:03'::macaddr, 'phone'
 
 // EnumInsideComposite implements Querier.EnumInsideComposite.
 func (q *DBQuerier) EnumInsideComposite(ctx context.Context) (Device, error) {
+	ctx = context.WithValue(ctx, "pggen_query_name", "EnumInsideComposite")
 	row := q.conn.QueryRow(ctx, enumInsideCompositeSQL)
 	var item Device
 	rowRow := q.types.newDevice()

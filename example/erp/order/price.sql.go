@@ -20,6 +20,7 @@ type FindOrdersByPriceRow struct {
 
 // FindOrdersByPrice implements Querier.FindOrdersByPrice.
 func (q *DBQuerier) FindOrdersByPrice(ctx context.Context, minTotal pgtype.Numeric) ([]FindOrdersByPriceRow, error) {
+	ctx = context.WithValue(ctx, "pggen_query_name", "FindOrdersByPrice")
 	rows, err := q.conn.Query(ctx, findOrdersByPriceSQL, minTotal)
 	if err != nil {
 		return nil, fmt.Errorf("query FindOrdersByPrice: %w", err)
@@ -76,6 +77,7 @@ type FindOrdersMRRRow struct {
 
 // FindOrdersMRR implements Querier.FindOrdersMRR.
 func (q *DBQuerier) FindOrdersMRR(ctx context.Context) ([]FindOrdersMRRRow, error) {
+	ctx = context.WithValue(ctx, "pggen_query_name", "FindOrdersMRR")
 	rows, err := q.conn.Query(ctx, findOrdersMRRSQL)
 	if err != nil {
 		return nil, fmt.Errorf("query FindOrdersMRR: %w", err)

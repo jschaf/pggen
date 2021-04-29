@@ -71,12 +71,12 @@ func NewQuerier(conn genericConn) *DBQuerier {
 }
 
 type QuerierConfig struct {
-	// DataTypes contains pgtype.Value to use for encoding and decoding instead of
-	// pggen-generated pgtype.ValueTranscoder.
+	// DataTypes contains pgtype.Value to use for encoding and decoding instead
+	// of pggen-generated pgtype.ValueTranscoder.
 	//
-	// If OIDs are available for an input parameter type and all of its transative
-	// dependencies, pggen will use the binary encoding format for the input
-	// parameter.
+	// If OIDs are available for an input parameter type and all of its
+	// transitive dependencies, pggen will use the binary encoding format for
+	// the input parameter.
 	DataTypes []pgtype.DataType
 }
 
@@ -250,6 +250,7 @@ type SearchScreenshotsRow struct {
 
 // SearchScreenshots implements Querier.SearchScreenshots.
 func (q *DBQuerier) SearchScreenshots(ctx context.Context, params SearchScreenshotsParams) ([]SearchScreenshotsRow, error) {
+	ctx = context.WithValue(ctx, "pggen_query_name", "SearchScreenshots")
 	rows, err := q.conn.Query(ctx, searchScreenshotsSQL, params.Body, params.Limit, params.Offset)
 	if err != nil {
 		return nil, fmt.Errorf("query SearchScreenshots: %w", err)
@@ -320,6 +321,7 @@ type SearchScreenshotsOneColParams struct {
 
 // SearchScreenshotsOneCol implements Querier.SearchScreenshotsOneCol.
 func (q *DBQuerier) SearchScreenshotsOneCol(ctx context.Context, params SearchScreenshotsOneColParams) ([][]Blocks, error) {
+	ctx = context.WithValue(ctx, "pggen_query_name", "SearchScreenshotsOneCol")
 	rows, err := q.conn.Query(ctx, searchScreenshotsOneColSQL, params.Body, params.Limit, params.Offset)
 	if err != nil {
 		return nil, fmt.Errorf("query SearchScreenshotsOneCol: %w", err)
@@ -390,6 +392,7 @@ type InsertScreenshotBlocksRow struct {
 
 // InsertScreenshotBlocks implements Querier.InsertScreenshotBlocks.
 func (q *DBQuerier) InsertScreenshotBlocks(ctx context.Context, screenshotID int, body string) (InsertScreenshotBlocksRow, error) {
+	ctx = context.WithValue(ctx, "pggen_query_name", "InsertScreenshotBlocks")
 	row := q.conn.QueryRow(ctx, insertScreenshotBlocksSQL, screenshotID, body)
 	var item InsertScreenshotBlocksRow
 	if err := row.Scan(&item.ID, &item.ScreenshotID, &item.Body); err != nil {

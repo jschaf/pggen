@@ -78,12 +78,12 @@ func NewQuerier(conn genericConn) *DBQuerier {
 }
 
 type QuerierConfig struct {
-	// DataTypes contains pgtype.Value to use for encoding and decoding instead of
-	// pggen-generated pgtype.ValueTranscoder.
+	// DataTypes contains pgtype.Value to use for encoding and decoding instead
+	// of pggen-generated pgtype.ValueTranscoder.
 	//
-	// If OIDs are available for an input parameter type and all of its transative
-	// dependencies, pggen will use the binary encoding format for the input
-	// parameter.
+	// If OIDs are available for an input parameter type and all of its
+	// transitive dependencies, pggen will use the binary encoding format for
+	// the input parameter.
 	DataTypes []pgtype.DataType
 }
 
@@ -237,6 +237,7 @@ const alphaNestedSQL = `SELECT 'alpha_nested' as output;`
 
 // AlphaNested implements Querier.AlphaNested.
 func (q *DBQuerier) AlphaNested(ctx context.Context) (string, error) {
+	ctx = context.WithValue(ctx, "pggen_query_name", "AlphaNested")
 	row := q.conn.QueryRow(ctx, alphaNestedSQL)
 	var item string
 	if err := row.Scan(&item); err != nil {
@@ -264,6 +265,7 @@ const alphaCompositeArraySQL = `SELECT ARRAY[ROW('key')]::alpha[];`
 
 // AlphaCompositeArray implements Querier.AlphaCompositeArray.
 func (q *DBQuerier) AlphaCompositeArray(ctx context.Context) ([]Alpha, error) {
+	ctx = context.WithValue(ctx, "pggen_query_name", "AlphaCompositeArray")
 	row := q.conn.QueryRow(ctx, alphaCompositeArraySQL)
 	item := []Alpha{}
 	arrayArray := q.types.newAlphaArray()

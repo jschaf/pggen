@@ -115,12 +115,12 @@ func NewQuerier(conn genericConn) *DBQuerier {
 }
 
 type QuerierConfig struct {
-	// DataTypes contains pgtype.Value to use for encoding and decoding instead of
-	// pggen-generated pgtype.ValueTranscoder.
+	// DataTypes contains pgtype.Value to use for encoding and decoding instead
+	// of pggen-generated pgtype.ValueTranscoder.
 	//
-	// If OIDs are available for an input parameter type and all of its transative
-	// dependencies, pggen will use the binary encoding format for the input
-	// parameter.
+	// If OIDs are available for an input parameter type and all of its
+	// transitive dependencies, pggen will use the binary encoding format for
+	// the input parameter.
 	DataTypes []pgtype.DataType
 }
 
@@ -222,6 +222,7 @@ type FindAuthorByIDRow struct {
 
 // FindAuthorByID implements Querier.FindAuthorByID.
 func (q *DBQuerier) FindAuthorByID(ctx context.Context, authorID int32) (FindAuthorByIDRow, error) {
+	ctx = context.WithValue(ctx, "pggen_query_name", "FindAuthorByID")
 	row := q.conn.QueryRow(ctx, findAuthorByIDSQL, authorID)
 	var item FindAuthorByIDRow
 	if err := row.Scan(&item.AuthorID, &item.FirstName, &item.LastName, &item.Suffix); err != nil {
@@ -256,6 +257,7 @@ type FindAuthorsRow struct {
 
 // FindAuthors implements Querier.FindAuthors.
 func (q *DBQuerier) FindAuthors(ctx context.Context, firstName string) ([]FindAuthorsRow, error) {
+	ctx = context.WithValue(ctx, "pggen_query_name", "FindAuthors")
 	rows, err := q.conn.Query(ctx, findAuthorsSQL, firstName)
 	if err != nil {
 		return nil, fmt.Errorf("query FindAuthors: %w", err)
@@ -310,6 +312,7 @@ type FindAuthorNamesRow struct {
 
 // FindAuthorNames implements Querier.FindAuthorNames.
 func (q *DBQuerier) FindAuthorNames(ctx context.Context, authorID int32) ([]FindAuthorNamesRow, error) {
+	ctx = context.WithValue(ctx, "pggen_query_name", "FindAuthorNames")
 	rows, err := q.conn.Query(ctx, findAuthorNamesSQL, authorID)
 	if err != nil {
 		return nil, fmt.Errorf("query FindAuthorNames: %w", err)
@@ -359,6 +362,7 @@ const deleteAuthorsSQL = `DELETE FROM author WHERE first_name = 'joe';`
 
 // DeleteAuthors implements Querier.DeleteAuthors.
 func (q *DBQuerier) DeleteAuthors(ctx context.Context) (pgconn.CommandTag, error) {
+	ctx = context.WithValue(ctx, "pggen_query_name", "DeleteAuthors")
 	cmdTag, err := q.conn.Exec(ctx, deleteAuthorsSQL)
 	if err != nil {
 		return cmdTag, fmt.Errorf("exec query DeleteAuthors: %w", err)
@@ -384,6 +388,7 @@ const deleteAuthorsByFirstNameSQL = `DELETE FROM author WHERE first_name = $1;`
 
 // DeleteAuthorsByFirstName implements Querier.DeleteAuthorsByFirstName.
 func (q *DBQuerier) DeleteAuthorsByFirstName(ctx context.Context, firstName string) (pgconn.CommandTag, error) {
+	ctx = context.WithValue(ctx, "pggen_query_name", "DeleteAuthorsByFirstName")
 	cmdTag, err := q.conn.Exec(ctx, deleteAuthorsByFirstNameSQL, firstName)
 	if err != nil {
 		return cmdTag, fmt.Errorf("exec query DeleteAuthorsByFirstName: %w", err)
@@ -419,6 +424,7 @@ type DeleteAuthorsByFullNameParams struct {
 
 // DeleteAuthorsByFullName implements Querier.DeleteAuthorsByFullName.
 func (q *DBQuerier) DeleteAuthorsByFullName(ctx context.Context, params DeleteAuthorsByFullNameParams) (pgconn.CommandTag, error) {
+	ctx = context.WithValue(ctx, "pggen_query_name", "DeleteAuthorsByFullName")
 	cmdTag, err := q.conn.Exec(ctx, deleteAuthorsByFullNameSQL, params.FirstName, params.LastName, params.Suffix)
 	if err != nil {
 		return cmdTag, fmt.Errorf("exec query DeleteAuthorsByFullName: %w", err)
@@ -446,6 +452,7 @@ RETURNING author_id;`
 
 // InsertAuthor implements Querier.InsertAuthor.
 func (q *DBQuerier) InsertAuthor(ctx context.Context, firstName string, lastName string) (int32, error) {
+	ctx = context.WithValue(ctx, "pggen_query_name", "InsertAuthor")
 	row := q.conn.QueryRow(ctx, insertAuthorSQL, firstName, lastName)
 	var item int32
 	if err := row.Scan(&item); err != nil {
@@ -488,6 +495,7 @@ type InsertAuthorSuffixRow struct {
 
 // InsertAuthorSuffix implements Querier.InsertAuthorSuffix.
 func (q *DBQuerier) InsertAuthorSuffix(ctx context.Context, params InsertAuthorSuffixParams) (InsertAuthorSuffixRow, error) {
+	ctx = context.WithValue(ctx, "pggen_query_name", "InsertAuthorSuffix")
 	row := q.conn.QueryRow(ctx, insertAuthorSuffixSQL, params.FirstName, params.LastName, params.Suffix)
 	var item InsertAuthorSuffixRow
 	if err := row.Scan(&item.AuthorID, &item.FirstName, &item.LastName, &item.Suffix); err != nil {

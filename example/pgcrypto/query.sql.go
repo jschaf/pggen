@@ -64,12 +64,12 @@ func NewQuerier(conn genericConn) *DBQuerier {
 }
 
 type QuerierConfig struct {
-	// DataTypes contains pgtype.Value to use for encoding and decoding instead of
-	// pggen-generated pgtype.ValueTranscoder.
+	// DataTypes contains pgtype.Value to use for encoding and decoding instead
+	// of pggen-generated pgtype.ValueTranscoder.
 	//
-	// If OIDs are available for an input parameter type and all of its transative
-	// dependencies, pggen will use the binary encoding format for the input
-	// parameter.
+	// If OIDs are available for an input parameter type and all of its
+	// transitive dependencies, pggen will use the binary encoding format for
+	// the input parameter.
 	DataTypes []pgtype.DataType
 }
 
@@ -147,6 +147,7 @@ VALUES ($1, crypt($2, gen_salt('bf')));`
 
 // CreateUser implements Querier.CreateUser.
 func (q *DBQuerier) CreateUser(ctx context.Context, email string, password string) (pgconn.CommandTag, error) {
+	ctx = context.WithValue(ctx, "pggen_query_name", "CreateUser")
 	cmdTag, err := q.conn.Exec(ctx, createUserSQL, email, password)
 	if err != nil {
 		return cmdTag, fmt.Errorf("exec query CreateUser: %w", err)
@@ -178,6 +179,7 @@ type FindUserRow struct {
 
 // FindUser implements Querier.FindUser.
 func (q *DBQuerier) FindUser(ctx context.Context, email string) (FindUserRow, error) {
+	ctx = context.WithValue(ctx, "pggen_query_name", "FindUser")
 	row := q.conn.QueryRow(ctx, findUserSQL, email)
 	var item FindUserRow
 	if err := row.Scan(&item.Email, &item.Pass); err != nil {

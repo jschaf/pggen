@@ -99,12 +99,12 @@ func NewQuerier(conn genericConn) *DBQuerier {
 }
 
 type QuerierConfig struct {
-	// DataTypes contains pgtype.Value to use for encoding and decoding instead of
-	// pggen-generated pgtype.ValueTranscoder.
+	// DataTypes contains pgtype.Value to use for encoding and decoding instead
+	// of pggen-generated pgtype.ValueTranscoder.
 	//
-	// If OIDs are available for an input parameter type and all of its transative
-	// dependencies, pggen will use the binary encoding format for the input
-	// parameter.
+	// If OIDs are available for an input parameter type and all of its
+	// transitive dependencies, pggen will use the binary encoding format for
+	// the input parameter.
 	DataTypes []pgtype.DataType
 }
 
@@ -288,6 +288,7 @@ type FindDevicesByUserRow struct {
 
 // FindDevicesByUser implements Querier.FindDevicesByUser.
 func (q *DBQuerier) FindDevicesByUser(ctx context.Context, id int) ([]FindDevicesByUserRow, error) {
+	ctx = context.WithValue(ctx, "pggen_query_name", "FindDevicesByUser")
 	rows, err := q.conn.Query(ctx, findDevicesByUserSQL, id)
 	if err != nil {
 		return nil, fmt.Errorf("query FindDevicesByUser: %w", err)
@@ -348,6 +349,7 @@ type CompositeUserRow struct {
 
 // CompositeUser implements Querier.CompositeUser.
 func (q *DBQuerier) CompositeUser(ctx context.Context) ([]CompositeUserRow, error) {
+	ctx = context.WithValue(ctx, "pggen_query_name", "CompositeUser")
 	rows, err := q.conn.Query(ctx, compositeUserSQL)
 	if err != nil {
 		return nil, fmt.Errorf("query CompositeUser: %w", err)
@@ -405,6 +407,7 @@ const compositeUserOneSQL = `SELECT ROW (15, 'qux')::"user" AS "user";`
 
 // CompositeUserOne implements Querier.CompositeUserOne.
 func (q *DBQuerier) CompositeUserOne(ctx context.Context) (User, error) {
+	ctx = context.WithValue(ctx, "pggen_query_name", "CompositeUserOne")
 	row := q.conn.QueryRow(ctx, compositeUserOneSQL)
 	var item User
 	userRow := q.types.newUser()
@@ -445,6 +448,7 @@ type CompositeUserOneTwoColsRow struct {
 
 // CompositeUserOneTwoCols implements Querier.CompositeUserOneTwoCols.
 func (q *DBQuerier) CompositeUserOneTwoCols(ctx context.Context) (CompositeUserOneTwoColsRow, error) {
+	ctx = context.WithValue(ctx, "pggen_query_name", "CompositeUserOneTwoCols")
 	row := q.conn.QueryRow(ctx, compositeUserOneTwoColsSQL)
 	var item CompositeUserOneTwoColsRow
 	userRow := q.types.newUser()
@@ -480,6 +484,7 @@ const compositeUserManySQL = `SELECT ROW (15, 'qux')::"user" AS "user";`
 
 // CompositeUserMany implements Querier.CompositeUserMany.
 func (q *DBQuerier) CompositeUserMany(ctx context.Context) ([]User, error) {
+	ctx = context.WithValue(ctx, "pggen_query_name", "CompositeUserMany")
 	rows, err := q.conn.Query(ctx, compositeUserManySQL)
 	if err != nil {
 		return nil, fmt.Errorf("query CompositeUserMany: %w", err)
@@ -538,6 +543,7 @@ VALUES ($1, $2);`
 
 // InsertUser implements Querier.InsertUser.
 func (q *DBQuerier) InsertUser(ctx context.Context, userID int, name string) (pgconn.CommandTag, error) {
+	ctx = context.WithValue(ctx, "pggen_query_name", "InsertUser")
 	cmdTag, err := q.conn.Exec(ctx, insertUserSQL, userID, name)
 	if err != nil {
 		return cmdTag, fmt.Errorf("exec query InsertUser: %w", err)
@@ -564,6 +570,7 @@ VALUES ($1, $2);`
 
 // InsertDevice implements Querier.InsertDevice.
 func (q *DBQuerier) InsertDevice(ctx context.Context, mac pgtype.Macaddr, owner int) (pgconn.CommandTag, error) {
+	ctx = context.WithValue(ctx, "pggen_query_name", "InsertDevice")
 	cmdTag, err := q.conn.Exec(ctx, insertDeviceSQL, mac, owner)
 	if err != nil {
 		return cmdTag, fmt.Errorf("exec query InsertDevice: %w", err)

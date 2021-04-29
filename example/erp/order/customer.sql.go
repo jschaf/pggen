@@ -99,12 +99,12 @@ func NewQuerier(conn genericConn) *DBQuerier {
 }
 
 type QuerierConfig struct {
-	// DataTypes contains pgtype.Value to use for encoding and decoding instead of
-	// pggen-generated pgtype.ValueTranscoder.
+	// DataTypes contains pgtype.Value to use for encoding and decoding instead
+	// of pggen-generated pgtype.ValueTranscoder.
 	//
-	// If OIDs are available for an input parameter type and all of its transative
-	// dependencies, pggen will use the binary encoding format for the input
-	// parameter.
+	// If OIDs are available for an input parameter type and all of its
+	// transitive dependencies, pggen will use the binary encoding format for
+	// the input parameter.
 	DataTypes []pgtype.DataType
 }
 
@@ -204,6 +204,7 @@ type CreateTenantRow struct {
 
 // CreateTenant implements Querier.CreateTenant.
 func (q *DBQuerier) CreateTenant(ctx context.Context, key string, name string) (CreateTenantRow, error) {
+	ctx = context.WithValue(ctx, "pggen_query_name", "CreateTenant")
 	row := q.conn.QueryRow(ctx, createTenantSQL, key, name)
 	var item CreateTenantRow
 	if err := row.Scan(&item.TenantID, &item.Rname, &item.Name); err != nil {
@@ -240,6 +241,7 @@ type FindOrdersByCustomerRow struct {
 
 // FindOrdersByCustomer implements Querier.FindOrdersByCustomer.
 func (q *DBQuerier) FindOrdersByCustomer(ctx context.Context, customerID int32) ([]FindOrdersByCustomerRow, error) {
+	ctx = context.WithValue(ctx, "pggen_query_name", "FindOrdersByCustomer")
 	rows, err := q.conn.Query(ctx, findOrdersByCustomerSQL, customerID)
 	if err != nil {
 		return nil, fmt.Errorf("query FindOrdersByCustomer: %w", err)
@@ -299,6 +301,7 @@ type FindProductsInOrderRow struct {
 
 // FindProductsInOrder implements Querier.FindProductsInOrder.
 func (q *DBQuerier) FindProductsInOrder(ctx context.Context, orderID int32) ([]FindProductsInOrderRow, error) {
+	ctx = context.WithValue(ctx, "pggen_query_name", "FindProductsInOrder")
 	rows, err := q.conn.Query(ctx, findProductsInOrderSQL, orderID)
 	if err != nil {
 		return nil, fmt.Errorf("query FindProductsInOrder: %w", err)
@@ -363,6 +366,7 @@ type InsertCustomerRow struct {
 
 // InsertCustomer implements Querier.InsertCustomer.
 func (q *DBQuerier) InsertCustomer(ctx context.Context, params InsertCustomerParams) (InsertCustomerRow, error) {
+	ctx = context.WithValue(ctx, "pggen_query_name", "InsertCustomer")
 	row := q.conn.QueryRow(ctx, insertCustomerSQL, params.FirstName, params.LastName, params.Email)
 	var item InsertCustomerRow
 	if err := row.Scan(&item.CustomerID, &item.FirstName, &item.LastName, &item.Email); err != nil {
@@ -405,6 +409,7 @@ type InsertOrderRow struct {
 
 // InsertOrder implements Querier.InsertOrder.
 func (q *DBQuerier) InsertOrder(ctx context.Context, params InsertOrderParams) (InsertOrderRow, error) {
+	ctx = context.WithValue(ctx, "pggen_query_name", "InsertOrder")
 	row := q.conn.QueryRow(ctx, insertOrderSQL, params.OrderDate, params.OrderTotal, params.CustID)
 	var item InsertOrderRow
 	if err := row.Scan(&item.OrderID, &item.OrderDate, &item.OrderTotal, &item.CustomerID); err != nil {

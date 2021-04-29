@@ -78,12 +78,12 @@ func NewQuerier(conn genericConn) *DBQuerier {
 }
 
 type QuerierConfig struct {
-	// DataTypes contains pgtype.Value to use for encoding and decoding instead of
-	// pggen-generated pgtype.ValueTranscoder.
+	// DataTypes contains pgtype.Value to use for encoding and decoding instead
+	// of pggen-generated pgtype.ValueTranscoder.
 	//
-	// If OIDs are available for an input parameter type and all of its transative
-	// dependencies, pggen will use the binary encoding format for the input
-	// parameter.
+	// If OIDs are available for an input parameter type and all of its
+	// transitive dependencies, pggen will use the binary encoding format for
+	// the input parameter.
 	DataTypes []pgtype.DataType
 }
 
@@ -168,6 +168,7 @@ WHERE path <@ 'Top.Science';`
 
 // FindTopScienceChildren implements Querier.FindTopScienceChildren.
 func (q *DBQuerier) FindTopScienceChildren(ctx context.Context) ([]pgtype.Text, error) {
+	ctx = context.WithValue(ctx, "pggen_query_name", "FindTopScienceChildren")
 	rows, err := q.conn.Query(ctx, findTopScienceChildrenSQL)
 	if err != nil {
 		return nil, fmt.Errorf("query FindTopScienceChildren: %w", err)
@@ -219,6 +220,7 @@ WHERE path <@ 'Top.Science';`
 
 // FindTopScienceChildrenAgg implements Querier.FindTopScienceChildrenAgg.
 func (q *DBQuerier) FindTopScienceChildrenAgg(ctx context.Context) (pgtype.TextArray, error) {
+	ctx = context.WithValue(ctx, "pggen_query_name", "FindTopScienceChildrenAgg")
 	row := q.conn.QueryRow(ctx, findTopScienceChildrenAggSQL)
 	var item pgtype.TextArray
 	if err := row.Scan(&item); err != nil {
@@ -259,6 +261,7 @@ VALUES ('Top'),
 
 // InsertSampleData implements Querier.InsertSampleData.
 func (q *DBQuerier) InsertSampleData(ctx context.Context) (pgconn.CommandTag, error) {
+	ctx = context.WithValue(ctx, "pggen_query_name", "InsertSampleData")
 	cmdTag, err := q.conn.Exec(ctx, insertSampleDataSQL)
 	if err != nil {
 		return cmdTag, fmt.Errorf("exec query InsertSampleData: %w", err)
@@ -298,6 +301,7 @@ type FindLtreeInputRow struct {
 
 // FindLtreeInput implements Querier.FindLtreeInput.
 func (q *DBQuerier) FindLtreeInput(ctx context.Context, inLtree pgtype.Text, inLtreeArray []string) (FindLtreeInputRow, error) {
+	ctx = context.WithValue(ctx, "pggen_query_name", "FindLtreeInput")
 	row := q.conn.QueryRow(ctx, findLtreeInputSQL, inLtree, inLtreeArray)
 	var item FindLtreeInputRow
 	if err := row.Scan(&item.Ltree, &item.TextArr); err != nil {

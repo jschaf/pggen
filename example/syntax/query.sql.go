@@ -113,12 +113,12 @@ func NewQuerier(conn genericConn) *DBQuerier {
 }
 
 type QuerierConfig struct {
-	// DataTypes contains pgtype.Value to use for encoding and decoding instead of
-	// pggen-generated pgtype.ValueTranscoder.
+	// DataTypes contains pgtype.Value to use for encoding and decoding instead
+	// of pggen-generated pgtype.ValueTranscoder.
 	//
-	// If OIDs are available for an input parameter type and all of its transative
-	// dependencies, pggen will use the binary encoding format for the input
-	// parameter.
+	// If OIDs are available for an input parameter type and all of its
+	// transitive dependencies, pggen will use the binary encoding format for
+	// the input parameter.
 	DataTypes []pgtype.DataType
 }
 
@@ -225,6 +225,7 @@ const backtickSQL = "SELECT '`';"
 
 // Backtick implements Querier.Backtick.
 func (q *DBQuerier) Backtick(ctx context.Context) (string, error) {
+	ctx = context.WithValue(ctx, "pggen_query_name", "Backtick")
 	row := q.conn.QueryRow(ctx, backtickSQL)
 	var item string
 	if err := row.Scan(&item); err != nil {
@@ -252,6 +253,7 @@ const backtickQuoteBacktickSQL = "SELECT '`\"`';"
 
 // BacktickQuoteBacktick implements Querier.BacktickQuoteBacktick.
 func (q *DBQuerier) BacktickQuoteBacktick(ctx context.Context) (string, error) {
+	ctx = context.WithValue(ctx, "pggen_query_name", "BacktickQuoteBacktick")
 	row := q.conn.QueryRow(ctx, backtickQuoteBacktickSQL)
 	var item string
 	if err := row.Scan(&item); err != nil {
@@ -279,6 +281,7 @@ const backtickNewlineSQL = "SELECT '`\n';"
 
 // BacktickNewline implements Querier.BacktickNewline.
 func (q *DBQuerier) BacktickNewline(ctx context.Context) (string, error) {
+	ctx = context.WithValue(ctx, "pggen_query_name", "BacktickNewline")
 	row := q.conn.QueryRow(ctx, backtickNewlineSQL)
 	var item string
 	if err := row.Scan(&item); err != nil {
@@ -306,6 +309,7 @@ const backtickDoubleQuoteSQL = "SELECT '`\"';"
 
 // BacktickDoubleQuote implements Querier.BacktickDoubleQuote.
 func (q *DBQuerier) BacktickDoubleQuote(ctx context.Context) (string, error) {
+	ctx = context.WithValue(ctx, "pggen_query_name", "BacktickDoubleQuote")
 	row := q.conn.QueryRow(ctx, backtickDoubleQuoteSQL)
 	var item string
 	if err := row.Scan(&item); err != nil {
@@ -333,6 +337,7 @@ const backtickBackslashNSQL = "SELECT '`\\n';"
 
 // BacktickBackslashN implements Querier.BacktickBackslashN.
 func (q *DBQuerier) BacktickBackslashN(ctx context.Context) (string, error) {
+	ctx = context.WithValue(ctx, "pggen_query_name", "BacktickBackslashN")
 	row := q.conn.QueryRow(ctx, backtickBackslashNSQL)
 	var item string
 	if err := row.Scan(&item); err != nil {
@@ -365,6 +370,7 @@ type IllegalNameSymbolsRow struct {
 
 // IllegalNameSymbols implements Querier.IllegalNameSymbols.
 func (q *DBQuerier) IllegalNameSymbols(ctx context.Context, helloWorld string) (IllegalNameSymbolsRow, error) {
+	ctx = context.WithValue(ctx, "pggen_query_name", "IllegalNameSymbols")
 	row := q.conn.QueryRow(ctx, illegalNameSymbolsSQL, helloWorld)
 	var item IllegalNameSymbolsRow
 	if err := row.Scan(&item.UnnamedColumn0, &item.FooBar); err != nil {
@@ -392,6 +398,7 @@ const badEnumNameSQL = `SELECT 'inconvertible_enum_name'::"123";`
 
 // BadEnumName implements Querier.BadEnumName.
 func (q *DBQuerier) BadEnumName(ctx context.Context) (UnnamedEnum123, error) {
+	ctx = context.WithValue(ctx, "pggen_query_name", "BadEnumName")
 	row := q.conn.QueryRow(ctx, badEnumNameSQL)
 	var item UnnamedEnum123
 	if err := row.Scan(&item); err != nil {
@@ -419,6 +426,7 @@ const goKeywordSQL = `SELECT $1::text;`
 
 // GoKeyword implements Querier.GoKeyword.
 func (q *DBQuerier) GoKeyword(ctx context.Context, go_ string) (string, error) {
+	ctx = context.WithValue(ctx, "pggen_query_name", "GoKeyword")
 	row := q.conn.QueryRow(ctx, goKeywordSQL, go_)
 	var item string
 	if err := row.Scan(&item); err != nil {

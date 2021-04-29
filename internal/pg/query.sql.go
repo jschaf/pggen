@@ -104,12 +104,12 @@ func NewQuerier(conn genericConn) *DBQuerier {
 }
 
 type QuerierConfig struct {
-	// DataTypes contains pgtype.Value to use for encoding and decoding instead of
-	// pggen-generated pgtype.ValueTranscoder.
+	// DataTypes contains pgtype.Value to use for encoding and decoding instead
+	// of pggen-generated pgtype.ValueTranscoder.
 	//
-	// If OIDs are available for an input parameter type and all of its transative
-	// dependencies, pggen will use the binary encoding format for the input
-	// parameter.
+	// If OIDs are available for an input parameter type and all of its
+	// transitive dependencies, pggen will use the binary encoding format for
+	// the input parameter.
 	DataTypes []pgtype.DataType
 }
 
@@ -253,6 +253,7 @@ type FindEnumTypesRow struct {
 
 // FindEnumTypes implements Querier.FindEnumTypes.
 func (q *DBQuerier) FindEnumTypes(ctx context.Context, oids []uint32) ([]FindEnumTypesRow, error) {
+	ctx = context.WithValue(ctx, "pggen_query_name", "FindEnumTypes")
 	rows, err := q.conn.Query(ctx, findEnumTypesSQL, oids)
 	if err != nil {
 		return nil, fmt.Errorf("query FindEnumTypes: %w", err)
@@ -336,6 +337,7 @@ type FindArrayTypesRow struct {
 
 // FindArrayTypes implements Querier.FindArrayTypes.
 func (q *DBQuerier) FindArrayTypes(ctx context.Context, oids []uint32) ([]FindArrayTypesRow, error) {
+	ctx = context.WithValue(ctx, "pggen_query_name", "FindArrayTypes")
 	rows, err := q.conn.Query(ctx, findArrayTypesSQL, oids)
 	if err != nil {
 		return nil, fmt.Errorf("query FindArrayTypes: %w", err)
@@ -424,6 +426,7 @@ type FindCompositeTypesRow struct {
 
 // FindCompositeTypes implements Querier.FindCompositeTypes.
 func (q *DBQuerier) FindCompositeTypes(ctx context.Context, oids []uint32) ([]FindCompositeTypesRow, error) {
+	ctx = context.WithValue(ctx, "pggen_query_name", "FindCompositeTypes")
 	rows, err := q.conn.Query(ctx, findCompositeTypesSQL, oids)
 	if err != nil {
 		return nil, fmt.Errorf("query FindCompositeTypes: %w", err)
@@ -499,6 +502,7 @@ FROM oid_descs;`
 
 // FindDescendantOIDs implements Querier.FindDescendantOIDs.
 func (q *DBQuerier) FindDescendantOIDs(ctx context.Context, oids []uint32) ([]pgtype.OID, error) {
+	ctx = context.WithValue(ctx, "pggen_query_name", "FindDescendantOIDs")
 	rows, err := q.conn.Query(ctx, findDescendantOIDsSQL, oids)
 	if err != nil {
 		return nil, fmt.Errorf("query FindDescendantOIDs: %w", err)
@@ -552,6 +556,7 @@ LIMIT 1;`
 
 // FindOIDByName implements Querier.FindOIDByName.
 func (q *DBQuerier) FindOIDByName(ctx context.Context, name string) (pgtype.OID, error) {
+	ctx = context.WithValue(ctx, "pggen_query_name", "FindOIDByName")
 	row := q.conn.QueryRow(ctx, findOIDByNameSQL, name)
 	var item pgtype.OID
 	if err := row.Scan(&item); err != nil {
@@ -581,6 +586,7 @@ WHERE oid = $1;`
 
 // FindOIDName implements Querier.FindOIDName.
 func (q *DBQuerier) FindOIDName(ctx context.Context, oid pgtype.OID) (pgtype.Name, error) {
+	ctx = context.WithValue(ctx, "pggen_query_name", "FindOIDName")
 	row := q.conn.QueryRow(ctx, findOIDNameSQL, oid)
 	var item pgtype.Name
 	if err := row.Scan(&item); err != nil {
@@ -616,6 +622,7 @@ type FindOIDNamesRow struct {
 
 // FindOIDNames implements Querier.FindOIDNames.
 func (q *DBQuerier) FindOIDNames(ctx context.Context, oid []uint32) ([]FindOIDNamesRow, error) {
+	ctx = context.WithValue(ctx, "pggen_query_name", "FindOIDNames")
 	rows, err := q.conn.Query(ctx, findOIDNamesSQL, oid)
 	if err != nil {
 		return nil, fmt.Errorf("query FindOIDNames: %w", err)

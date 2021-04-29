@@ -72,12 +72,12 @@ func NewQuerier(conn genericConn) *DBQuerier {
 }
 
 type QuerierConfig struct {
-	// DataTypes contains pgtype.Value to use for encoding and decoding instead of
-	// pggen-generated pgtype.ValueTranscoder.
+	// DataTypes contains pgtype.Value to use for encoding and decoding instead
+	// of pggen-generated pgtype.ValueTranscoder.
 	//
-	// If OIDs are available for an input parameter type and all of its transative
-	// dependencies, pggen will use the binary encoding format for the input
-	// parameter.
+	// If OIDs are available for an input parameter type and all of its
+	// transitive dependencies, pggen will use the binary encoding format for
+	// the input parameter.
 	DataTypes []pgtype.DataType
 }
 
@@ -162,6 +162,7 @@ type CustomTypesRow struct {
 
 // CustomTypes implements Querier.CustomTypes.
 func (q *DBQuerier) CustomTypes(ctx context.Context) (CustomTypesRow, error) {
+	ctx = context.WithValue(ctx, "pggen_query_name", "CustomTypes")
 	row := q.conn.QueryRow(ctx, customTypesSQL)
 	var item CustomTypesRow
 	if err := row.Scan(&item.Column, &item.Int8); err != nil {
@@ -189,6 +190,7 @@ const customMyIntSQL = `SELECT '5'::my_int as int5;`
 
 // CustomMyInt implements Querier.CustomMyInt.
 func (q *DBQuerier) CustomMyInt(ctx context.Context) (int, error) {
+	ctx = context.WithValue(ctx, "pggen_query_name", "CustomMyInt")
 	row := q.conn.QueryRow(ctx, customMyIntSQL)
 	var item int
 	if err := row.Scan(&item); err != nil {
@@ -216,6 +218,7 @@ const intArraySQL = `SELECT ARRAY ['5', '6', '7']::int[] as ints;`
 
 // IntArray implements Querier.IntArray.
 func (q *DBQuerier) IntArray(ctx context.Context) ([][]int32, error) {
+	ctx = context.WithValue(ctx, "pggen_query_name", "IntArray")
 	rows, err := q.conn.Query(ctx, intArraySQL)
 	if err != nil {
 		return nil, fmt.Errorf("query IntArray: %w", err)

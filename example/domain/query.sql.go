@@ -57,12 +57,12 @@ func NewQuerier(conn genericConn) *DBQuerier {
 }
 
 type QuerierConfig struct {
-	// DataTypes contains pgtype.Value to use for encoding and decoding instead of
-	// pggen-generated pgtype.ValueTranscoder.
+	// DataTypes contains pgtype.Value to use for encoding and decoding instead
+	// of pggen-generated pgtype.ValueTranscoder.
 	//
-	// If OIDs are available for an input parameter type and all of its transative
-	// dependencies, pggen will use the binary encoding format for the input
-	// parameter.
+	// If OIDs are available for an input parameter type and all of its
+	// transitive dependencies, pggen will use the binary encoding format for
+	// the input parameter.
 	DataTypes []pgtype.DataType
 }
 
@@ -136,6 +136,7 @@ const domainOneSQL = `SELECT '90210'::us_postal_code;`
 
 // DomainOne implements Querier.DomainOne.
 func (q *DBQuerier) DomainOne(ctx context.Context) (string, error) {
+	ctx = context.WithValue(ctx, "pggen_query_name", "DomainOne")
 	row := q.conn.QueryRow(ctx, domainOneSQL)
 	var item string
 	if err := row.Scan(&item); err != nil {
