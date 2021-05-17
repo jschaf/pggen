@@ -16,6 +16,12 @@ import (
 	"strings"
 )
 
+// Set via ldflags for release binaries.
+var (
+	version = "dev"
+	commit  = "head"
+)
+
 var flagHelp = `pggen generates type-safe code from files containing Postgres queries by running
 the queries on Postgres to get type information.
 
@@ -36,14 +42,14 @@ EXAMPLES
 `
 
 func run() error {
-	genCmd := newGenCmd()
 	rootFlagSet := flag.NewFlagSet("root", flag.ExitOnError)
 	rootCmd := &ffcli.Command{
 		ShortUsage: "pggen <subcommand> [options...]",
 		LongHelp:   flagHelp,
 		FlagSet:    rootFlagSet,
 		Subcommands: []*ffcli.Command{
-			genCmd,
+			newGenCmd(),
+			newVersionCmd(),
 		},
 	}
 	rootCmd.Exec = func(ctx context.Context, args []string) error {
@@ -55,6 +61,18 @@ func run() error {
 		return err
 	}
 	return nil
+}
+
+func newVersionCmd() *ffcli.Command {
+	cmd := &ffcli.Command{
+		Name:       "version",
+		ShortUsage: "prints pggen version",
+		Exec: func(ctx context.Context, args []string) error {
+			fmt.Printf("pggen version %s, commit %s\n", version, commit)
+			return nil
+		},
+	}
+	return cmd
 }
 
 func newGenCmd() *ffcli.Command {

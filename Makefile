@@ -5,6 +5,10 @@ SHELL := bash
 MAKEFLAGS += --warn-undefined-variables
 MAKEFLAGS += --no-builtin-rules
 
+version := $(shell date '+%Y-%m-%d')
+commit := $(shell git rev-parse --short HEAD)
+ldflags := -ldflags "-X 'main.version=${version}' -X 'main.commit=${commit}'"
+
 .PHONY: all
 all: lint test acceptance-test
 
@@ -48,19 +52,19 @@ dist-dir:
 
 .PHONY: binary-darwin-amd64
 binary-darwin-amd64: dist-dir
-	GOOS=darwin GOARCH=amd64 go build -o dist/pggen-darwin-amd64 ./cmd/pggen
+	GOOS=darwin GOARCH=amd64 go build ${ldflags} -o dist/pggen-darwin-amd64 ./cmd/pggen
 
 .PHONY: binary-darwin-arm64
 binary-darwin-arm64: dist-dir
-	GOOS=darwin GOARCH=arm64 go build -o dist/pggen-darwin-arm64 ./cmd/pggen
+	GOOS=darwin GOARCH=arm64 go build ${ldflags} -o dist/pggen-darwin-arm64 ./cmd/pggen
 
 .PHONY: binary-linux-amd64
 binary-linux-amd64: dist-dir
-	GOOS=linux GOARCH=amd64 go build -o dist/pggen-linux-amd64 ./cmd/pggen
+	GOOS=linux GOARCH=amd64 go build ${ldflags} -o dist/pggen-linux-amd64 ./cmd/pggen
 
 .PHONY: binary-windows-amd64
 binary-windows-amd64: dist-dir
-	GOOS=windows GOARCH=amd64 go build -o dist/pggen-windows-amd64.exe ./cmd/pggen
+	GOOS=windows GOARCH=amd64 go build ${ldflags} -o dist/pggen-windows-amd64.exe ./cmd/pggen
 
 .PHONY: release
 release: binary-all
