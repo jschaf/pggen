@@ -64,6 +64,14 @@ type Querier interface {
 	// IllegalNameSymbolsScan scans the result of an executed IllegalNameSymbolsBatch query.
 	IllegalNameSymbolsScan(results pgx.BatchResults) (IllegalNameSymbolsRow, error)
 
+	// Space after pggen.arg
+	SpaceAfter(ctx context.Context, space string) (string, error)
+	// SpaceAfterBatch enqueues a SpaceAfter query into batch to be executed
+	// later by the batch.
+	SpaceAfterBatch(batch *pgx.Batch, space string)
+	// SpaceAfterScan scans the result of an executed SpaceAfterBatch query.
+	SpaceAfterScan(results pgx.BatchResults) (string, error)
+
 	// Enum named 123.
 	BadEnumName(ctx context.Context) (UnnamedEnum123, error)
 	// BadEnumNameBatch enqueues a BadEnumName query into batch to be executed
@@ -164,6 +172,9 @@ func PrepareAllQueries(ctx context.Context, p preparer) error {
 	}
 	if _, err := p.Prepare(ctx, illegalNameSymbolsSQL, illegalNameSymbolsSQL); err != nil {
 		return fmt.Errorf("prepare query 'IllegalNameSymbols': %w", err)
+	}
+	if _, err := p.Prepare(ctx, spaceAfterSQL, spaceAfterSQL); err != nil {
+		return fmt.Errorf("prepare query 'SpaceAfter': %w", err)
 	}
 	if _, err := p.Prepare(ctx, badEnumNameSQL, badEnumNameSQL); err != nil {
 		return fmt.Errorf("prepare query 'BadEnumName': %w", err)
@@ -390,6 +401,34 @@ func (q *DBQuerier) IllegalNameSymbolsScan(results pgx.BatchResults) (IllegalNam
 	var item IllegalNameSymbolsRow
 	if err := row.Scan(&item.UnnamedColumn0, &item.FooBar); err != nil {
 		return item, fmt.Errorf("scan IllegalNameSymbolsBatch row: %w", err)
+	}
+	return item, nil
+}
+
+const spaceAfterSQL = `SELECT $1;`
+
+// SpaceAfter implements Querier.SpaceAfter.
+func (q *DBQuerier) SpaceAfter(ctx context.Context, space string) (string, error) {
+	ctx = context.WithValue(ctx, "pggen_query_name", "SpaceAfter")
+	row := q.conn.QueryRow(ctx, spaceAfterSQL, space)
+	var item string
+	if err := row.Scan(&item); err != nil {
+		return item, fmt.Errorf("query SpaceAfter: %w", err)
+	}
+	return item, nil
+}
+
+// SpaceAfterBatch implements Querier.SpaceAfterBatch.
+func (q *DBQuerier) SpaceAfterBatch(batch *pgx.Batch, space string) {
+	batch.Queue(spaceAfterSQL, space)
+}
+
+// SpaceAfterScan implements Querier.SpaceAfterScan.
+func (q *DBQuerier) SpaceAfterScan(results pgx.BatchResults) (string, error) {
+	row := results.QueryRow()
+	var item string
+	if err := row.Scan(&item); err != nil {
+		return item, fmt.Errorf("scan SpaceAfterBatch row: %w", err)
 	}
 	return item, nil
 }

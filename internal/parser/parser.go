@@ -219,7 +219,9 @@ func (p *parser) parseQuery() ast.Query {
 			p.error(p.pos, "unterminated query (no semicolon): "+string(p.src[pos:p.pos]))
 			return &ast.BadQuery{From: pos, To: p.pos}
 		}
-		if p.tok == token.QueryFragment && strings.HasSuffix(p.lit, "pggen.arg(") {
+		hasPggenArg := strings.HasSuffix(p.lit, "pggen.arg(") ||
+			strings.HasSuffix(p.lit, "pggen.arg (")
+		if p.tok == token.QueryFragment && hasPggenArg {
 			arg, ok := p.parsePggenArg()
 			if !ok {
 				return &ast.BadQuery{From: pos, To: p.pos}
@@ -334,7 +336,7 @@ type argPos struct {
 // parsePggenArg parses the name from: pggen.arg('foo') and pos for the start
 // and end.
 func (p *parser) parsePggenArg() (argPos, bool) {
-	lo := int(p.pos) + len(p.lit) - len("pggen.arg(") - 1
+	lo := int(p.pos) + strings.LastIndex(p.lit, "pggen") - 1
 	p.next() // consume query fragment that contains "pggen.arg("
 	if p.tok != token.String {
 		p.error(p.pos, `expected string literal after "pggen.arg("`)

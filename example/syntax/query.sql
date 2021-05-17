@@ -23,6 +23,10 @@ SELECT '`\n';
 -- name: IllegalNameSymbols :one
 SELECT '`\n' as "$", pggen.arg('@hello world!') as "foo.bar!@#$%&*()""--+";
 
+-- Space after pggen.arg
+-- name: SpaceAfter :one
+SELECT pggen.arg ('space');
+
 -- Enum named 123.
 -- name: BadEnumName :one
 SELECT 'inconvertible_enum_name'::"123";

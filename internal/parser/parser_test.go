@@ -53,6 +53,17 @@ func TestParseFile_Queries(t *testing.T) {
 			},
 		},
 		{
+			"-- name: Qux   :exec\nSELECT pggen.arg ('Bar');",
+			&ast.SourceQuery{
+				Name:        "Qux",
+				Doc:         &ast.CommentGroup{List: []*ast.LineComment{{Text: "-- name: Qux   :exec"}}},
+				SourceSQL:   "SELECT pggen.arg ('Bar');",
+				PreparedSQL: "SELECT $1;",
+				ParamNames:  []string{"Bar"},
+				ResultKind:  ast.ResultKindExec,
+			},
+		},
+		{
 			"-- name: Qux :one\nSELECT pggen.arg('A$_$$B123');",
 			&ast.SourceQuery{
 				Name:        "Qux",
