@@ -42,7 +42,7 @@ const (
 	Trace Mode = 1 << iota // print a trace of parsed productions
 )
 
-// ParseFile parses the source code of a single bibtex source file and returns
+// ParseFile parses the source code of a single query source file and returns
 // the corresponding ast.File node. The source code may be provided via the
 // filename of the source file, or via the src parameter.
 //
@@ -82,7 +82,7 @@ func ParseFile(fset *gotok.FileSet, filename string, src interface{}, mode Mode)
 
 		// set result values
 		if f == nil {
-			// src is not a valid bibtex source file - satisfy ParseFile API and
+			// src is not a valid query source file - satisfy ParseFile API and
 			// return a valid (but) empty *ast.File
 			f = &ast.File{Name: filename}
 		}

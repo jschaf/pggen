@@ -404,7 +404,7 @@ func (p *parser) parseFile() *ast.File {
 	}
 
 	// Don't bother parsing the rest if we had errors scanning the first token.
-	// Likely not a bibtex source file at all.
+	// Likely not a query source file at all.
 	if p.errors.Len() != 0 {
 		return nil
 	}

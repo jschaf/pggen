@@ -113,7 +113,7 @@ func (*SourceQuery) queryNode()       {}
 // ----------------------------------------------------------------------------
 // Files and packages
 
-// A File node represents a bibtex source file.
+// A File node represents a query source file.
 //
 // The Comments list contains all comments in the source file in order of
 // appearance, including the comments that are pointed to from other nodes
