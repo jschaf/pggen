@@ -199,7 +199,7 @@ other than `~/bin/pggen`.
 Requires Go 1.16 because pggen uses `go:embed`.
 
 ```shell
-go get github.com/jschaf/pggen
+go get github.com/jschaf/pggen/cmd/pggen
 ```
     
 Make sure pggen works:
