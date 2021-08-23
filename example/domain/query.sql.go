@@ -19,7 +19,7 @@ type Querier interface {
 	DomainOne(ctx context.Context) (string, error)
 	// DomainOneBatch enqueues a DomainOne query into batch to be executed
 	// later by the batch.
-	DomainOneBatch(batch *pgx.Batch)
+	DomainOneBatch(batch genericBatch)
 	// DomainOneScan scans the result of an executed DomainOneBatch query.
 	DomainOneScan(results pgx.BatchResults) (string, error)
 }
@@ -48,6 +48,14 @@ type genericConn interface {
 	// string. arguments should be referenced positionally from the sql string
 	// as $1, $2, etc.
 	Exec(ctx context.Context, sql string, arguments ...interface{}) (pgconn.CommandTag, error)
+}
+
+// genericBatch batches queries to send in a single network request to a
+// Postgres server. This is usually backed by *pgx.Batch.
+type genericBatch interface {
+	// Queue queues a query to batch b. query can be an SQL query or the name of a
+	// prepared statement. See Queue on *pgx.Batch.
+	Queue(query string, arguments ...interface{})
 }
 
 // NewQuerier creates a DBQuerier that implements Querier. conn is typically
@@ -146,7 +154,7 @@ func (q *DBQuerier) DomainOne(ctx context.Context) (string, error) {
 }
 
 // DomainOneBatch implements Querier.DomainOneBatch.
-func (q *DBQuerier) DomainOneBatch(batch *pgx.Batch) {
+func (q *DBQuerier) DomainOneBatch(batch genericBatch) {
 	batch.Queue(domainOneSQL)
 }
 

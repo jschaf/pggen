@@ -22,7 +22,7 @@ func (q *DBQuerier) Bravo(ctx context.Context) (string, error) {
 }
 
 // BravoBatch implements Querier.BravoBatch.
-func (q *DBQuerier) BravoBatch(batch *pgx.Batch) {
+func (q *DBQuerier) BravoBatch(batch genericBatch) {
 	batch.Queue(bravoSQL)
 }
 

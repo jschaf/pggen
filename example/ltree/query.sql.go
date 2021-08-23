@@ -19,28 +19,28 @@ type Querier interface {
 	FindTopScienceChildren(ctx context.Context) ([]pgtype.Text, error)
 	// FindTopScienceChildrenBatch enqueues a FindTopScienceChildren query into batch to be executed
 	// later by the batch.
-	FindTopScienceChildrenBatch(batch *pgx.Batch)
+	FindTopScienceChildrenBatch(batch genericBatch)
 	// FindTopScienceChildrenScan scans the result of an executed FindTopScienceChildrenBatch query.
 	FindTopScienceChildrenScan(results pgx.BatchResults) ([]pgtype.Text, error)
 
 	FindTopScienceChildrenAgg(ctx context.Context) (pgtype.TextArray, error)
 	// FindTopScienceChildrenAggBatch enqueues a FindTopScienceChildrenAgg query into batch to be executed
 	// later by the batch.
-	FindTopScienceChildrenAggBatch(batch *pgx.Batch)
+	FindTopScienceChildrenAggBatch(batch genericBatch)
 	// FindTopScienceChildrenAggScan scans the result of an executed FindTopScienceChildrenAggBatch query.
 	FindTopScienceChildrenAggScan(results pgx.BatchResults) (pgtype.TextArray, error)
 
 	InsertSampleData(ctx context.Context) (pgconn.CommandTag, error)
 	// InsertSampleDataBatch enqueues a InsertSampleData query into batch to be executed
 	// later by the batch.
-	InsertSampleDataBatch(batch *pgx.Batch)
+	InsertSampleDataBatch(batch genericBatch)
 	// InsertSampleDataScan scans the result of an executed InsertSampleDataBatch query.
 	InsertSampleDataScan(results pgx.BatchResults) (pgconn.CommandTag, error)
 
 	FindLtreeInput(ctx context.Context, inLtree pgtype.Text, inLtreeArray []string) (FindLtreeInputRow, error)
 	// FindLtreeInputBatch enqueues a FindLtreeInput query into batch to be executed
 	// later by the batch.
-	FindLtreeInputBatch(batch *pgx.Batch, inLtree pgtype.Text, inLtreeArray []string)
+	FindLtreeInputBatch(batch genericBatch, inLtree pgtype.Text, inLtreeArray []string)
 	// FindLtreeInputScan scans the result of an executed FindLtreeInputBatch query.
 	FindLtreeInputScan(results pgx.BatchResults) (FindLtreeInputRow, error)
 }
@@ -69,6 +69,14 @@ type genericConn interface {
 	// string. arguments should be referenced positionally from the sql string
 	// as $1, $2, etc.
 	Exec(ctx context.Context, sql string, arguments ...interface{}) (pgconn.CommandTag, error)
+}
+
+// genericBatch batches queries to send in a single network request to a
+// Postgres server. This is usually backed by *pgx.Batch.
+type genericBatch interface {
+	// Queue queues a query to batch b. query can be an SQL query or the name of a
+	// prepared statement. See Queue on *pgx.Batch.
+	Queue(query string, arguments ...interface{})
 }
 
 // NewQuerier creates a DBQuerier that implements Querier. conn is typically
@@ -189,7 +197,7 @@ func (q *DBQuerier) FindTopScienceChildren(ctx context.Context) ([]pgtype.Text, 
 }
 
 // FindTopScienceChildrenBatch implements Querier.FindTopScienceChildrenBatch.
-func (q *DBQuerier) FindTopScienceChildrenBatch(batch *pgx.Batch) {
+func (q *DBQuerier) FindTopScienceChildrenBatch(batch genericBatch) {
 	batch.Queue(findTopScienceChildrenSQL)
 }
 
@@ -230,7 +238,7 @@ func (q *DBQuerier) FindTopScienceChildrenAgg(ctx context.Context) (pgtype.TextA
 }
 
 // FindTopScienceChildrenAggBatch implements Querier.FindTopScienceChildrenAggBatch.
-func (q *DBQuerier) FindTopScienceChildrenAggBatch(batch *pgx.Batch) {
+func (q *DBQuerier) FindTopScienceChildrenAggBatch(batch genericBatch) {
 	batch.Queue(findTopScienceChildrenAggSQL)
 }
 
@@ -270,7 +278,7 @@ func (q *DBQuerier) InsertSampleData(ctx context.Context) (pgconn.CommandTag, er
 }
 
 // InsertSampleDataBatch implements Querier.InsertSampleDataBatch.
-func (q *DBQuerier) InsertSampleDataBatch(batch *pgx.Batch) {
+func (q *DBQuerier) InsertSampleDataBatch(batch genericBatch) {
 	batch.Queue(insertSampleDataSQL)
 }
 
@@ -311,7 +319,7 @@ func (q *DBQuerier) FindLtreeInput(ctx context.Context, inLtree pgtype.Text, inL
 }
 
 // FindLtreeInputBatch implements Querier.FindLtreeInputBatch.
-func (q *DBQuerier) FindLtreeInputBatch(batch *pgx.Batch, inLtree pgtype.Text, inLtreeArray []string) {
+func (q *DBQuerier) FindLtreeInputBatch(batch genericBatch, inLtree pgtype.Text, inLtreeArray []string) {
 	batch.Queue(findLtreeInputSQL, inLtree, inLtreeArray)
 }
 

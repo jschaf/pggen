@@ -19,35 +19,35 @@ type Querier interface {
 	ParamArrayInt(ctx context.Context, ints []int) ([]int, error)
 	// ParamArrayIntBatch enqueues a ParamArrayInt query into batch to be executed
 	// later by the batch.
-	ParamArrayIntBatch(batch *pgx.Batch, ints []int)
+	ParamArrayIntBatch(batch genericBatch, ints []int)
 	// ParamArrayIntScan scans the result of an executed ParamArrayIntBatch query.
 	ParamArrayIntScan(results pgx.BatchResults) ([]int, error)
 
 	ParamNested1(ctx context.Context, dimensions Dimensions) (Dimensions, error)
 	// ParamNested1Batch enqueues a ParamNested1 query into batch to be executed
 	// later by the batch.
-	ParamNested1Batch(batch *pgx.Batch, dimensions Dimensions)
+	ParamNested1Batch(batch genericBatch, dimensions Dimensions)
 	// ParamNested1Scan scans the result of an executed ParamNested1Batch query.
 	ParamNested1Scan(results pgx.BatchResults) (Dimensions, error)
 
 	ParamNested2(ctx context.Context, image ProductImageType) (ProductImageType, error)
 	// ParamNested2Batch enqueues a ParamNested2 query into batch to be executed
 	// later by the batch.
-	ParamNested2Batch(batch *pgx.Batch, image ProductImageType)
+	ParamNested2Batch(batch genericBatch, image ProductImageType)
 	// ParamNested2Scan scans the result of an executed ParamNested2Batch query.
 	ParamNested2Scan(results pgx.BatchResults) (ProductImageType, error)
 
 	ParamNested2Array(ctx context.Context, images []ProductImageType) ([]ProductImageType, error)
 	// ParamNested2ArrayBatch enqueues a ParamNested2Array query into batch to be executed
 	// later by the batch.
-	ParamNested2ArrayBatch(batch *pgx.Batch, images []ProductImageType)
+	ParamNested2ArrayBatch(batch genericBatch, images []ProductImageType)
 	// ParamNested2ArrayScan scans the result of an executed ParamNested2ArrayBatch query.
 	ParamNested2ArrayScan(results pgx.BatchResults) ([]ProductImageType, error)
 
 	ParamNested3(ctx context.Context, imageSet ProductImageSetType) (ProductImageSetType, error)
 	// ParamNested3Batch enqueues a ParamNested3 query into batch to be executed
 	// later by the batch.
-	ParamNested3Batch(batch *pgx.Batch, imageSet ProductImageSetType)
+	ParamNested3Batch(batch genericBatch, imageSet ProductImageSetType)
 	// ParamNested3Scan scans the result of an executed ParamNested3Batch query.
 	ParamNested3Scan(results pgx.BatchResults) (ProductImageSetType, error)
 }
@@ -76,6 +76,14 @@ type genericConn interface {
 	// string. arguments should be referenced positionally from the sql string
 	// as $1, $2, etc.
 	Exec(ctx context.Context, sql string, arguments ...interface{}) (pgconn.CommandTag, error)
+}
+
+// genericBatch batches queries to send in a single network request to a
+// Postgres server. This is usually backed by *pgx.Batch.
+type genericBatch interface {
+	// Queue queues a query to batch b. query can be an SQL query or the name of a
+	// prepared statement. See Queue on *pgx.Batch.
+	Queue(query string, arguments ...interface{})
 }
 
 // NewQuerier creates a DBQuerier that implements Querier. conn is typically
@@ -359,7 +367,7 @@ func (q *DBQuerier) ParamArrayInt(ctx context.Context, ints []int) ([]int, error
 }
 
 // ParamArrayIntBatch implements Querier.ParamArrayIntBatch.
-func (q *DBQuerier) ParamArrayIntBatch(batch *pgx.Batch, ints []int) {
+func (q *DBQuerier) ParamArrayIntBatch(batch genericBatch, ints []int) {
 	batch.Queue(paramArrayIntSQL, ints)
 }
 
@@ -391,7 +399,7 @@ func (q *DBQuerier) ParamNested1(ctx context.Context, dimensions Dimensions) (Di
 }
 
 // ParamNested1Batch implements Querier.ParamNested1Batch.
-func (q *DBQuerier) ParamNested1Batch(batch *pgx.Batch, dimensions Dimensions) {
+func (q *DBQuerier) ParamNested1Batch(batch genericBatch, dimensions Dimensions) {
 	batch.Queue(paramNested1SQL, q.types.newDimensionsInit(dimensions))
 }
 
@@ -427,7 +435,7 @@ func (q *DBQuerier) ParamNested2(ctx context.Context, image ProductImageType) (P
 }
 
 // ParamNested2Batch implements Querier.ParamNested2Batch.
-func (q *DBQuerier) ParamNested2Batch(batch *pgx.Batch, image ProductImageType) {
+func (q *DBQuerier) ParamNested2Batch(batch genericBatch, image ProductImageType) {
 	batch.Queue(paramNested2SQL, q.types.newProductImageTypeInit(image))
 }
 
@@ -463,7 +471,7 @@ func (q *DBQuerier) ParamNested2Array(ctx context.Context, images []ProductImage
 }
 
 // ParamNested2ArrayBatch implements Querier.ParamNested2ArrayBatch.
-func (q *DBQuerier) ParamNested2ArrayBatch(batch *pgx.Batch, images []ProductImageType) {
+func (q *DBQuerier) ParamNested2ArrayBatch(batch genericBatch, images []ProductImageType) {
 	batch.Queue(paramNested2ArraySQL, q.types.newProductImageTypeArrayInit(images))
 }
 
@@ -499,7 +507,7 @@ func (q *DBQuerier) ParamNested3(ctx context.Context, imageSet ProductImageSetTy
 }
 
 // ParamNested3Batch implements Querier.ParamNested3Batch.
-func (q *DBQuerier) ParamNested3Batch(batch *pgx.Batch, imageSet ProductImageSetType) {
+func (q *DBQuerier) ParamNested3Batch(batch genericBatch, imageSet ProductImageSetType) {
 	batch.Queue(paramNested3SQL, q.types.newProductImageSetTypeInit(imageSet))
 }
 

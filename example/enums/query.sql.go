@@ -19,14 +19,14 @@ type Querier interface {
 	FindAllDevices(ctx context.Context) ([]FindAllDevicesRow, error)
 	// FindAllDevicesBatch enqueues a FindAllDevices query into batch to be executed
 	// later by the batch.
-	FindAllDevicesBatch(batch *pgx.Batch)
+	FindAllDevicesBatch(batch genericBatch)
 	// FindAllDevicesScan scans the result of an executed FindAllDevicesBatch query.
 	FindAllDevicesScan(results pgx.BatchResults) ([]FindAllDevicesRow, error)
 
 	InsertDevice(ctx context.Context, mac pgtype.Macaddr, typePg DeviceType) (pgconn.CommandTag, error)
 	// InsertDeviceBatch enqueues a InsertDevice query into batch to be executed
 	// later by the batch.
-	InsertDeviceBatch(batch *pgx.Batch, mac pgtype.Macaddr, typePg DeviceType)
+	InsertDeviceBatch(batch genericBatch, mac pgtype.Macaddr, typePg DeviceType)
 	// InsertDeviceScan scans the result of an executed InsertDeviceBatch query.
 	InsertDeviceScan(results pgx.BatchResults) (pgconn.CommandTag, error)
 
@@ -34,7 +34,7 @@ type Querier interface {
 	FindOneDeviceArray(ctx context.Context) ([]DeviceType, error)
 	// FindOneDeviceArrayBatch enqueues a FindOneDeviceArray query into batch to be executed
 	// later by the batch.
-	FindOneDeviceArrayBatch(batch *pgx.Batch)
+	FindOneDeviceArrayBatch(batch genericBatch)
 	// FindOneDeviceArrayScan scans the result of an executed FindOneDeviceArrayBatch query.
 	FindOneDeviceArrayScan(results pgx.BatchResults) ([]DeviceType, error)
 
@@ -42,7 +42,7 @@ type Querier interface {
 	FindManyDeviceArray(ctx context.Context) ([][]DeviceType, error)
 	// FindManyDeviceArrayBatch enqueues a FindManyDeviceArray query into batch to be executed
 	// later by the batch.
-	FindManyDeviceArrayBatch(batch *pgx.Batch)
+	FindManyDeviceArrayBatch(batch genericBatch)
 	// FindManyDeviceArrayScan scans the result of an executed FindManyDeviceArrayBatch query.
 	FindManyDeviceArrayScan(results pgx.BatchResults) ([][]DeviceType, error)
 
@@ -50,7 +50,7 @@ type Querier interface {
 	FindManyDeviceArrayWithNum(ctx context.Context) ([]FindManyDeviceArrayWithNumRow, error)
 	// FindManyDeviceArrayWithNumBatch enqueues a FindManyDeviceArrayWithNum query into batch to be executed
 	// later by the batch.
-	FindManyDeviceArrayWithNumBatch(batch *pgx.Batch)
+	FindManyDeviceArrayWithNumBatch(batch genericBatch)
 	// FindManyDeviceArrayWithNumScan scans the result of an executed FindManyDeviceArrayWithNumBatch query.
 	FindManyDeviceArrayWithNumScan(results pgx.BatchResults) ([]FindManyDeviceArrayWithNumRow, error)
 
@@ -58,7 +58,7 @@ type Querier interface {
 	EnumInsideComposite(ctx context.Context) (Device, error)
 	// EnumInsideCompositeBatch enqueues a EnumInsideComposite query into batch to be executed
 	// later by the batch.
-	EnumInsideCompositeBatch(batch *pgx.Batch)
+	EnumInsideCompositeBatch(batch genericBatch)
 	// EnumInsideCompositeScan scans the result of an executed EnumInsideCompositeBatch query.
 	EnumInsideCompositeScan(results pgx.BatchResults) (Device, error)
 }
@@ -87,6 +87,14 @@ type genericConn interface {
 	// string. arguments should be referenced positionally from the sql string
 	// as $1, $2, etc.
 	Exec(ctx context.Context, sql string, arguments ...interface{}) (pgconn.CommandTag, error)
+}
+
+// genericBatch batches queries to send in a single network request to a
+// Postgres server. This is usually backed by *pgx.Batch.
+type genericBatch interface {
+	// Queue queues a query to batch b. query can be an SQL query or the name of a
+	// prepared statement. See Queue on *pgx.Batch.
+	Queue(query string, arguments ...interface{})
 }
 
 // NewQuerier creates a DBQuerier that implements Querier. conn is typically
@@ -320,7 +328,7 @@ func (q *DBQuerier) FindAllDevices(ctx context.Context) ([]FindAllDevicesRow, er
 }
 
 // FindAllDevicesBatch implements Querier.FindAllDevicesBatch.
-func (q *DBQuerier) FindAllDevicesBatch(batch *pgx.Batch) {
+func (q *DBQuerier) FindAllDevicesBatch(batch genericBatch) {
 	batch.Queue(findAllDevicesSQL)
 }
 
@@ -359,7 +367,7 @@ func (q *DBQuerier) InsertDevice(ctx context.Context, mac pgtype.Macaddr, typePg
 }
 
 // InsertDeviceBatch implements Querier.InsertDeviceBatch.
-func (q *DBQuerier) InsertDeviceBatch(batch *pgx.Batch, mac pgtype.Macaddr, typePg DeviceType) {
+func (q *DBQuerier) InsertDeviceBatch(batch genericBatch, mac pgtype.Macaddr, typePg DeviceType) {
 	batch.Queue(insertDeviceSQL, mac, typePg)
 }
 
@@ -390,7 +398,7 @@ func (q *DBQuerier) FindOneDeviceArray(ctx context.Context) ([]DeviceType, error
 }
 
 // FindOneDeviceArrayBatch implements Querier.FindOneDeviceArrayBatch.
-func (q *DBQuerier) FindOneDeviceArrayBatch(batch *pgx.Batch) {
+func (q *DBQuerier) FindOneDeviceArrayBatch(batch genericBatch) {
 	batch.Queue(findOneDeviceArraySQL)
 }
 
@@ -439,7 +447,7 @@ func (q *DBQuerier) FindManyDeviceArray(ctx context.Context) ([][]DeviceType, er
 }
 
 // FindManyDeviceArrayBatch implements Querier.FindManyDeviceArrayBatch.
-func (q *DBQuerier) FindManyDeviceArrayBatch(batch *pgx.Batch) {
+func (q *DBQuerier) FindManyDeviceArrayBatch(batch genericBatch) {
 	batch.Queue(findManyDeviceArraySQL)
 }
 
@@ -504,7 +512,7 @@ func (q *DBQuerier) FindManyDeviceArrayWithNum(ctx context.Context) ([]FindManyD
 }
 
 // FindManyDeviceArrayWithNumBatch implements Querier.FindManyDeviceArrayWithNumBatch.
-func (q *DBQuerier) FindManyDeviceArrayWithNumBatch(batch *pgx.Batch) {
+func (q *DBQuerier) FindManyDeviceArrayWithNumBatch(batch genericBatch) {
 	batch.Queue(findManyDeviceArrayWithNumSQL)
 }
 
@@ -551,7 +559,7 @@ func (q *DBQuerier) EnumInsideComposite(ctx context.Context) (Device, error) {
 }
 
 // EnumInsideCompositeBatch implements Querier.EnumInsideCompositeBatch.
-func (q *DBQuerier) EnumInsideCompositeBatch(batch *pgx.Batch) {
+func (q *DBQuerier) EnumInsideCompositeBatch(batch genericBatch) {
 	batch.Queue(enumInsideCompositeSQL)
 }
 

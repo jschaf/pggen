@@ -19,14 +19,14 @@ type Querier interface {
 	ArrayNested2(ctx context.Context) ([]ProductImageType, error)
 	// ArrayNested2Batch enqueues a ArrayNested2 query into batch to be executed
 	// later by the batch.
-	ArrayNested2Batch(batch *pgx.Batch)
+	ArrayNested2Batch(batch genericBatch)
 	// ArrayNested2Scan scans the result of an executed ArrayNested2Batch query.
 	ArrayNested2Scan(results pgx.BatchResults) ([]ProductImageType, error)
 
 	Nested3(ctx context.Context) ([]ProductImageSetType, error)
 	// Nested3Batch enqueues a Nested3 query into batch to be executed
 	// later by the batch.
-	Nested3Batch(batch *pgx.Batch)
+	Nested3Batch(batch genericBatch)
 	// Nested3Scan scans the result of an executed Nested3Batch query.
 	Nested3Scan(results pgx.BatchResults) ([]ProductImageSetType, error)
 }
@@ -55,6 +55,14 @@ type genericConn interface {
 	// string. arguments should be referenced positionally from the sql string
 	// as $1, $2, etc.
 	Exec(ctx context.Context, sql string, arguments ...interface{}) (pgconn.CommandTag, error)
+}
+
+// genericBatch batches queries to send in a single network request to a
+// Postgres server. This is usually backed by *pgx.Batch.
+type genericBatch interface {
+	// Queue queues a query to batch b. query can be an SQL query or the name of a
+	// prepared statement. See Queue on *pgx.Batch.
+	Queue(query string, arguments ...interface{})
 }
 
 // NewQuerier creates a DBQuerier that implements Querier. conn is typically
@@ -271,7 +279,7 @@ func (q *DBQuerier) ArrayNested2(ctx context.Context) ([]ProductImageType, error
 }
 
 // ArrayNested2Batch implements Querier.ArrayNested2Batch.
-func (q *DBQuerier) ArrayNested2Batch(batch *pgx.Batch) {
+func (q *DBQuerier) ArrayNested2Batch(batch genericBatch) {
 	batch.Queue(arrayNested2SQL)
 }
 
@@ -326,7 +334,7 @@ func (q *DBQuerier) Nested3(ctx context.Context) ([]ProductImageSetType, error) 
 }
 
 // Nested3Batch implements Querier.Nested3Batch.
-func (q *DBQuerier) Nested3Batch(batch *pgx.Batch) {
+func (q *DBQuerier) Nested3Batch(batch genericBatch) {
 	batch.Queue(nested3SQL)
 }
 

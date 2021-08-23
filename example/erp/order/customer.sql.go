@@ -19,49 +19,49 @@ type Querier interface {
 	CreateTenant(ctx context.Context, key string, name string) (CreateTenantRow, error)
 	// CreateTenantBatch enqueues a CreateTenant query into batch to be executed
 	// later by the batch.
-	CreateTenantBatch(batch *pgx.Batch, key string, name string)
+	CreateTenantBatch(batch genericBatch, key string, name string)
 	// CreateTenantScan scans the result of an executed CreateTenantBatch query.
 	CreateTenantScan(results pgx.BatchResults) (CreateTenantRow, error)
 
 	FindOrdersByCustomer(ctx context.Context, customerID int32) ([]FindOrdersByCustomerRow, error)
 	// FindOrdersByCustomerBatch enqueues a FindOrdersByCustomer query into batch to be executed
 	// later by the batch.
-	FindOrdersByCustomerBatch(batch *pgx.Batch, customerID int32)
+	FindOrdersByCustomerBatch(batch genericBatch, customerID int32)
 	// FindOrdersByCustomerScan scans the result of an executed FindOrdersByCustomerBatch query.
 	FindOrdersByCustomerScan(results pgx.BatchResults) ([]FindOrdersByCustomerRow, error)
 
 	FindProductsInOrder(ctx context.Context, orderID int32) ([]FindProductsInOrderRow, error)
 	// FindProductsInOrderBatch enqueues a FindProductsInOrder query into batch to be executed
 	// later by the batch.
-	FindProductsInOrderBatch(batch *pgx.Batch, orderID int32)
+	FindProductsInOrderBatch(batch genericBatch, orderID int32)
 	// FindProductsInOrderScan scans the result of an executed FindProductsInOrderBatch query.
 	FindProductsInOrderScan(results pgx.BatchResults) ([]FindProductsInOrderRow, error)
 
 	InsertCustomer(ctx context.Context, params InsertCustomerParams) (InsertCustomerRow, error)
 	// InsertCustomerBatch enqueues a InsertCustomer query into batch to be executed
 	// later by the batch.
-	InsertCustomerBatch(batch *pgx.Batch, params InsertCustomerParams)
+	InsertCustomerBatch(batch genericBatch, params InsertCustomerParams)
 	// InsertCustomerScan scans the result of an executed InsertCustomerBatch query.
 	InsertCustomerScan(results pgx.BatchResults) (InsertCustomerRow, error)
 
 	InsertOrder(ctx context.Context, params InsertOrderParams) (InsertOrderRow, error)
 	// InsertOrderBatch enqueues a InsertOrder query into batch to be executed
 	// later by the batch.
-	InsertOrderBatch(batch *pgx.Batch, params InsertOrderParams)
+	InsertOrderBatch(batch genericBatch, params InsertOrderParams)
 	// InsertOrderScan scans the result of an executed InsertOrderBatch query.
 	InsertOrderScan(results pgx.BatchResults) (InsertOrderRow, error)
 
 	FindOrdersByPrice(ctx context.Context, minTotal pgtype.Numeric) ([]FindOrdersByPriceRow, error)
 	// FindOrdersByPriceBatch enqueues a FindOrdersByPrice query into batch to be executed
 	// later by the batch.
-	FindOrdersByPriceBatch(batch *pgx.Batch, minTotal pgtype.Numeric)
+	FindOrdersByPriceBatch(batch genericBatch, minTotal pgtype.Numeric)
 	// FindOrdersByPriceScan scans the result of an executed FindOrdersByPriceBatch query.
 	FindOrdersByPriceScan(results pgx.BatchResults) ([]FindOrdersByPriceRow, error)
 
 	FindOrdersMRR(ctx context.Context) ([]FindOrdersMRRRow, error)
 	// FindOrdersMRRBatch enqueues a FindOrdersMRR query into batch to be executed
 	// later by the batch.
-	FindOrdersMRRBatch(batch *pgx.Batch)
+	FindOrdersMRRBatch(batch genericBatch)
 	// FindOrdersMRRScan scans the result of an executed FindOrdersMRRBatch query.
 	FindOrdersMRRScan(results pgx.BatchResults) ([]FindOrdersMRRRow, error)
 }
@@ -90,6 +90,14 @@ type genericConn interface {
 	// string. arguments should be referenced positionally from the sql string
 	// as $1, $2, etc.
 	Exec(ctx context.Context, sql string, arguments ...interface{}) (pgconn.CommandTag, error)
+}
+
+// genericBatch batches queries to send in a single network request to a
+// Postgres server. This is usually backed by *pgx.Batch.
+type genericBatch interface {
+	// Queue queues a query to batch b. query can be an SQL query or the name of a
+	// prepared statement. See Queue on *pgx.Batch.
+	Queue(query string, arguments ...interface{})
 }
 
 // NewQuerier creates a DBQuerier that implements Querier. conn is typically
@@ -214,7 +222,7 @@ func (q *DBQuerier) CreateTenant(ctx context.Context, key string, name string) (
 }
 
 // CreateTenantBatch implements Querier.CreateTenantBatch.
-func (q *DBQuerier) CreateTenantBatch(batch *pgx.Batch, key string, name string) {
+func (q *DBQuerier) CreateTenantBatch(batch genericBatch, key string, name string) {
 	batch.Queue(createTenantSQL, key, name)
 }
 
@@ -262,7 +270,7 @@ func (q *DBQuerier) FindOrdersByCustomer(ctx context.Context, customerID int32) 
 }
 
 // FindOrdersByCustomerBatch implements Querier.FindOrdersByCustomerBatch.
-func (q *DBQuerier) FindOrdersByCustomerBatch(batch *pgx.Batch, customerID int32) {
+func (q *DBQuerier) FindOrdersByCustomerBatch(batch genericBatch, customerID int32) {
 	batch.Queue(findOrdersByCustomerSQL, customerID)
 }
 
@@ -322,7 +330,7 @@ func (q *DBQuerier) FindProductsInOrder(ctx context.Context, orderID int32) ([]F
 }
 
 // FindProductsInOrderBatch implements Querier.FindProductsInOrderBatch.
-func (q *DBQuerier) FindProductsInOrderBatch(batch *pgx.Batch, orderID int32) {
+func (q *DBQuerier) FindProductsInOrderBatch(batch genericBatch, orderID int32) {
 	batch.Queue(findProductsInOrderSQL, orderID)
 }
 
@@ -376,7 +384,7 @@ func (q *DBQuerier) InsertCustomer(ctx context.Context, params InsertCustomerPar
 }
 
 // InsertCustomerBatch implements Querier.InsertCustomerBatch.
-func (q *DBQuerier) InsertCustomerBatch(batch *pgx.Batch, params InsertCustomerParams) {
+func (q *DBQuerier) InsertCustomerBatch(batch genericBatch, params InsertCustomerParams) {
 	batch.Queue(insertCustomerSQL, params.FirstName, params.LastName, params.Email)
 }
 
@@ -419,7 +427,7 @@ func (q *DBQuerier) InsertOrder(ctx context.Context, params InsertOrderParams) (
 }
 
 // InsertOrderBatch implements Querier.InsertOrderBatch.
-func (q *DBQuerier) InsertOrderBatch(batch *pgx.Batch, params InsertOrderParams) {
+func (q *DBQuerier) InsertOrderBatch(batch genericBatch, params InsertOrderParams) {
 	batch.Queue(insertOrderSQL, params.OrderDate, params.OrderTotal, params.CustID)
 }
 

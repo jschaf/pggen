@@ -19,21 +19,21 @@ type Querier interface {
 	SearchScreenshots(ctx context.Context, params SearchScreenshotsParams) ([]SearchScreenshotsRow, error)
 	// SearchScreenshotsBatch enqueues a SearchScreenshots query into batch to be executed
 	// later by the batch.
-	SearchScreenshotsBatch(batch *pgx.Batch, params SearchScreenshotsParams)
+	SearchScreenshotsBatch(batch genericBatch, params SearchScreenshotsParams)
 	// SearchScreenshotsScan scans the result of an executed SearchScreenshotsBatch query.
 	SearchScreenshotsScan(results pgx.BatchResults) ([]SearchScreenshotsRow, error)
 
 	SearchScreenshotsOneCol(ctx context.Context, params SearchScreenshotsOneColParams) ([][]Blocks, error)
 	// SearchScreenshotsOneColBatch enqueues a SearchScreenshotsOneCol query into batch to be executed
 	// later by the batch.
-	SearchScreenshotsOneColBatch(batch *pgx.Batch, params SearchScreenshotsOneColParams)
+	SearchScreenshotsOneColBatch(batch genericBatch, params SearchScreenshotsOneColParams)
 	// SearchScreenshotsOneColScan scans the result of an executed SearchScreenshotsOneColBatch query.
 	SearchScreenshotsOneColScan(results pgx.BatchResults) ([][]Blocks, error)
 
 	InsertScreenshotBlocks(ctx context.Context, screenshotID int, body string) (InsertScreenshotBlocksRow, error)
 	// InsertScreenshotBlocksBatch enqueues a InsertScreenshotBlocks query into batch to be executed
 	// later by the batch.
-	InsertScreenshotBlocksBatch(batch *pgx.Batch, screenshotID int, body string)
+	InsertScreenshotBlocksBatch(batch genericBatch, screenshotID int, body string)
 	// InsertScreenshotBlocksScan scans the result of an executed InsertScreenshotBlocksBatch query.
 	InsertScreenshotBlocksScan(results pgx.BatchResults) (InsertScreenshotBlocksRow, error)
 }
@@ -62,6 +62,14 @@ type genericConn interface {
 	// string. arguments should be referenced positionally from the sql string
 	// as $1, $2, etc.
 	Exec(ctx context.Context, sql string, arguments ...interface{}) (pgconn.CommandTag, error)
+}
+
+// genericBatch batches queries to send in a single network request to a
+// Postgres server. This is usually backed by *pgx.Batch.
+type genericBatch interface {
+	// Queue queues a query to batch b. query can be an SQL query or the name of a
+	// prepared statement. See Queue on *pgx.Batch.
+	Queue(query string, arguments ...interface{})
 }
 
 // NewQuerier creates a DBQuerier that implements Querier. conn is typically
@@ -275,7 +283,7 @@ func (q *DBQuerier) SearchScreenshots(ctx context.Context, params SearchScreensh
 }
 
 // SearchScreenshotsBatch implements Querier.SearchScreenshotsBatch.
-func (q *DBQuerier) SearchScreenshotsBatch(batch *pgx.Batch, params SearchScreenshotsParams) {
+func (q *DBQuerier) SearchScreenshotsBatch(batch genericBatch, params SearchScreenshotsParams) {
 	batch.Queue(searchScreenshotsSQL, params.Body, params.Limit, params.Offset)
 }
 
@@ -346,7 +354,7 @@ func (q *DBQuerier) SearchScreenshotsOneCol(ctx context.Context, params SearchSc
 }
 
 // SearchScreenshotsOneColBatch implements Querier.SearchScreenshotsOneColBatch.
-func (q *DBQuerier) SearchScreenshotsOneColBatch(batch *pgx.Batch, params SearchScreenshotsOneColParams) {
+func (q *DBQuerier) SearchScreenshotsOneColBatch(batch genericBatch, params SearchScreenshotsOneColParams) {
 	batch.Queue(searchScreenshotsOneColSQL, params.Body, params.Limit, params.Offset)
 }
 
@@ -402,7 +410,7 @@ func (q *DBQuerier) InsertScreenshotBlocks(ctx context.Context, screenshotID int
 }
 
 // InsertScreenshotBlocksBatch implements Querier.InsertScreenshotBlocksBatch.
-func (q *DBQuerier) InsertScreenshotBlocksBatch(batch *pgx.Batch, screenshotID int, body string) {
+func (q *DBQuerier) InsertScreenshotBlocksBatch(batch genericBatch, screenshotID int, body string) {
 	batch.Queue(insertScreenshotBlocksSQL, screenshotID, body)
 }
 

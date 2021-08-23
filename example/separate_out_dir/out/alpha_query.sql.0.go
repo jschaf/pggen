@@ -19,28 +19,28 @@ type Querier interface {
 	AlphaNested(ctx context.Context) (string, error)
 	// AlphaNestedBatch enqueues a AlphaNested query into batch to be executed
 	// later by the batch.
-	AlphaNestedBatch(batch *pgx.Batch)
+	AlphaNestedBatch(batch genericBatch)
 	// AlphaNestedScan scans the result of an executed AlphaNestedBatch query.
 	AlphaNestedScan(results pgx.BatchResults) (string, error)
 
 	AlphaCompositeArray(ctx context.Context) ([]Alpha, error)
 	// AlphaCompositeArrayBatch enqueues a AlphaCompositeArray query into batch to be executed
 	// later by the batch.
-	AlphaCompositeArrayBatch(batch *pgx.Batch)
+	AlphaCompositeArrayBatch(batch genericBatch)
 	// AlphaCompositeArrayScan scans the result of an executed AlphaCompositeArrayBatch query.
 	AlphaCompositeArrayScan(results pgx.BatchResults) ([]Alpha, error)
 
 	Alpha(ctx context.Context) (string, error)
 	// AlphaBatch enqueues a Alpha query into batch to be executed
 	// later by the batch.
-	AlphaBatch(batch *pgx.Batch)
+	AlphaBatch(batch genericBatch)
 	// AlphaScan scans the result of an executed AlphaBatch query.
 	AlphaScan(results pgx.BatchResults) (string, error)
 
 	Bravo(ctx context.Context) (string, error)
 	// BravoBatch enqueues a Bravo query into batch to be executed
 	// later by the batch.
-	BravoBatch(batch *pgx.Batch)
+	BravoBatch(batch genericBatch)
 	// BravoScan scans the result of an executed BravoBatch query.
 	BravoScan(results pgx.BatchResults) (string, error)
 }
@@ -69,6 +69,14 @@ type genericConn interface {
 	// string. arguments should be referenced positionally from the sql string
 	// as $1, $2, etc.
 	Exec(ctx context.Context, sql string, arguments ...interface{}) (pgconn.CommandTag, error)
+}
+
+// genericBatch batches queries to send in a single network request to a
+// Postgres server. This is usually backed by *pgx.Batch.
+type genericBatch interface {
+	// Queue queues a query to batch b. query can be an SQL query or the name of a
+	// prepared statement. See Queue on *pgx.Batch.
+	Queue(query string, arguments ...interface{})
 }
 
 // NewQuerier creates a DBQuerier that implements Querier. conn is typically
@@ -247,7 +255,7 @@ func (q *DBQuerier) AlphaNested(ctx context.Context) (string, error) {
 }
 
 // AlphaNestedBatch implements Querier.AlphaNestedBatch.
-func (q *DBQuerier) AlphaNestedBatch(batch *pgx.Batch) {
+func (q *DBQuerier) AlphaNestedBatch(batch genericBatch) {
 	batch.Queue(alphaNestedSQL)
 }
 
@@ -279,7 +287,7 @@ func (q *DBQuerier) AlphaCompositeArray(ctx context.Context) ([]Alpha, error) {
 }
 
 // AlphaCompositeArrayBatch implements Querier.AlphaCompositeArrayBatch.
-func (q *DBQuerier) AlphaCompositeArrayBatch(batch *pgx.Batch) {
+func (q *DBQuerier) AlphaCompositeArrayBatch(batch genericBatch) {
 	batch.Queue(alphaCompositeArraySQL)
 }
 

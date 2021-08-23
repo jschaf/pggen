@@ -22,7 +22,7 @@ func (q *DBQuerier) Alpha(ctx context.Context) (string, error) {
 }
 
 // AlphaBatch implements Querier.AlphaBatch.
-func (q *DBQuerier) AlphaBatch(batch *pgx.Batch) {
+func (q *DBQuerier) AlphaBatch(batch genericBatch) {
 	batch.Queue(alphaSQL)
 }
 

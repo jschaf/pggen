@@ -19,35 +19,35 @@ type Querier interface {
 	VoidOnly(ctx context.Context) (pgconn.CommandTag, error)
 	// VoidOnlyBatch enqueues a VoidOnly query into batch to be executed
 	// later by the batch.
-	VoidOnlyBatch(batch *pgx.Batch)
+	VoidOnlyBatch(batch genericBatch)
 	// VoidOnlyScan scans the result of an executed VoidOnlyBatch query.
 	VoidOnlyScan(results pgx.BatchResults) (pgconn.CommandTag, error)
 
 	VoidOnlyTwoParams(ctx context.Context, id int32) (pgconn.CommandTag, error)
 	// VoidOnlyTwoParamsBatch enqueues a VoidOnlyTwoParams query into batch to be executed
 	// later by the batch.
-	VoidOnlyTwoParamsBatch(batch *pgx.Batch, id int32)
+	VoidOnlyTwoParamsBatch(batch genericBatch, id int32)
 	// VoidOnlyTwoParamsScan scans the result of an executed VoidOnlyTwoParamsBatch query.
 	VoidOnlyTwoParamsScan(results pgx.BatchResults) (pgconn.CommandTag, error)
 
 	VoidTwo(ctx context.Context) (string, error)
 	// VoidTwoBatch enqueues a VoidTwo query into batch to be executed
 	// later by the batch.
-	VoidTwoBatch(batch *pgx.Batch)
+	VoidTwoBatch(batch genericBatch)
 	// VoidTwoScan scans the result of an executed VoidTwoBatch query.
 	VoidTwoScan(results pgx.BatchResults) (string, error)
 
 	VoidThree(ctx context.Context) (VoidThreeRow, error)
 	// VoidThreeBatch enqueues a VoidThree query into batch to be executed
 	// later by the batch.
-	VoidThreeBatch(batch *pgx.Batch)
+	VoidThreeBatch(batch genericBatch)
 	// VoidThreeScan scans the result of an executed VoidThreeBatch query.
 	VoidThreeScan(results pgx.BatchResults) (VoidThreeRow, error)
 
 	VoidThree2(ctx context.Context) ([]string, error)
 	// VoidThree2Batch enqueues a VoidThree2 query into batch to be executed
 	// later by the batch.
-	VoidThree2Batch(batch *pgx.Batch)
+	VoidThree2Batch(batch genericBatch)
 	// VoidThree2Scan scans the result of an executed VoidThree2Batch query.
 	VoidThree2Scan(results pgx.BatchResults) ([]string, error)
 }
@@ -76,6 +76,14 @@ type genericConn interface {
 	// string. arguments should be referenced positionally from the sql string
 	// as $1, $2, etc.
 	Exec(ctx context.Context, sql string, arguments ...interface{}) (pgconn.CommandTag, error)
+}
+
+// genericBatch batches queries to send in a single network request to a
+// Postgres server. This is usually backed by *pgx.Batch.
+type genericBatch interface {
+	// Queue queues a query to batch b. query can be an SQL query or the name of a
+	// prepared statement. See Queue on *pgx.Batch.
+	Queue(query string, arguments ...interface{})
 }
 
 // NewQuerier creates a DBQuerier that implements Querier. conn is typically
@@ -185,7 +193,7 @@ func (q *DBQuerier) VoidOnly(ctx context.Context) (pgconn.CommandTag, error) {
 }
 
 // VoidOnlyBatch implements Querier.VoidOnlyBatch.
-func (q *DBQuerier) VoidOnlyBatch(batch *pgx.Batch) {
+func (q *DBQuerier) VoidOnlyBatch(batch genericBatch) {
 	batch.Queue(voidOnlySQL)
 }
 
@@ -211,7 +219,7 @@ func (q *DBQuerier) VoidOnlyTwoParams(ctx context.Context, id int32) (pgconn.Com
 }
 
 // VoidOnlyTwoParamsBatch implements Querier.VoidOnlyTwoParamsBatch.
-func (q *DBQuerier) VoidOnlyTwoParamsBatch(batch *pgx.Batch, id int32) {
+func (q *DBQuerier) VoidOnlyTwoParamsBatch(batch genericBatch, id int32) {
 	batch.Queue(voidOnlyTwoParamsSQL, id)
 }
 
@@ -238,7 +246,7 @@ func (q *DBQuerier) VoidTwo(ctx context.Context) (string, error) {
 }
 
 // VoidTwoBatch implements Querier.VoidTwoBatch.
-func (q *DBQuerier) VoidTwoBatch(batch *pgx.Batch) {
+func (q *DBQuerier) VoidTwoBatch(batch genericBatch) {
 	batch.Queue(voidTwoSQL)
 }
 
@@ -271,7 +279,7 @@ func (q *DBQuerier) VoidThree(ctx context.Context) (VoidThreeRow, error) {
 }
 
 // VoidThreeBatch implements Querier.VoidThreeBatch.
-func (q *DBQuerier) VoidThreeBatch(batch *pgx.Batch) {
+func (q *DBQuerier) VoidThreeBatch(batch genericBatch) {
 	batch.Queue(voidThreeSQL)
 }
 
@@ -310,7 +318,7 @@ func (q *DBQuerier) VoidThree2(ctx context.Context) ([]string, error) {
 }
 
 // VoidThree2Batch implements Querier.VoidThree2Batch.
-func (q *DBQuerier) VoidThree2Batch(batch *pgx.Batch) {
+func (q *DBQuerier) VoidThree2Batch(batch genericBatch) {
 	batch.Queue(voidThree2SQL)
 }
 

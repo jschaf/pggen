@@ -20,7 +20,7 @@ type Querier interface {
 	Backtick(ctx context.Context) (string, error)
 	// BacktickBatch enqueues a Backtick query into batch to be executed
 	// later by the batch.
-	BacktickBatch(batch *pgx.Batch)
+	BacktickBatch(batch genericBatch)
 	// BacktickScan scans the result of an executed BacktickBatch query.
 	BacktickScan(results pgx.BatchResults) (string, error)
 
@@ -28,7 +28,7 @@ type Querier interface {
 	BacktickQuoteBacktick(ctx context.Context) (string, error)
 	// BacktickQuoteBacktickBatch enqueues a BacktickQuoteBacktick query into batch to be executed
 	// later by the batch.
-	BacktickQuoteBacktickBatch(batch *pgx.Batch)
+	BacktickQuoteBacktickBatch(batch genericBatch)
 	// BacktickQuoteBacktickScan scans the result of an executed BacktickQuoteBacktickBatch query.
 	BacktickQuoteBacktickScan(results pgx.BatchResults) (string, error)
 
@@ -36,7 +36,7 @@ type Querier interface {
 	BacktickNewline(ctx context.Context) (string, error)
 	// BacktickNewlineBatch enqueues a BacktickNewline query into batch to be executed
 	// later by the batch.
-	BacktickNewlineBatch(batch *pgx.Batch)
+	BacktickNewlineBatch(batch genericBatch)
 	// BacktickNewlineScan scans the result of an executed BacktickNewlineBatch query.
 	BacktickNewlineScan(results pgx.BatchResults) (string, error)
 
@@ -44,7 +44,7 @@ type Querier interface {
 	BacktickDoubleQuote(ctx context.Context) (string, error)
 	// BacktickDoubleQuoteBatch enqueues a BacktickDoubleQuote query into batch to be executed
 	// later by the batch.
-	BacktickDoubleQuoteBatch(batch *pgx.Batch)
+	BacktickDoubleQuoteBatch(batch genericBatch)
 	// BacktickDoubleQuoteScan scans the result of an executed BacktickDoubleQuoteBatch query.
 	BacktickDoubleQuoteScan(results pgx.BatchResults) (string, error)
 
@@ -52,7 +52,7 @@ type Querier interface {
 	BacktickBackslashN(ctx context.Context) (string, error)
 	// BacktickBackslashNBatch enqueues a BacktickBackslashN query into batch to be executed
 	// later by the batch.
-	BacktickBackslashNBatch(batch *pgx.Batch)
+	BacktickBackslashNBatch(batch genericBatch)
 	// BacktickBackslashNScan scans the result of an executed BacktickBackslashNBatch query.
 	BacktickBackslashNScan(results pgx.BatchResults) (string, error)
 
@@ -60,7 +60,7 @@ type Querier interface {
 	IllegalNameSymbols(ctx context.Context, helloWorld string) (IllegalNameSymbolsRow, error)
 	// IllegalNameSymbolsBatch enqueues a IllegalNameSymbols query into batch to be executed
 	// later by the batch.
-	IllegalNameSymbolsBatch(batch *pgx.Batch, helloWorld string)
+	IllegalNameSymbolsBatch(batch genericBatch, helloWorld string)
 	// IllegalNameSymbolsScan scans the result of an executed IllegalNameSymbolsBatch query.
 	IllegalNameSymbolsScan(results pgx.BatchResults) (IllegalNameSymbolsRow, error)
 
@@ -68,7 +68,7 @@ type Querier interface {
 	SpaceAfter(ctx context.Context, space string) (string, error)
 	// SpaceAfterBatch enqueues a SpaceAfter query into batch to be executed
 	// later by the batch.
-	SpaceAfterBatch(batch *pgx.Batch, space string)
+	SpaceAfterBatch(batch genericBatch, space string)
 	// SpaceAfterScan scans the result of an executed SpaceAfterBatch query.
 	SpaceAfterScan(results pgx.BatchResults) (string, error)
 
@@ -76,14 +76,14 @@ type Querier interface {
 	BadEnumName(ctx context.Context) (UnnamedEnum123, error)
 	// BadEnumNameBatch enqueues a BadEnumName query into batch to be executed
 	// later by the batch.
-	BadEnumNameBatch(batch *pgx.Batch)
+	BadEnumNameBatch(batch genericBatch)
 	// BadEnumNameScan scans the result of an executed BadEnumNameBatch query.
 	BadEnumNameScan(results pgx.BatchResults) (UnnamedEnum123, error)
 
 	GoKeyword(ctx context.Context, go_ string) (string, error)
 	// GoKeywordBatch enqueues a GoKeyword query into batch to be executed
 	// later by the batch.
-	GoKeywordBatch(batch *pgx.Batch, go_ string)
+	GoKeywordBatch(batch genericBatch, go_ string)
 	// GoKeywordScan scans the result of an executed GoKeywordBatch query.
 	GoKeywordScan(results pgx.BatchResults) (string, error)
 }
@@ -112,6 +112,14 @@ type genericConn interface {
 	// string. arguments should be referenced positionally from the sql string
 	// as $1, $2, etc.
 	Exec(ctx context.Context, sql string, arguments ...interface{}) (pgconn.CommandTag, error)
+}
+
+// genericBatch batches queries to send in a single network request to a
+// Postgres server. This is usually backed by *pgx.Batch.
+type genericBatch interface {
+	// Queue queues a query to batch b. query can be an SQL query or the name of a
+	// prepared statement. See Queue on *pgx.Batch.
+	Queue(query string, arguments ...interface{})
 }
 
 // NewQuerier creates a DBQuerier that implements Querier. conn is typically
@@ -246,7 +254,7 @@ func (q *DBQuerier) Backtick(ctx context.Context) (string, error) {
 }
 
 // BacktickBatch implements Querier.BacktickBatch.
-func (q *DBQuerier) BacktickBatch(batch *pgx.Batch) {
+func (q *DBQuerier) BacktickBatch(batch genericBatch) {
 	batch.Queue(backtickSQL)
 }
 
@@ -274,7 +282,7 @@ func (q *DBQuerier) BacktickQuoteBacktick(ctx context.Context) (string, error) {
 }
 
 // BacktickQuoteBacktickBatch implements Querier.BacktickQuoteBacktickBatch.
-func (q *DBQuerier) BacktickQuoteBacktickBatch(batch *pgx.Batch) {
+func (q *DBQuerier) BacktickQuoteBacktickBatch(batch genericBatch) {
 	batch.Queue(backtickQuoteBacktickSQL)
 }
 
@@ -302,7 +310,7 @@ func (q *DBQuerier) BacktickNewline(ctx context.Context) (string, error) {
 }
 
 // BacktickNewlineBatch implements Querier.BacktickNewlineBatch.
-func (q *DBQuerier) BacktickNewlineBatch(batch *pgx.Batch) {
+func (q *DBQuerier) BacktickNewlineBatch(batch genericBatch) {
 	batch.Queue(backtickNewlineSQL)
 }
 
@@ -330,7 +338,7 @@ func (q *DBQuerier) BacktickDoubleQuote(ctx context.Context) (string, error) {
 }
 
 // BacktickDoubleQuoteBatch implements Querier.BacktickDoubleQuoteBatch.
-func (q *DBQuerier) BacktickDoubleQuoteBatch(batch *pgx.Batch) {
+func (q *DBQuerier) BacktickDoubleQuoteBatch(batch genericBatch) {
 	batch.Queue(backtickDoubleQuoteSQL)
 }
 
@@ -358,7 +366,7 @@ func (q *DBQuerier) BacktickBackslashN(ctx context.Context) (string, error) {
 }
 
 // BacktickBackslashNBatch implements Querier.BacktickBackslashNBatch.
-func (q *DBQuerier) BacktickBackslashNBatch(batch *pgx.Batch) {
+func (q *DBQuerier) BacktickBackslashNBatch(batch genericBatch) {
 	batch.Queue(backtickBackslashNSQL)
 }
 
@@ -391,7 +399,7 @@ func (q *DBQuerier) IllegalNameSymbols(ctx context.Context, helloWorld string) (
 }
 
 // IllegalNameSymbolsBatch implements Querier.IllegalNameSymbolsBatch.
-func (q *DBQuerier) IllegalNameSymbolsBatch(batch *pgx.Batch, helloWorld string) {
+func (q *DBQuerier) IllegalNameSymbolsBatch(batch genericBatch, helloWorld string) {
 	batch.Queue(illegalNameSymbolsSQL, helloWorld)
 }
 
@@ -419,7 +427,7 @@ func (q *DBQuerier) SpaceAfter(ctx context.Context, space string) (string, error
 }
 
 // SpaceAfterBatch implements Querier.SpaceAfterBatch.
-func (q *DBQuerier) SpaceAfterBatch(batch *pgx.Batch, space string) {
+func (q *DBQuerier) SpaceAfterBatch(batch genericBatch, space string) {
 	batch.Queue(spaceAfterSQL, space)
 }
 
@@ -447,7 +455,7 @@ func (q *DBQuerier) BadEnumName(ctx context.Context) (UnnamedEnum123, error) {
 }
 
 // BadEnumNameBatch implements Querier.BadEnumNameBatch.
-func (q *DBQuerier) BadEnumNameBatch(batch *pgx.Batch) {
+func (q *DBQuerier) BadEnumNameBatch(batch genericBatch) {
 	batch.Queue(badEnumNameSQL)
 }
 
@@ -475,7 +483,7 @@ func (q *DBQuerier) GoKeyword(ctx context.Context, go_ string) (string, error) {
 }
 
 // GoKeywordBatch implements Querier.GoKeywordBatch.
-func (q *DBQuerier) GoKeywordBatch(batch *pgx.Batch, go_ string) {
+func (q *DBQuerier) GoKeywordBatch(batch genericBatch, go_ string) {
 	batch.Queue(goKeywordSQL, go_)
 }
 

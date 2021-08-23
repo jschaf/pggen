@@ -20,21 +20,21 @@ type Querier interface {
 	CustomTypes(ctx context.Context) (CustomTypesRow, error)
 	// CustomTypesBatch enqueues a CustomTypes query into batch to be executed
 	// later by the batch.
-	CustomTypesBatch(batch *pgx.Batch)
+	CustomTypesBatch(batch genericBatch)
 	// CustomTypesScan scans the result of an executed CustomTypesBatch query.
 	CustomTypesScan(results pgx.BatchResults) (CustomTypesRow, error)
 
 	CustomMyInt(ctx context.Context) (int, error)
 	// CustomMyIntBatch enqueues a CustomMyInt query into batch to be executed
 	// later by the batch.
-	CustomMyIntBatch(batch *pgx.Batch)
+	CustomMyIntBatch(batch genericBatch)
 	// CustomMyIntScan scans the result of an executed CustomMyIntBatch query.
 	CustomMyIntScan(results pgx.BatchResults) (int, error)
 
 	IntArray(ctx context.Context) ([][]int32, error)
 	// IntArrayBatch enqueues a IntArray query into batch to be executed
 	// later by the batch.
-	IntArrayBatch(batch *pgx.Batch)
+	IntArrayBatch(batch genericBatch)
 	// IntArrayScan scans the result of an executed IntArrayBatch query.
 	IntArrayScan(results pgx.BatchResults) ([][]int32, error)
 }
@@ -63,6 +63,14 @@ type genericConn interface {
 	// string. arguments should be referenced positionally from the sql string
 	// as $1, $2, etc.
 	Exec(ctx context.Context, sql string, arguments ...interface{}) (pgconn.CommandTag, error)
+}
+
+// genericBatch batches queries to send in a single network request to a
+// Postgres server. This is usually backed by *pgx.Batch.
+type genericBatch interface {
+	// Queue queues a query to batch b. query can be an SQL query or the name of a
+	// prepared statement. See Queue on *pgx.Batch.
+	Queue(query string, arguments ...interface{})
 }
 
 // NewQuerier creates a DBQuerier that implements Querier. conn is typically
@@ -172,7 +180,7 @@ func (q *DBQuerier) CustomTypes(ctx context.Context) (CustomTypesRow, error) {
 }
 
 // CustomTypesBatch implements Querier.CustomTypesBatch.
-func (q *DBQuerier) CustomTypesBatch(batch *pgx.Batch) {
+func (q *DBQuerier) CustomTypesBatch(batch genericBatch) {
 	batch.Queue(customTypesSQL)
 }
 
@@ -200,7 +208,7 @@ func (q *DBQuerier) CustomMyInt(ctx context.Context) (int, error) {
 }
 
 // CustomMyIntBatch implements Querier.CustomMyIntBatch.
-func (q *DBQuerier) CustomMyIntBatch(batch *pgx.Batch) {
+func (q *DBQuerier) CustomMyIntBatch(batch genericBatch) {
 	batch.Queue(customMyIntSQL)
 }
 
@@ -239,7 +247,7 @@ func (q *DBQuerier) IntArray(ctx context.Context) ([][]int32, error) {
 }
 
 // IntArrayBatch implements Querier.IntArrayBatch.
-func (q *DBQuerier) IntArrayBatch(batch *pgx.Batch) {
+func (q *DBQuerier) IntArrayBatch(batch genericBatch) {
 	batch.Queue(intArraySQL)
 }
 

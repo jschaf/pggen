@@ -19,49 +19,49 @@ type Querier interface {
 	FindDevicesByUser(ctx context.Context, id int) ([]FindDevicesByUserRow, error)
 	// FindDevicesByUserBatch enqueues a FindDevicesByUser query into batch to be executed
 	// later by the batch.
-	FindDevicesByUserBatch(batch *pgx.Batch, id int)
+	FindDevicesByUserBatch(batch genericBatch, id int)
 	// FindDevicesByUserScan scans the result of an executed FindDevicesByUserBatch query.
 	FindDevicesByUserScan(results pgx.BatchResults) ([]FindDevicesByUserRow, error)
 
 	CompositeUser(ctx context.Context) ([]CompositeUserRow, error)
 	// CompositeUserBatch enqueues a CompositeUser query into batch to be executed
 	// later by the batch.
-	CompositeUserBatch(batch *pgx.Batch)
+	CompositeUserBatch(batch genericBatch)
 	// CompositeUserScan scans the result of an executed CompositeUserBatch query.
 	CompositeUserScan(results pgx.BatchResults) ([]CompositeUserRow, error)
 
 	CompositeUserOne(ctx context.Context) (User, error)
 	// CompositeUserOneBatch enqueues a CompositeUserOne query into batch to be executed
 	// later by the batch.
-	CompositeUserOneBatch(batch *pgx.Batch)
+	CompositeUserOneBatch(batch genericBatch)
 	// CompositeUserOneScan scans the result of an executed CompositeUserOneBatch query.
 	CompositeUserOneScan(results pgx.BatchResults) (User, error)
 
 	CompositeUserOneTwoCols(ctx context.Context) (CompositeUserOneTwoColsRow, error)
 	// CompositeUserOneTwoColsBatch enqueues a CompositeUserOneTwoCols query into batch to be executed
 	// later by the batch.
-	CompositeUserOneTwoColsBatch(batch *pgx.Batch)
+	CompositeUserOneTwoColsBatch(batch genericBatch)
 	// CompositeUserOneTwoColsScan scans the result of an executed CompositeUserOneTwoColsBatch query.
 	CompositeUserOneTwoColsScan(results pgx.BatchResults) (CompositeUserOneTwoColsRow, error)
 
 	CompositeUserMany(ctx context.Context) ([]User, error)
 	// CompositeUserManyBatch enqueues a CompositeUserMany query into batch to be executed
 	// later by the batch.
-	CompositeUserManyBatch(batch *pgx.Batch)
+	CompositeUserManyBatch(batch genericBatch)
 	// CompositeUserManyScan scans the result of an executed CompositeUserManyBatch query.
 	CompositeUserManyScan(results pgx.BatchResults) ([]User, error)
 
 	InsertUser(ctx context.Context, userID int, name string) (pgconn.CommandTag, error)
 	// InsertUserBatch enqueues a InsertUser query into batch to be executed
 	// later by the batch.
-	InsertUserBatch(batch *pgx.Batch, userID int, name string)
+	InsertUserBatch(batch genericBatch, userID int, name string)
 	// InsertUserScan scans the result of an executed InsertUserBatch query.
 	InsertUserScan(results pgx.BatchResults) (pgconn.CommandTag, error)
 
 	InsertDevice(ctx context.Context, mac pgtype.Macaddr, owner int) (pgconn.CommandTag, error)
 	// InsertDeviceBatch enqueues a InsertDevice query into batch to be executed
 	// later by the batch.
-	InsertDeviceBatch(batch *pgx.Batch, mac pgtype.Macaddr, owner int)
+	InsertDeviceBatch(batch genericBatch, mac pgtype.Macaddr, owner int)
 	// InsertDeviceScan scans the result of an executed InsertDeviceBatch query.
 	InsertDeviceScan(results pgx.BatchResults) (pgconn.CommandTag, error)
 }
@@ -90,6 +90,14 @@ type genericConn interface {
 	// string. arguments should be referenced positionally from the sql string
 	// as $1, $2, etc.
 	Exec(ctx context.Context, sql string, arguments ...interface{}) (pgconn.CommandTag, error)
+}
+
+// genericBatch batches queries to send in a single network request to a
+// Postgres server. This is usually backed by *pgx.Batch.
+type genericBatch interface {
+	// Queue queues a query to batch b. query can be an SQL query or the name of a
+	// prepared statement. See Queue on *pgx.Batch.
+	Queue(query string, arguments ...interface{})
 }
 
 // NewQuerier creates a DBQuerier that implements Querier. conn is typically
@@ -309,7 +317,7 @@ func (q *DBQuerier) FindDevicesByUser(ctx context.Context, id int) ([]FindDevice
 }
 
 // FindDevicesByUserBatch implements Querier.FindDevicesByUserBatch.
-func (q *DBQuerier) FindDevicesByUserBatch(batch *pgx.Batch, id int) {
+func (q *DBQuerier) FindDevicesByUserBatch(batch genericBatch, id int) {
 	batch.Queue(findDevicesByUserSQL, id)
 }
 
@@ -374,7 +382,7 @@ func (q *DBQuerier) CompositeUser(ctx context.Context) ([]CompositeUserRow, erro
 }
 
 // CompositeUserBatch implements Querier.CompositeUserBatch.
-func (q *DBQuerier) CompositeUserBatch(batch *pgx.Batch) {
+func (q *DBQuerier) CompositeUserBatch(batch genericBatch) {
 	batch.Queue(compositeUserSQL)
 }
 
@@ -421,7 +429,7 @@ func (q *DBQuerier) CompositeUserOne(ctx context.Context) (User, error) {
 }
 
 // CompositeUserOneBatch implements Querier.CompositeUserOneBatch.
-func (q *DBQuerier) CompositeUserOneBatch(batch *pgx.Batch) {
+func (q *DBQuerier) CompositeUserOneBatch(batch genericBatch) {
 	batch.Queue(compositeUserOneSQL)
 }
 
@@ -462,7 +470,7 @@ func (q *DBQuerier) CompositeUserOneTwoCols(ctx context.Context) (CompositeUserO
 }
 
 // CompositeUserOneTwoColsBatch implements Querier.CompositeUserOneTwoColsBatch.
-func (q *DBQuerier) CompositeUserOneTwoColsBatch(batch *pgx.Batch) {
+func (q *DBQuerier) CompositeUserOneTwoColsBatch(batch genericBatch) {
 	batch.Queue(compositeUserOneTwoColsSQL)
 }
 
@@ -509,7 +517,7 @@ func (q *DBQuerier) CompositeUserMany(ctx context.Context) ([]User, error) {
 }
 
 // CompositeUserManyBatch implements Querier.CompositeUserManyBatch.
-func (q *DBQuerier) CompositeUserManyBatch(batch *pgx.Batch) {
+func (q *DBQuerier) CompositeUserManyBatch(batch genericBatch) {
 	batch.Queue(compositeUserManySQL)
 }
 
@@ -552,7 +560,7 @@ func (q *DBQuerier) InsertUser(ctx context.Context, userID int, name string) (pg
 }
 
 // InsertUserBatch implements Querier.InsertUserBatch.
-func (q *DBQuerier) InsertUserBatch(batch *pgx.Batch, userID int, name string) {
+func (q *DBQuerier) InsertUserBatch(batch genericBatch, userID int, name string) {
 	batch.Queue(insertUserSQL, userID, name)
 }
 
@@ -579,7 +587,7 @@ func (q *DBQuerier) InsertDevice(ctx context.Context, mac pgtype.Macaddr, owner 
 }
 
 // InsertDeviceBatch implements Querier.InsertDeviceBatch.
-func (q *DBQuerier) InsertDeviceBatch(batch *pgx.Batch, mac pgtype.Macaddr, owner int) {
+func (q *DBQuerier) InsertDeviceBatch(batch genericBatch, mac pgtype.Macaddr, owner int) {
 	batch.Queue(insertDeviceSQL, mac, owner)
 }
 

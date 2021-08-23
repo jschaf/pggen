@@ -19,14 +19,14 @@ type Querier interface {
 	FindEnumTypes(ctx context.Context, oids []uint32) ([]FindEnumTypesRow, error)
 	// FindEnumTypesBatch enqueues a FindEnumTypes query into batch to be executed
 	// later by the batch.
-	FindEnumTypesBatch(batch *pgx.Batch, oids []uint32)
+	FindEnumTypesBatch(batch genericBatch, oids []uint32)
 	// FindEnumTypesScan scans the result of an executed FindEnumTypesBatch query.
 	FindEnumTypesScan(results pgx.BatchResults) ([]FindEnumTypesRow, error)
 
 	FindArrayTypes(ctx context.Context, oids []uint32) ([]FindArrayTypesRow, error)
 	// FindArrayTypesBatch enqueues a FindArrayTypes query into batch to be executed
 	// later by the batch.
-	FindArrayTypesBatch(batch *pgx.Batch, oids []uint32)
+	FindArrayTypesBatch(batch genericBatch, oids []uint32)
 	// FindArrayTypesScan scans the result of an executed FindArrayTypesBatch query.
 	FindArrayTypesScan(results pgx.BatchResults) ([]FindArrayTypesRow, error)
 
@@ -36,7 +36,7 @@ type Querier interface {
 	FindCompositeTypes(ctx context.Context, oids []uint32) ([]FindCompositeTypesRow, error)
 	// FindCompositeTypesBatch enqueues a FindCompositeTypes query into batch to be executed
 	// later by the batch.
-	FindCompositeTypesBatch(batch *pgx.Batch, oids []uint32)
+	FindCompositeTypesBatch(batch genericBatch, oids []uint32)
 	// FindCompositeTypesScan scans the result of an executed FindCompositeTypesBatch query.
 	FindCompositeTypesScan(results pgx.BatchResults) ([]FindCompositeTypesRow, error)
 
@@ -45,28 +45,28 @@ type Querier interface {
 	FindDescendantOIDs(ctx context.Context, oids []uint32) ([]pgtype.OID, error)
 	// FindDescendantOIDsBatch enqueues a FindDescendantOIDs query into batch to be executed
 	// later by the batch.
-	FindDescendantOIDsBatch(batch *pgx.Batch, oids []uint32)
+	FindDescendantOIDsBatch(batch genericBatch, oids []uint32)
 	// FindDescendantOIDsScan scans the result of an executed FindDescendantOIDsBatch query.
 	FindDescendantOIDsScan(results pgx.BatchResults) ([]pgtype.OID, error)
 
 	FindOIDByName(ctx context.Context, name string) (pgtype.OID, error)
 	// FindOIDByNameBatch enqueues a FindOIDByName query into batch to be executed
 	// later by the batch.
-	FindOIDByNameBatch(batch *pgx.Batch, name string)
+	FindOIDByNameBatch(batch genericBatch, name string)
 	// FindOIDByNameScan scans the result of an executed FindOIDByNameBatch query.
 	FindOIDByNameScan(results pgx.BatchResults) (pgtype.OID, error)
 
 	FindOIDName(ctx context.Context, oid pgtype.OID) (pgtype.Name, error)
 	// FindOIDNameBatch enqueues a FindOIDName query into batch to be executed
 	// later by the batch.
-	FindOIDNameBatch(batch *pgx.Batch, oid pgtype.OID)
+	FindOIDNameBatch(batch genericBatch, oid pgtype.OID)
 	// FindOIDNameScan scans the result of an executed FindOIDNameBatch query.
 	FindOIDNameScan(results pgx.BatchResults) (pgtype.Name, error)
 
 	FindOIDNames(ctx context.Context, oid []uint32) ([]FindOIDNamesRow, error)
 	// FindOIDNamesBatch enqueues a FindOIDNames query into batch to be executed
 	// later by the batch.
-	FindOIDNamesBatch(batch *pgx.Batch, oid []uint32)
+	FindOIDNamesBatch(batch genericBatch, oid []uint32)
 	// FindOIDNamesScan scans the result of an executed FindOIDNamesBatch query.
 	FindOIDNamesScan(results pgx.BatchResults) ([]FindOIDNamesRow, error)
 }
@@ -95,6 +95,14 @@ type genericConn interface {
 	// string. arguments should be referenced positionally from the sql string
 	// as $1, $2, etc.
 	Exec(ctx context.Context, sql string, arguments ...interface{}) (pgconn.CommandTag, error)
+}
+
+// genericBatch batches queries to send in a single network request to a
+// Postgres server. This is usually backed by *pgx.Batch.
+type genericBatch interface {
+	// Queue queues a query to batch b. query can be an SQL query or the name of a
+	// prepared statement. See Queue on *pgx.Batch.
+	Queue(query string, arguments ...interface{})
 }
 
 // NewQuerier creates a DBQuerier that implements Querier. conn is typically
@@ -274,7 +282,7 @@ func (q *DBQuerier) FindEnumTypes(ctx context.Context, oids []uint32) ([]FindEnu
 }
 
 // FindEnumTypesBatch implements Querier.FindEnumTypesBatch.
-func (q *DBQuerier) FindEnumTypesBatch(batch *pgx.Batch, oids []uint32) {
+func (q *DBQuerier) FindEnumTypesBatch(batch genericBatch, oids []uint32) {
 	batch.Queue(findEnumTypesSQL, oids)
 }
 
@@ -358,7 +366,7 @@ func (q *DBQuerier) FindArrayTypes(ctx context.Context, oids []uint32) ([]FindAr
 }
 
 // FindArrayTypesBatch implements Querier.FindArrayTypesBatch.
-func (q *DBQuerier) FindArrayTypesBatch(batch *pgx.Batch, oids []uint32) {
+func (q *DBQuerier) FindArrayTypesBatch(batch genericBatch, oids []uint32) {
 	batch.Queue(findArrayTypesSQL, oids)
 }
 
@@ -447,7 +455,7 @@ func (q *DBQuerier) FindCompositeTypes(ctx context.Context, oids []uint32) ([]Fi
 }
 
 // FindCompositeTypesBatch implements Querier.FindCompositeTypesBatch.
-func (q *DBQuerier) FindCompositeTypesBatch(batch *pgx.Batch, oids []uint32) {
+func (q *DBQuerier) FindCompositeTypesBatch(batch genericBatch, oids []uint32) {
 	batch.Queue(findCompositeTypesSQL, oids)
 }
 
@@ -523,7 +531,7 @@ func (q *DBQuerier) FindDescendantOIDs(ctx context.Context, oids []uint32) ([]pg
 }
 
 // FindDescendantOIDsBatch implements Querier.FindDescendantOIDsBatch.
-func (q *DBQuerier) FindDescendantOIDsBatch(batch *pgx.Batch, oids []uint32) {
+func (q *DBQuerier) FindDescendantOIDsBatch(batch genericBatch, oids []uint32) {
 	batch.Queue(findDescendantOIDsSQL, oids)
 }
 
@@ -566,7 +574,7 @@ func (q *DBQuerier) FindOIDByName(ctx context.Context, name string) (pgtype.OID,
 }
 
 // FindOIDByNameBatch implements Querier.FindOIDByNameBatch.
-func (q *DBQuerier) FindOIDByNameBatch(batch *pgx.Batch, name string) {
+func (q *DBQuerier) FindOIDByNameBatch(batch genericBatch, name string) {
 	batch.Queue(findOIDByNameSQL, name)
 }
 
@@ -596,7 +604,7 @@ func (q *DBQuerier) FindOIDName(ctx context.Context, oid pgtype.OID) (pgtype.Nam
 }
 
 // FindOIDNameBatch implements Querier.FindOIDNameBatch.
-func (q *DBQuerier) FindOIDNameBatch(batch *pgx.Batch, oid pgtype.OID) {
+func (q *DBQuerier) FindOIDNameBatch(batch genericBatch, oid pgtype.OID) {
 	batch.Queue(findOIDNameSQL, oid)
 }
 
@@ -643,7 +651,7 @@ func (q *DBQuerier) FindOIDNames(ctx context.Context, oid []uint32) ([]FindOIDNa
 }
 
 // FindOIDNamesBatch implements Querier.FindOIDNamesBatch.
-func (q *DBQuerier) FindOIDNamesBatch(batch *pgx.Batch, oid []uint32) {
+func (q *DBQuerier) FindOIDNamesBatch(batch genericBatch, oid []uint32) {
 	batch.Queue(findOIDNamesSQL, oid)
 }
 

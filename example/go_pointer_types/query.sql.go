@@ -19,42 +19,42 @@ type Querier interface {
 	GenSeries1(ctx context.Context) (*int, error)
 	// GenSeries1Batch enqueues a GenSeries1 query into batch to be executed
 	// later by the batch.
-	GenSeries1Batch(batch *pgx.Batch)
+	GenSeries1Batch(batch genericBatch)
 	// GenSeries1Scan scans the result of an executed GenSeries1Batch query.
 	GenSeries1Scan(results pgx.BatchResults) (*int, error)
 
 	GenSeries(ctx context.Context) ([]*int, error)
 	// GenSeriesBatch enqueues a GenSeries query into batch to be executed
 	// later by the batch.
-	GenSeriesBatch(batch *pgx.Batch)
+	GenSeriesBatch(batch genericBatch)
 	// GenSeriesScan scans the result of an executed GenSeriesBatch query.
 	GenSeriesScan(results pgx.BatchResults) ([]*int, error)
 
 	GenSeriesArr1(ctx context.Context) ([]int, error)
 	// GenSeriesArr1Batch enqueues a GenSeriesArr1 query into batch to be executed
 	// later by the batch.
-	GenSeriesArr1Batch(batch *pgx.Batch)
+	GenSeriesArr1Batch(batch genericBatch)
 	// GenSeriesArr1Scan scans the result of an executed GenSeriesArr1Batch query.
 	GenSeriesArr1Scan(results pgx.BatchResults) ([]int, error)
 
 	GenSeriesArr(ctx context.Context) ([][]int, error)
 	// GenSeriesArrBatch enqueues a GenSeriesArr query into batch to be executed
 	// later by the batch.
-	GenSeriesArrBatch(batch *pgx.Batch)
+	GenSeriesArrBatch(batch genericBatch)
 	// GenSeriesArrScan scans the result of an executed GenSeriesArrBatch query.
 	GenSeriesArrScan(results pgx.BatchResults) ([][]int, error)
 
 	GenSeriesStr1(ctx context.Context) (*string, error)
 	// GenSeriesStr1Batch enqueues a GenSeriesStr1 query into batch to be executed
 	// later by the batch.
-	GenSeriesStr1Batch(batch *pgx.Batch)
+	GenSeriesStr1Batch(batch genericBatch)
 	// GenSeriesStr1Scan scans the result of an executed GenSeriesStr1Batch query.
 	GenSeriesStr1Scan(results pgx.BatchResults) (*string, error)
 
 	GenSeriesStr(ctx context.Context) ([]*string, error)
 	// GenSeriesStrBatch enqueues a GenSeriesStr query into batch to be executed
 	// later by the batch.
-	GenSeriesStrBatch(batch *pgx.Batch)
+	GenSeriesStrBatch(batch genericBatch)
 	// GenSeriesStrScan scans the result of an executed GenSeriesStrBatch query.
 	GenSeriesStrScan(results pgx.BatchResults) ([]*string, error)
 }
@@ -83,6 +83,14 @@ type genericConn interface {
 	// string. arguments should be referenced positionally from the sql string
 	// as $1, $2, etc.
 	Exec(ctx context.Context, sql string, arguments ...interface{}) (pgconn.CommandTag, error)
+}
+
+// genericBatch batches queries to send in a single network request to a
+// Postgres server. This is usually backed by *pgx.Batch.
+type genericBatch interface {
+	// Queue queues a query to batch b. query can be an SQL query or the name of a
+	// prepared statement. See Queue on *pgx.Batch.
+	Queue(query string, arguments ...interface{})
 }
 
 // NewQuerier creates a DBQuerier that implements Querier. conn is typically
@@ -198,7 +206,7 @@ func (q *DBQuerier) GenSeries1(ctx context.Context) (*int, error) {
 }
 
 // GenSeries1Batch implements Querier.GenSeries1Batch.
-func (q *DBQuerier) GenSeries1Batch(batch *pgx.Batch) {
+func (q *DBQuerier) GenSeries1Batch(batch genericBatch) {
 	batch.Queue(genSeries1SQL)
 }
 
@@ -238,7 +246,7 @@ func (q *DBQuerier) GenSeries(ctx context.Context) ([]*int, error) {
 }
 
 // GenSeriesBatch implements Querier.GenSeriesBatch.
-func (q *DBQuerier) GenSeriesBatch(batch *pgx.Batch) {
+func (q *DBQuerier) GenSeriesBatch(batch genericBatch) {
 	batch.Queue(genSeriesSQL)
 }
 
@@ -278,7 +286,7 @@ func (q *DBQuerier) GenSeriesArr1(ctx context.Context) ([]int, error) {
 }
 
 // GenSeriesArr1Batch implements Querier.GenSeriesArr1Batch.
-func (q *DBQuerier) GenSeriesArr1Batch(batch *pgx.Batch) {
+func (q *DBQuerier) GenSeriesArr1Batch(batch genericBatch) {
 	batch.Queue(genSeriesArr1SQL)
 }
 
@@ -318,7 +326,7 @@ func (q *DBQuerier) GenSeriesArr(ctx context.Context) ([][]int, error) {
 }
 
 // GenSeriesArrBatch implements Querier.GenSeriesArrBatch.
-func (q *DBQuerier) GenSeriesArrBatch(batch *pgx.Batch) {
+func (q *DBQuerier) GenSeriesArrBatch(batch genericBatch) {
 	batch.Queue(genSeriesArrSQL)
 }
 
@@ -359,7 +367,7 @@ func (q *DBQuerier) GenSeriesStr1(ctx context.Context) (*string, error) {
 }
 
 // GenSeriesStr1Batch implements Querier.GenSeriesStr1Batch.
-func (q *DBQuerier) GenSeriesStr1Batch(batch *pgx.Batch) {
+func (q *DBQuerier) GenSeriesStr1Batch(batch genericBatch) {
 	batch.Queue(genSeriesStr1SQL)
 }
 
@@ -399,7 +407,7 @@ func (q *DBQuerier) GenSeriesStr(ctx context.Context) ([]*string, error) {
 }
 
 // GenSeriesStrBatch implements Querier.GenSeriesStrBatch.
-func (q *DBQuerier) GenSeriesStrBatch(batch *pgx.Batch) {
+func (q *DBQuerier) GenSeriesStrBatch(batch genericBatch) {
 	batch.Queue(genSeriesStrSQL)
 }
 

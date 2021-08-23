@@ -41,7 +41,7 @@ func (q *DBQuerier) FindOrdersByPrice(ctx context.Context, minTotal pgtype.Numer
 }
 
 // FindOrdersByPriceBatch implements Querier.FindOrdersByPriceBatch.
-func (q *DBQuerier) FindOrdersByPriceBatch(batch *pgx.Batch, minTotal pgtype.Numeric) {
+func (q *DBQuerier) FindOrdersByPriceBatch(batch genericBatch, minTotal pgtype.Numeric) {
 	batch.Queue(findOrdersByPriceSQL, minTotal)
 }
 
@@ -98,7 +98,7 @@ func (q *DBQuerier) FindOrdersMRR(ctx context.Context) ([]FindOrdersMRRRow, erro
 }
 
 // FindOrdersMRRBatch implements Querier.FindOrdersMRRBatch.
-func (q *DBQuerier) FindOrdersMRRBatch(batch *pgx.Batch) {
+func (q *DBQuerier) FindOrdersMRRBatch(batch genericBatch) {
 	batch.Queue(findOrdersMRRSQL)
 }
 

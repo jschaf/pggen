@@ -19,14 +19,14 @@ type Querier interface {
 	CreateUser(ctx context.Context, email string, password string) (pgconn.CommandTag, error)
 	// CreateUserBatch enqueues a CreateUser query into batch to be executed
 	// later by the batch.
-	CreateUserBatch(batch *pgx.Batch, email string, password string)
+	CreateUserBatch(batch genericBatch, email string, password string)
 	// CreateUserScan scans the result of an executed CreateUserBatch query.
 	CreateUserScan(results pgx.BatchResults) (pgconn.CommandTag, error)
 
 	FindUser(ctx context.Context, email string) (FindUserRow, error)
 	// FindUserBatch enqueues a FindUser query into batch to be executed
 	// later by the batch.
-	FindUserBatch(batch *pgx.Batch, email string)
+	FindUserBatch(batch genericBatch, email string)
 	// FindUserScan scans the result of an executed FindUserBatch query.
 	FindUserScan(results pgx.BatchResults) (FindUserRow, error)
 }
@@ -55,6 +55,14 @@ type genericConn interface {
 	// string. arguments should be referenced positionally from the sql string
 	// as $1, $2, etc.
 	Exec(ctx context.Context, sql string, arguments ...interface{}) (pgconn.CommandTag, error)
+}
+
+// genericBatch batches queries to send in a single network request to a
+// Postgres server. This is usually backed by *pgx.Batch.
+type genericBatch interface {
+	// Queue queues a query to batch b. query can be an SQL query or the name of a
+	// prepared statement. See Queue on *pgx.Batch.
+	Queue(query string, arguments ...interface{})
 }
 
 // NewQuerier creates a DBQuerier that implements Querier. conn is typically
@@ -156,7 +164,7 @@ func (q *DBQuerier) CreateUser(ctx context.Context, email string, password strin
 }
 
 // CreateUserBatch implements Querier.CreateUserBatch.
-func (q *DBQuerier) CreateUserBatch(batch *pgx.Batch, email string, password string) {
+func (q *DBQuerier) CreateUserBatch(batch genericBatch, email string, password string) {
 	batch.Queue(createUserSQL, email, password)
 }
 
@@ -189,7 +197,7 @@ func (q *DBQuerier) FindUser(ctx context.Context, email string) (FindUserRow, er
 }
 
 // FindUserBatch implements Querier.FindUserBatch.
-func (q *DBQuerier) FindUserBatch(batch *pgx.Batch, email string) {
+func (q *DBQuerier) FindUserBatch(batch genericBatch, email string) {
 	batch.Queue(findUserSQL, email)
 }
 
