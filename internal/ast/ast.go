@@ -64,7 +64,7 @@ func (g *CommentGroup) Kind() NodeKind { return KindCommentGroup }
 // ----------------------------------------------------------------------------
 // Queries
 
-// The kind of result. Controls the output type of the query.
+// ResultKind is the shape of the output. Controls the output type of the query.
 type ResultKind string
 
 const (

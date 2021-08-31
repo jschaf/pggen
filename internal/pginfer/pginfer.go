@@ -204,6 +204,16 @@ func (inf *Inferrer) inferOutputTypes(query *ast.SourceQuery) ([]OutputColumn, e
 			if pgErr.TableName != "" {
 				msg += "\n    TableName: " + pgErr.TableName
 			}
+			// Provide hint to use a returning clause. pggen ignores most errors but
+			// only if there's output columns. If the user has an UPDATE or INSERT
+			// without a RETURNING clause, pggen will surface the null constraint
+			// errors because len(descriptions) == 0.
+			if strings.Contains(strings.ToLower(query.PreparedSQL), "update") ||
+				strings.Contains(strings.ToLower(query.PreparedSQL), "insert") {
+				msg += "\n    HINT: if the main statement is an UPDATE or INSERT ensure that you have"
+				msg += "\n          a RETURNING clause (this query is marked " + string(query.ResultKind) + ")."
+				msg += "\n          Use :exec if you don't need the query output."
+			}
 			return nil, fmt.Errorf(msg+"\n    %w", pgErr)
 		}
 		return nil, fmt.Errorf("fetch field descriptions: %w", err)
