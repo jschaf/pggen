@@ -6,7 +6,7 @@ import (
 	"github.com/jschaf/pggen/internal/pginfer"
 )
 
-// QueryFile represents all of the SQL queries from a single file.
+// QueryFile represents all SQL queries from a single file.
 type QueryFile struct {
 	SourcePath string               // absolute path to the source SQL query file
 	Queries    []pginfer.TypedQuery // the typed queries
