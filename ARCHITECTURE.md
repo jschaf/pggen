@@ -1,5 +1,7 @@
 # Architecture of pggen
 
+hohoho
+
 In a nutshell, pggen runs each query on Postgres to extract type information,
 and generates the appropriate code. In detail, pggen processes a query file
 in the following steps.
