@@ -24,10 +24,10 @@ func isColNullable(query *ast.SourceQuery, plan Plan, out string, column pg.Colu
 		// try below
 	}
 
-	// A plain select query with no joins where the column comes from a table and
-	// has a not-null constraint. Not full proof because of cross-join with comma
-	// syntax.
-	if plan.Type == PlanResult &&
+	// A plain select query (possibly with a LIMIT clause) with no joins where
+	// the column comes from a table and has a not-null constraint. Not full
+	// proof because of cross-join with comma syntax.
+	if (plan.Type == PlanResult || plan.Type == PlanLimit) &&
 		!strings.Contains(strings.ToLower(query.PreparedSQL), "join") &&
 		!column.Null {
 		return false
