@@ -12,6 +12,7 @@ type PlanType string
 
 const (
 	PlanResult      PlanType = "Result"      // select statement
+	PlanLimit       PlanType = "Limit"       // select statement with a limit
 	PlanModifyTable PlanType = "ModifyTable" // update, insert, or delete statement
 )
 
