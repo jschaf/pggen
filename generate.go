@@ -24,6 +24,8 @@ import (
 // Lang is a supported codegen language.
 type Lang string
 
+// !!! Simple test
+
 const (
 	LangGo Lang = "go"
 )
