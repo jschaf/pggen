@@ -426,6 +426,20 @@ Examples embedded in the repo:
 [composite types]: https://www.postgresql.org/docs/current/rowtypes.html
 [example/custom_types test]: ./example/custom_types/query.sql_test.go
 
+# IDE integration
+
+If your IDE provides SQL autocomplete, you may want to get rid of its warnings by executing the following snippets (on your dev database):
+
+```sql
+-- Improve IDE integration (removes warnings only, this is just a stub)
+CREATE SCHEMA pggen;
+CREATE FUNCTION pggen.arg(param TEXT) RETURNS TEXT AS 'SELECT NULL' LANGUAGE sql;
+
+-- Remove IDE integration improvements
+DROP FUNCTION pggen.arg(param TEXT);
+DROP SCHEMA pggen;
+```
+
 # Tutorial
 
 Let's say we have a database with the following schema in `author/schema.sql`:
