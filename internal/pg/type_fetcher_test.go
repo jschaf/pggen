@@ -19,8 +19,8 @@ func TestNewTypeFetcher(t *testing.T) {
 		ColumnTypes: []Type{Int4, Int4},
 	}
 	productImageArrayType := ArrayType{
-		Name:     "_product_image_type",
-		ElemType: productImageType,
+		Name: "_product_image_type",
+		Elem: productImageType,
 	}
 	tests := []struct {
 		name     string
@@ -67,7 +67,7 @@ func TestNewTypeFetcher(t *testing.T) {
 			wants: []Type{
 				ArrayType{
 					Name: "_device2",
-					ElemType: EnumType{
+					Elem: EnumType{
 						Name:   "device2",
 						Labels: []string{"computer", "phone"},
 						Orders: []float32{1, 2},

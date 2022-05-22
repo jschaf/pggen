@@ -48,15 +48,18 @@ func FindInputDeclarers(typ gotype.Type) DeclarerSet {
 	decls := NewDeclarerSet()
 	// Only top level types need the init declarer. Descendant types need the
 	// raw declarer.
-	switch typ := typ.(type) {
-	case gotype.CompositeType:
+	switch typ := gotype.UnwrapNestedType(typ).(type) {
+	case *gotype.CompositeType:
 		decls.AddAll(
 			NewTypeResolverDeclarer(),
 			NewCompositeInitDeclarer(typ),
 		)
-	case gotype.ArrayType:
-		switch typ.Elem.(type) {
-		case gotype.CompositeType, gotype.EnumType:
+	case *gotype.ArrayType:
+		if gotype.IsPrimitiveArray(typ) {
+			break
+		}
+		switch gotype.UnwrapNestedType(typ.Elem).(type) {
+		case *gotype.CompositeType, *gotype.EnumType:
 			decls.AddAll(
 				NewTypeResolverDeclarer(),
 				NewArrayInitDeclarer(typ),
@@ -71,8 +74,8 @@ func FindInputDeclarers(typ gotype.Type) DeclarerSet {
 }
 
 func findInputDeclsHelper(typ gotype.Type, decls DeclarerSet) {
-	switch typ := typ.(type) {
-	case gotype.CompositeType:
+	switch typ := gotype.UnwrapNestedType(typ).(type) {
+	case *gotype.CompositeType:
 		decls.AddAll(
 			NewCompositeRawDeclarer(typ),
 		)
@@ -80,7 +83,10 @@ func findInputDeclsHelper(typ gotype.Type, decls DeclarerSet) {
 			findInputDeclsHelper(childType, decls)
 		}
 
-	case gotype.ArrayType:
+	case *gotype.ArrayType:
+		if gotype.IsPrimitiveArray(typ) {
+			return
+		}
 		decls.AddAll(
 			NewArrayRawDeclarer(typ),
 		)
@@ -101,8 +107,8 @@ func FindOutputDeclarers(typ gotype.Type) DeclarerSet {
 }
 
 func findOutputDeclsHelper(typ gotype.Type, decls DeclarerSet, hadCompositeParent bool) {
-	switch typ := typ.(type) {
-	case gotype.EnumType:
+	switch typ := gotype.UnwrapNestedType(typ).(type) {
+	case *gotype.EnumType:
 		decls.AddAll(
 			NewEnumTypeDeclarer(typ),
 		)
@@ -112,7 +118,7 @@ func findOutputDeclsHelper(typ gotype.Type, decls DeclarerSet, hadCompositeParen
 			decls.AddAll(NewEnumTranscoderDeclarer(typ))
 		}
 
-	case gotype.CompositeType:
+	case *gotype.CompositeType:
 		decls.AddAll(
 			NewCompositeTypeDeclarer(typ),
 			NewCompositeTranscoderDeclarer(typ),
@@ -122,10 +128,13 @@ func findOutputDeclsHelper(typ gotype.Type, decls DeclarerSet, hadCompositeParen
 			findOutputDeclsHelper(childType, decls, true)
 		}
 
-	case gotype.ArrayType:
+	case *gotype.ArrayType:
+		if gotype.IsPrimitiveArray(typ) {
+			return
+		}
 		decls.AddAll(NewTypeResolverDeclarer())
-		switch typ.Elem.(type) {
-		case gotype.CompositeType, gotype.EnumType:
+		switch gotype.UnwrapNestedType(typ.Elem).(type) {
+		case *gotype.CompositeType, *gotype.EnumType:
 			decls.AddAll(NewArrayDecoderDeclarer(typ))
 		}
 		findOutputDeclsHelper(typ.Elem, decls, hadCompositeParent)

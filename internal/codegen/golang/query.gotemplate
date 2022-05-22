@@ -117,7 +117,7 @@ func PrepareAllQueries(ctx context.Context, p preparer) error {
 {{- end }}
 	return nil
 }
-{{- range .Declarers}}{{- "\n\n" -}}{{ .Declare $.GoPkg }}{{ end -}}
+{{- range .Declarers}}{{- "\n\n" -}}{{ .Declare $.PkgPath }}{{ end -}}
 {{- end -}}
 
 {{- range $i, $q := .Queries -}}

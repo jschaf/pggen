@@ -194,9 +194,9 @@ func (tf *TypeFetcher) findArrayTypes(ctx context.Context, uncached map[pgtype.O
 			return nil, fmt.Errorf("find type for array elem %s oid=%d", row.TypeName, row.OID)
 		}
 		types[i] = ArrayType{
-			ID:       row.OID,
-			Name:     row.TypeName,
-			ElemType: elemType,
+			ID:   row.OID,
+			Name: row.TypeName,
+			Elem: elemType,
 		}
 	}
 	return types, nil
@@ -219,11 +219,11 @@ func (tf *TypeFetcher) resolvePlaceholderTypes(knownTypes map[pgtype.OID]Type) e
 			}
 			return typ, nil
 		case ArrayType:
-			newType, err := resolveType(typ.ElemType)
+			newType, err := resolveType(typ.Elem)
 			if err != nil {
 				return nil, fmt.Errorf("array %q elem: %w", typ.Name, err)
 			}
-			typ.ElemType = newType
+			typ.Elem = newType
 			return typ, nil
 		case placeholderType:
 			newType, ok := knownTypes[typ.ID]

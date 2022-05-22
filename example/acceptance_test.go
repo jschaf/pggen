@@ -1,3 +1,4 @@
+//go:build acceptance_test
 // +build acceptance_test
 
 package example

@@ -10,7 +10,7 @@ import (
 // NameArrayTranscoderFunc returns the function name that creates a
 // pgtype.ValueTranscoder for the array type that's used to decode rows returned
 // by Postgres.
-func NameArrayTranscoderFunc(typ gotype.ArrayType) string {
+func NameArrayTranscoderFunc(typ *gotype.ArrayType) string {
 	return "new" + typ.Elem.BaseName() + "Array"
 }
 
@@ -18,29 +18,29 @@ func NameArrayTranscoderFunc(typ gotype.ArrayType) string {
 // initialized pgtype.ValueTranscoder for the array type that's used to encode
 // query parameters. This function is only necessary for top-level types.
 // Descendant types use the raw functions, named by NameArrayRawFunc.
-func NameArrayInitFunc(typ gotype.ArrayType) string {
+func NameArrayInitFunc(typ *gotype.ArrayType) string {
 	return "new" + typ.Elem.BaseName() + "ArrayInit"
 }
 
 // NameArrayRawFunc returns the function name that create the []interface{}
 // array for the array type so that we can use it with a parent encoder
 // function, like NameCompositeInitFunc, in the pgtype.Value Set call.
-func NameArrayRawFunc(typ gotype.ArrayType) string {
+func NameArrayRawFunc(typ *gotype.ArrayType) string {
 	return "new" + typ.Elem.BaseName() + "ArrayRaw"
 }
 
 // ArrayTranscoderDeclarer declares a new Go function that creates a
 // pgtype.ValueTranscoder decoder for an array Postgres type.
 type ArrayTranscoderDeclarer struct {
-	typ gotype.ArrayType
+	typ *gotype.ArrayType
 }
 
-func NewArrayDecoderDeclarer(typ gotype.ArrayType) ArrayTranscoderDeclarer {
+func NewArrayDecoderDeclarer(typ *gotype.ArrayType) ArrayTranscoderDeclarer {
 	return ArrayTranscoderDeclarer{typ: typ}
 }
 
 func (a ArrayTranscoderDeclarer) DedupeKey() string {
-	return "type_resolver::" + a.typ.Name + "_01_transcoder"
+	return "type_resolver::" + a.typ.BaseName() + "_01_transcoder"
 }
 
 func (a ArrayTranscoderDeclarer) Declare(string) (string, error) {
@@ -64,15 +64,15 @@ func (a ArrayTranscoderDeclarer) Declare(string) (string, error) {
 	sb.WriteString("return tr.newArrayValue(")
 	sb.WriteString(strconv.Quote(a.typ.PgArray.Name))
 	sb.WriteString(", ")
-	sb.WriteString(strconv.Quote(a.typ.PgArray.ElemType.String()))
+	sb.WriteString(strconv.Quote(a.typ.PgArray.Elem.String()))
 	sb.WriteString(", ")
 
 	// Default element transcoder
-	switch elem := a.typ.Elem.(type) {
-	case gotype.CompositeType:
+	switch elem := gotype.UnwrapNestedType(a.typ.Elem).(type) {
+	case *gotype.CompositeType:
 		sb.WriteString("tr.")
 		sb.WriteString(NameCompositeTranscoderFunc(elem))
-	case gotype.EnumType:
+	case *gotype.EnumType:
 		sb.WriteString(NameEnumTranscoderFunc(elem))
 	default:
 		return "", fmt.Errorf("array composite decoder only supports composite and enum elems; got %T", a.typ.Elem)
@@ -97,15 +97,15 @@ func (a ArrayTranscoderDeclarer) Declare(string) (string, error) {
 // Postgres binary format requires the type OID but pggen doesn't necessarily
 // know the OIDs of the types. The text format, however, doesn't require OIDs.
 type ArrayInitDeclarer struct {
-	typ gotype.ArrayType
+	typ *gotype.ArrayType
 }
 
-func NewArrayInitDeclarer(typ gotype.ArrayType) ArrayInitDeclarer {
+func NewArrayInitDeclarer(typ *gotype.ArrayType) ArrayInitDeclarer {
 	return ArrayInitDeclarer{typ}
 }
 
 func (a ArrayInitDeclarer) DedupeKey() string {
-	return "type_resolver::" + a.typ.Name + "_02_init"
+	return "type_resolver::" + a.typ.BaseName() + "_02_init"
 }
 
 func (a ArrayInitDeclarer) Declare(string) (string, error) {
@@ -125,7 +125,7 @@ func (a ArrayInitDeclarer) Declare(string) (string, error) {
 	sb.WriteString("func (tr *typeResolver) ")
 	sb.WriteString(funcName)
 	sb.WriteString("(ps ")
-	sb.WriteString(a.typ.Name)
+	sb.WriteString(a.typ.BaseName())
 	sb.WriteString(") pgtype.ValueTranscoder {\n\t")
 
 	// Function body
@@ -135,7 +135,7 @@ func (a ArrayInitDeclarer) Declare(string) (string, error) {
 	sb.WriteString("if err := dec.Set(tr.")
 	sb.WriteString(NameArrayRawFunc(a.typ))
 	sb.WriteString("(ps)); err != nil {\n\t\t")
-	sb.WriteString(fmt.Sprintf(`panic("encode %s: " + err.Error())`, a.typ.Name))
+	sb.WriteString(fmt.Sprintf(`panic("encode %s: " + err.Error())`, a.typ.BaseName()))
 	sb.WriteString(" // should always succeed\n\t")
 	sb.WriteString("}\n\t")
 	sb.WriteString("return textPreferrer{ValueTranscoder: dec, typeName: ")
@@ -149,15 +149,15 @@ func (a ArrayInitDeclarer) Declare(string) (string, error) {
 // as a generic array: []interface{}. Necessary because we can only set
 // pgtype.ArrayType from a []interface{}.
 type ArrayRawDeclarer struct {
-	typ gotype.ArrayType
+	typ *gotype.ArrayType
 }
 
-func NewArrayRawDeclarer(typ gotype.ArrayType) ArrayRawDeclarer {
+func NewArrayRawDeclarer(typ *gotype.ArrayType) ArrayRawDeclarer {
 	return ArrayRawDeclarer{typ}
 }
 
 func (a ArrayRawDeclarer) DedupeKey() string {
-	return "type_resolver::" + a.typ.Name + "_03_raw"
+	return "type_resolver::" + a.typ.BaseName() + "_03_raw"
 }
 
 func (a ArrayRawDeclarer) Declare(string) (string, error) {
@@ -176,15 +176,15 @@ func (a ArrayRawDeclarer) Declare(string) (string, error) {
 	sb.WriteString("func (tr *typeResolver) ")
 	sb.WriteString(funcName)
 	sb.WriteString("(vs ")
-	sb.WriteString(a.typ.Name)
+	sb.WriteString(a.typ.BaseName())
 	sb.WriteString(") []interface{} {\n\t")
 
 	// Function body
 	sb.WriteString("elems := make([]interface{}, len(vs))\n\t")
 	sb.WriteString("for i, v := range vs {\n\t\t")
 	sb.WriteString("elems[i] = ")
-	switch elem := a.typ.Elem.(type) {
-	case gotype.CompositeType:
+	switch elem := gotype.UnwrapNestedType(a.typ.Elem).(type) {
+	case *gotype.CompositeType:
 		sb.WriteString("tr.")
 		sb.WriteString(NameCompositeRawFunc(elem))
 		sb.WriteString("(v)")

@@ -6,7 +6,7 @@ import (
 )
 
 // If you add to this list, also add to defaultKnownTypes below.
-//goland:noinspection GoUnusedGlobalVariable,GoNameStartsWithPackageName
+//goland:noinspection GoNameStartsWithPackageName
 var (
 	Bool             = BaseType{ID: pgtype.BoolOID, Name: "bool"}
 	Bytea            = BaseType{ID: pgtype.ByteaOID, Name: "bytea"}
@@ -36,41 +36,41 @@ var (
 	Circle           = BaseType{ID: pgtype.CircleOID, Name: "circle"}
 	Macaddr          = BaseType{ID: pgtype.MacaddrOID, Name: "macaddr"}
 	Inet             = BaseType{ID: pgtype.InetOID, Name: "inet"}
-	BoolArray        = BaseType{ID: pgtype.BoolArrayOID, Name: "_bool"}
-	ByteaArray       = BaseType{ID: pgtype.ByteaArrayOID, Name: "_bytea"}
-	Int2Array        = BaseType{ID: pgtype.Int2ArrayOID, Name: "_int2"}
-	Int4Array        = BaseType{ID: pgtype.Int4ArrayOID, Name: "_int4"}
-	TextArray        = BaseType{ID: pgtype.TextArrayOID, Name: "_text"}
-	BPCharArray      = BaseType{ID: pgtype.BPCharArrayOID, Name: "_bpchar"}
-	VarcharArray     = BaseType{ID: pgtype.VarcharArrayOID, Name: "_varchar"}
-	Int8Array        = BaseType{ID: pgtype.Int8ArrayOID, Name: "_int8"}
-	Float4Array      = BaseType{ID: pgtype.Float4ArrayOID, Name: "_float4"}
-	Float8Array      = BaseType{ID: pgtype.Float8ArrayOID, Name: "_float8"}
-	OIDArray         = BaseType{ID: pgoid.OIDArray, Name: "_oid"}
+	BoolArray        = ArrayType{ID: pgtype.BoolArrayOID, Name: "_bool"}
+	ByteaArray       = ArrayType{ID: pgtype.ByteaArrayOID, Name: "_bytea"}
+	Int2Array        = ArrayType{ID: pgtype.Int2ArrayOID, Name: "_int2"}
+	Int4Array        = ArrayType{ID: pgtype.Int4ArrayOID, Name: "_int4"}
+	TextArray        = ArrayType{ID: pgtype.TextArrayOID, Name: "_text"}
+	BPCharArray      = ArrayType{ID: pgtype.BPCharArrayOID, Name: "_bpchar"}
+	VarcharArray     = ArrayType{ID: pgtype.VarcharArrayOID, Name: "_varchar"}
+	Int8Array        = ArrayType{ID: pgtype.Int8ArrayOID, Name: "_int8"}
+	Float4Array      = ArrayType{ID: pgtype.Float4ArrayOID, Name: "_float4"}
+	Float8Array      = ArrayType{ID: pgtype.Float8ArrayOID, Name: "_float8"}
+	OIDArray         = ArrayType{ID: pgoid.OIDArray, Name: "_oid"}
 	ACLItem          = BaseType{ID: pgtype.ACLItemOID, Name: "aclitem"}
-	ACLItemArray     = BaseType{ID: pgtype.ACLItemArrayOID, Name: "_aclitem"}
-	InetArray        = BaseType{ID: pgtype.InetArrayOID, Name: "_inet"}
-	MacaddrArray     = BaseType{ID: pgoid.MacaddrArray, Name: "_macaddr"}
+	ACLItemArray     = ArrayType{ID: pgtype.ACLItemArrayOID, Name: "_aclitem"}
+	InetArray        = ArrayType{ID: pgtype.InetArrayOID, Name: "_inet"}
+	MacaddrArray     = ArrayType{ID: pgoid.MacaddrArray, Name: "_macaddr"}
 	BPChar           = BaseType{ID: pgtype.BPCharOID, Name: "bpchar"}
 	Varchar          = BaseType{ID: pgtype.VarcharOID, Name: "varchar"}
 	Date             = BaseType{ID: pgtype.DateOID, Name: "date"}
 	Time             = BaseType{ID: pgtype.TimeOID, Name: "time"}
 	Timestamp        = BaseType{ID: pgtype.TimestampOID, Name: "timestamp"}
-	TimestampArray   = BaseType{ID: pgtype.TimestampArrayOID, Name: "_timestamp"}
-	DateArray        = BaseType{ID: pgtype.DateArrayOID, Name: "_date"}
+	TimestampArray   = ArrayType{ID: pgtype.TimestampArrayOID, Name: "_timestamp"}
+	DateArray        = ArrayType{ID: pgtype.DateArrayOID, Name: "_date"}
 	Timestamptz      = BaseType{ID: pgtype.TimestamptzOID, Name: "timestamptz"}
-	TimestamptzArray = BaseType{ID: pgtype.TimestamptzArrayOID, Name: "_timestamptz"}
+	TimestamptzArray = ArrayType{ID: pgtype.TimestamptzArrayOID, Name: "_timestamptz"}
 	Interval         = BaseType{ID: pgtype.IntervalOID, Name: "interval"}
-	NumericArray     = BaseType{ID: pgtype.NumericArrayOID, Name: "_numeric"}
+	NumericArray     = ArrayType{ID: pgtype.NumericArrayOID, Name: "_numeric"}
 	Bit              = BaseType{ID: pgtype.BitOID, Name: "bit"}
 	Varbit           = BaseType{ID: pgtype.VarbitOID, Name: "varbit"}
 	Numeric          = BaseType{ID: pgtype.NumericOID, Name: "numeric"}
 	Record           = BaseType{ID: pgtype.RecordOID, Name: "record"}
 	Void             = VoidType{}
 	UUID             = BaseType{ID: pgtype.UUIDOID, Name: "uuid"}
-	UUIDArray        = BaseType{ID: pgtype.UUIDArrayOID, Name: "_uuid"}
+	UUIDArray        = ArrayType{ID: pgtype.UUIDArrayOID, Name: "_uuid"}
 	JSONB            = BaseType{ID: pgtype.JSONBOID, Name: "jsonb"}
-	JSONBArray       = BaseType{ID: pgtype.JSONBArrayOID, Name: "_jsonb"}
+	JSONBArray       = ArrayType{ID: pgtype.JSONBArrayOID, Name: "_jsonb"}
 	Int4range        = BaseType{ID: pgtype.Int4rangeOID, Name: "int4range"}
 	Numrange         = BaseType{ID: pgtype.NumrangeOID, Name: "numrange"}
 	Tsrange          = BaseType{ID: pgtype.TsrangeOID, Name: "tsrange"}

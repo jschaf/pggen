@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/jschaf/pggen/internal/casing"
 	"github.com/jschaf/pggen/internal/codegen"
+	"github.com/jschaf/pggen/internal/codegen/golang/gotype"
 	"github.com/jschaf/pggen/internal/gomod"
 	"strconv"
 	"strings"
@@ -117,7 +118,7 @@ func (tm Templater) templateFile(file codegen.QueryFile, isLeader bool) (Templat
 	pkgPath := ""
 	// NOTE: err == nil check
 	// Attempt to guess package path. Ignore error if it doesn't work because
-	// resolving the package isn't perfect. We'll fallback to an unqualified
+	// resolving the package isn't perfect. We'll fall back to an unqualified
 	// type which will likely work since the type is probably declared in this
 	// package.
 	if pkg, err := gomod.GuessPackage(file.SourcePath); err == nil {
@@ -151,7 +152,7 @@ func (tm Templater) templateFile(file codegen.QueryFile, isLeader bool) (Templat
 			inputs[i] = TemplatedParam{
 				UpperName: tm.chooseUpperName(input.PgName, "UnnamedParam", i, len(query.Inputs)),
 				LowerName: tm.chooseLowerName(input.PgName, "unnamedParam", i, len(query.Inputs)),
-				QualType:  goType.QualifyRel(pkgPath),
+				QualType:  gotype.QualifyType(goType, pkgPath),
 				Type:      goType,
 			}
 			ds := FindInputDeclarers(goType).ListAll()
@@ -171,7 +172,7 @@ func (tm Templater) templateFile(file codegen.QueryFile, isLeader bool) (Templat
 				UpperName: tm.chooseUpperName(out.PgName, "UnnamedColumn", i, len(query.Outputs)),
 				LowerName: tm.chooseLowerName(out.PgName, "UnnamedColumn", i, len(query.Outputs)),
 				Type:      goType,
-				QualType:  goType.QualifyRel(pkgPath),
+				QualType:  gotype.QualifyType(goType, pkgPath),
 			}
 			ds := FindOutputDeclarers(goType).ListAll()
 			declarers.AddAll(ds...)
@@ -198,7 +199,7 @@ func (tm Templater) templateFile(file codegen.QueryFile, isLeader bool) (Templat
 	}, declarers, nil
 }
 
-// chooseUpperName converts pgName into an capitalized Go identifier name.
+// chooseUpperName converts pgName into a capitalized Go identifier name.
 // If it's not possible to convert pgName into an identifier, uses fallback with
 // a suffix using idx.
 func (tm Templater) chooseUpperName(pgName string, fallback string, idx int, numOptions int) string {

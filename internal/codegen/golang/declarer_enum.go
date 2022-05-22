@@ -6,17 +6,17 @@ import (
 	"strings"
 )
 
-func NameEnumTranscoderFunc(typ gotype.EnumType) string {
+func NameEnumTranscoderFunc(typ *gotype.EnumType) string {
 	return "new" + typ.Name + "Enum"
 }
 
 // EnumTypeDeclarer declares a new string type and the const values to map to a
 // Postgres enum.
 type EnumTypeDeclarer struct {
-	enum gotype.EnumType
+	enum *gotype.EnumType
 }
 
-func NewEnumTypeDeclarer(enum gotype.EnumType) EnumTypeDeclarer {
+func NewEnumTypeDeclarer(enum *gotype.EnumType) EnumTypeDeclarer {
 	return EnumTypeDeclarer{enum: enum}
 }
 
@@ -71,10 +71,10 @@ func (e EnumTypeDeclarer) Declare(string) (string, error) {
 // EnumTranscoderDeclarer declares a new Go function that creates a pgx decoder
 // for the Postgres type represented by the gotype.EnumType.
 type EnumTranscoderDeclarer struct {
-	typ gotype.EnumType
+	typ *gotype.EnumType
 }
 
-func NewEnumTranscoderDeclarer(enum gotype.EnumType) EnumTranscoderDeclarer {
+func NewEnumTranscoderDeclarer(enum *gotype.EnumType) EnumTranscoderDeclarer {
 	return EnumTranscoderDeclarer{typ: enum}
 }
 

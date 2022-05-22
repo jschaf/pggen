@@ -2,6 +2,7 @@ package gotype
 
 import (
 	"bytes"
+	"fmt"
 	"github.com/jschaf/pggen/internal/casing"
 	"github.com/jschaf/pggen/internal/pg"
 	"regexp"
@@ -12,45 +13,34 @@ import (
 
 // Type is a Go type.
 type Type interface {
-	// QualifyRel qualifies the type relative to another pkgPath. If this type's
-	// package path is the same, return the BaseName. Otherwise, qualify the type
-	// with Package.
-	QualifyRel(pkgPath string) string
 	// Import returns the full package path, like "github.com/jschaf/pggen/foo".
 	// Empty for builtin types.
 	Import() string
-	// Package returns the last part of the package path like "qux" in the package
-	// "github.com/jschaf/pggen/qux". Empty for builtin types.
-	Package() string
-	// BaseName returns the base name of the type, like "Foo" in:
-	//   type Foo int
+	// BaseName returns the unqualified, base name of the type, like "Foo" in:
+	//   type Foo int, or "[]*Foo".
 	BaseName() string
-	// PgType returns the Postgres type this type represents, or nil if not known.
-	PgType() pg.Type
 }
 
 type (
-	// VoidType is a placeholder type that should never appear in output. We need
-	// a placeholder to scan pgx rows but we ultimately ignore the results in the
-	// return values.
-	VoidType struct{}
-
 	// ArrayType is a Go slice type.
 	ArrayType struct {
 		PgArray pg.ArrayType // original Postgres array type
-		PkgPath string       // fully qualified package path, like "github.com/jschaf/pggen"
-		Pkg     string       // last part of the package path like "pggen" or empty for builtin types
-		Name    string       // name of Go slice type in UpperCamelCase with leading brackets, like "[]Foo"
-		Elem    Type         // base type of the slice, like int for []int
+		Elem    Type         // element type of the slice, like int for []int
+	}
+
+	// CompositeType is a struct type that represents a Postgres composite type.
+	CompositeType struct {
+		PgComposite pg.CompositeType // original Postgres composite type
+		Name        string           // Go-style type name in UpperCamelCase
+		FieldNames  []string         // Go-style child names in UpperCamelCase
+		FieldTypes  []Type
 	}
 
 	// EnumType is a string type with constant values that maps to the labels of
 	// a Postgres enum.
 	EnumType struct {
-		PgEnum  pg.EnumType // the original Postgres enum type
-		PkgPath string
-		Pkg     string
-		Name    string
+		PgEnum pg.EnumType // the original Postgres enum type
+		Name   string      // name of the unqualified Go type
 		// Labels of the Postgres enum formatted as Go identifiers ordered in the
 		// same order as in Postgres.
 		Labels []string
@@ -59,71 +49,98 @@ type (
 		Values []string
 	}
 
+	// ImportType is an imported type.
+	ImportType struct {
+		PkgPath string // fully qualified package path, like "github.com/jschaf/pggen"
+		Type    Type   // type to import
+	}
+
 	// OpaqueType is a type where only the name is known, as with a user-provided
 	// custom type.
 	OpaqueType struct {
-		PgTyp   pg.Type // original Postgres type
-		PkgPath string
-		Pkg     string
-		Name    string
+		PgType pg.Type // original Postgres type
+		Name   string  // name of the unqualified Go type
 	}
 
-	// CompositeType is a struct type that represents a Postgres composite type,
-	// typically from a table.
-	CompositeType struct {
-		PgComposite pg.CompositeType // original Postgres composite type
-		PkgPath     string
-		Pkg         string
-		Name        string   // Go-style type name in UpperCamelCase
-		FieldNames  []string // Go-style child names in UpperCamelCase
-		FieldTypes  []Type
+	// PointerType is a pointer to another Go type.
+	PointerType struct {
+		Elem Type // the pointed-to type
 	}
+
+	// VoidType is a placeholder type that should never appear in output. We need
+	// a placeholder to scan pgx rows, but we ultimately ignore the results in the
+	// return values.
+	VoidType struct{}
 )
 
-func (e VoidType) QualifyRel(pkgPath string) string { return qualifyRel(e, pkgPath) }
-func (e VoidType) Import() string                   { return "" }
-func (e VoidType) Package() string                  { return "" }
-func (e VoidType) BaseName() string                 { return "" }
-func (e VoidType) PgType() pg.Type                  { return pg.VoidType{} }
+func (a *ArrayType) Import() string   { return a.Elem.Import() }
+func (a *ArrayType) BaseName() string { return "[]" + a.Elem.BaseName() }
 
-func (a ArrayType) QualifyRel(pkgPath string) string { return qualifyRel(a, pkgPath) }
-func (a ArrayType) Import() string                   { return a.PkgPath }
-func (a ArrayType) Package() string                  { return a.Pkg }
-func (a ArrayType) BaseName() string                 { return a.Name }
-func (a ArrayType) PgType() pg.Type                  { return a.PgArray }
+func (c *CompositeType) Import() string   { return "" }
+func (c *CompositeType) BaseName() string { return c.Name }
 
-func (e EnumType) QualifyRel(pkgPath string) string { return qualifyRel(e, pkgPath) }
-func (e EnumType) Import() string                   { return e.PkgPath }
-func (e EnumType) Package() string                  { return e.Pkg }
-func (e EnumType) BaseName() string                 { return e.Name }
-func (e EnumType) PgType() pg.Type                  { return e.PgEnum }
+func (e *EnumType) Import() string   { return "" }
+func (e *EnumType) BaseName() string { return e.Name }
 
-func (o OpaqueType) QualifyRel(pkgPath string) string { return qualifyRel(o, pkgPath) }
-func (o OpaqueType) Import() string                   { return o.PkgPath }
-func (o OpaqueType) Package() string                  { return o.Pkg }
-func (o OpaqueType) BaseName() string                 { return o.Name }
-func (o OpaqueType) PgType() pg.Type                  { return o.PgTyp }
+func (e *ImportType) Import() string   { return e.PkgPath }
+func (e *ImportType) BaseName() string { return e.Type.BaseName() }
 
-func (c CompositeType) QualifyRel(pkgPath string) string { return qualifyRel(c, pkgPath) }
-func (c CompositeType) Import() string                   { return c.PkgPath }
-func (c CompositeType) Package() string                  { return c.Pkg }
-func (c CompositeType) BaseName() string                 { return c.Name }
-func (c CompositeType) PgType() pg.Type                  { return c.PgComposite }
+func (o *OpaqueType) Import() string   { return "" }
+func (o *OpaqueType) BaseName() string { return o.Name }
 
-func qualifyRel(typ Type, otherPkgPath string) string {
-	if typ.Import() == otherPkgPath || typ.Import() == "" || typ.Package() == "" {
-		return typ.BaseName()
+func (o *PointerType) Import() string   { return "" }
+func (o *PointerType) BaseName() string { return "*" + o.Elem.BaseName() }
+
+func (e *VoidType) Import() string   { return "" }
+func (e *VoidType) BaseName() string { return "" }
+
+func getTypePackage(typ Type) string {
+	switch typ := typ.(type) {
+	case *ArrayType:
+		return getTypePackage(typ.Elem)
+	case *CompositeType:
+		return ""
+	case *EnumType:
+		return ""
+	case *ImportType:
+		return typ.PkgPath
+	case *OpaqueType:
+		return ""
+	case *PointerType:
+		return getTypePackage(typ.Elem)
+	case *VoidType:
+		return ""
+	default:
+		panic(fmt.Sprintf("unhandled getTypePackage type %T", typ))
 	}
-	if !strings.ContainsRune(otherPkgPath, '.') && typ.Package() == otherPkgPath {
+}
+
+func QualifyType(typ Type, otherPkgPath string) string {
+	sb := &strings.Builder{}
+	arrType, isArr := typ.(*ArrayType)
+	if isArr {
+		sb.WriteString("[]")
+		typ = arrType.Elem
+	}
+	ptrType, isPtr := typ.(*PointerType)
+	if isPtr {
+		sb.WriteString("*")
+		typ = ptrType.Elem
+	}
+
+	pkg := getTypePackage(typ)
+	if typ.Import() == otherPkgPath || typ.Import() == "" || pkg == "" {
+		sb.WriteString(typ.BaseName())
+		return sb.String()
+	}
+	if !strings.ContainsRune(otherPkgPath, '.') && pkg == otherPkgPath {
 		// If the otherPkgPath is unqualified and matches the package path, assume
 		// the same package.
 		return typ.BaseName()
 	}
-	sb := strings.Builder{}
 	sb.Grow(len(typ.BaseName()))
 	if typ.Import() != "" {
-		shortPkg := typ.Package()
-		sb.Grow(len(shortPkg) + 1)
+		shortPkg := ExtractShortPackage([]byte(pkg))
 		sb.WriteString(shortPkg)
 		sb.WriteRune('.')
 	}
@@ -131,21 +148,14 @@ func qualifyRel(typ Type, otherPkgPath string) string {
 	return sb.String()
 }
 
-func NewArrayType(pkgPath string, pgArray pg.ArrayType, caser casing.Caser, elemType Type) ArrayType {
-	name := caser.ToUpperGoIdent(pgArray.Name)
-	if name == "" {
-		name = ChooseFallbackName(pgArray.Name, "UnnamedArray")
-	}
-	return ArrayType{
+func NewArrayType(pgArray pg.ArrayType, elemType Type) Type {
+	return &ArrayType{
 		PgArray: pgArray,
-		PkgPath: pkgPath,
-		Pkg:     ExtractShortPackage([]byte(pkgPath)),
-		Name:    "[]" + name,
 		Elem:    elemType,
 	}
 }
 
-func NewEnumType(pkgPath string, pgEnum pg.EnumType, caser casing.Caser) EnumType {
+func NewEnumType(pkgPath string, pgEnum pg.EnumType, caser casing.Caser) Type {
 	name := caser.ToUpperGoIdent(pgEnum.Name)
 	if name == "" {
 		name = ChooseFallbackName(pgEnum.Name, "UnnamedEnum")
@@ -160,31 +170,35 @@ func NewEnumType(pkgPath string, pgEnum pg.EnumType, caser casing.Caser) EnumTyp
 		labels[i] = name + ident
 		values[i] = pgEnum.Labels[i]
 	}
-	return EnumType{
-		PgEnum:  pgEnum,
-		PkgPath: pkgPath,
-		Pkg:     ExtractShortPackage([]byte(pkgPath)),
-		Name:    name,
-		Labels:  labels,
-		Values:  values,
+	typ := &EnumType{
+		PgEnum: pgEnum,
+		Name:   name,
+		Labels: labels,
+		Values: values,
 	}
+	if pkgPath != "" {
+		return &ImportType{
+			PkgPath: pkgPath,
+			Type:    typ,
+		}
+	}
+	return typ
 }
 
-// NewOpaqueType creates a OpaqueType by parsing the fully qualified Go type
-// like "github.com/jschaf/pggen.GenerateOpts", or a builtin type like "string".
-// Supports slice and pointer types:
+// ParseOpaqueType creates a Type by parsing a fully qualified Go type like
+// "github.com/jschaf/custom.Int4" with the backing pg.Type.
 //
 //   - []int
 //   - []*int
 //   - *example.com/foo.Qux
 //   - []*example.com/foo.Qux
-func NewOpaqueType(qualType string) OpaqueType {
-	if !strings.ContainsRune(qualType, '.') {
-		return OpaqueType{Name: qualType} // builtin type like "string"
-	}
+func ParseOpaqueType(qualType string, pgType pg.Type) (Type, error) {
 	bs := []byte(qualType)
-	isArr := bs[0] == '[' && bs[1] == ']'
+	isArr := bs[0] == '['
 	if isArr {
+		if bs[1] != ']' {
+			return nil, fmt.Errorf("malformed custom type %q; must have closing bracket", qualType)
+		}
 		bs = bs[2:]
 	}
 	isPtr := bs[0] == '*'
@@ -193,19 +207,57 @@ func NewOpaqueType(qualType string) OpaqueType {
 	}
 	idx := bytes.LastIndexByte(bs, '.')
 	name := string(bs[idx+1:])
+	var typ Type = &OpaqueType{Name: name}
+	// On array types, the PgType goes on the Array. In all other cases, it
+	// goes on the OpaqueType.
+	if t, ok := typ.(*OpaqueType); ok && !isArr {
+		t.PgType = pgType
+	}
+
+	if isQualifiedType := idx != -1; isQualifiedType {
+		pkgPath := bs[:idx]
+		typ = &ImportType{
+			PkgPath: string(pkgPath),
+			Type:    typ,
+		}
+	}
+
 	if isPtr {
-		name = "*" + name
+		typ = &PointerType{Elem: typ}
 	}
+
 	if isArr {
-		name = "[]" + name
+		pgArr, ok := pgType.(pg.ArrayType)
+		// Ensure that if we have a Go slice type that the Postgres type is also
+		// an array. []byte is special since it maps to the Postgres bytea type.
+		if !ok && pgType != nil && qualType != "[]byte" {
+			return nil, fmt.Errorf("opaque pg type %T{%+v} for go type %q is not a pg.ArrayType", pgType, pgType, qualType)
+		}
+		typ = &ArrayType{PgArray: pgArr, Elem: typ}
 	}
-	pkgPath := bs[:idx]
-	shortPkg := ExtractShortPackage(pkgPath)
-	return OpaqueType{
-		PkgPath: string(pkgPath),
-		Pkg:     shortPkg,
-		Name:    name,
+
+	return typ, nil
+}
+
+// MustParseKnownType creates a gotype.Type by parsing a fully qualified Go type
+// that pgx supports natively like "github.com/jackc/pgtype.Int4Array", or most
+// builtin types like "string" and []*int16.
+func MustParseKnownType(qualType string, pgType pg.Type) Type {
+	typ, err := ParseOpaqueType(qualType, pgType)
+	if err != nil {
+		panic(err.Error())
 	}
+	return typ
+}
+
+// MustParseOpaqueType creates a gotype.Type by parsing a fully qualified Go
+// type unsupported by pgx supports natively like "github.com/example/Foo"
+func MustParseOpaqueType(qualType string) Type {
+	typ, err := ParseOpaqueType(qualType, nil)
+	if err != nil {
+		panic(err.Error())
+	}
+	return typ
 }
 
 var majorVersionRegexp = regexp.MustCompile(`^v[0-9]+$`)
@@ -215,7 +267,7 @@ var majorVersionRegexp = regexp.MustCompile(`^v[0-9]+$`)
 func ExtractShortPackage(pkgPath []byte) string {
 	parts := bytes.Split(pkgPath, []byte{'/'})
 	shortPkg := parts[len(parts)-1]
-	// Skip major version suffixes got get package name.
+	// Skip major version suffixes to get package name.
 	if bytes.HasPrefix(shortPkg, []byte{'v'}) && majorVersionRegexp.Match(shortPkg) {
 		shortPkg = parts[len(parts)-2]
 	}
@@ -231,4 +283,30 @@ func ChooseFallbackName(pgName string, prefix string) string {
 		}
 	}
 	return sb.String()
+}
+
+// UnwrapNestedType returns the first type under gotype.ImportType or
+// gotype.PointerType.
+func UnwrapNestedType(typ Type) Type {
+	switch typ := typ.(type) {
+	case *ImportType:
+		return UnwrapNestedType(typ.Type)
+	case *PointerType:
+		return UnwrapNestedType(typ.Elem)
+	default:
+		return typ
+	}
+}
+
+func IsPrimitiveArray(typ *ArrayType) bool {
+	switch elem := UnwrapNestedType(typ.Elem).(type) {
+	case *OpaqueType:
+		switch elem.Name {
+		case "string", "int", "int16", "int32", "int64",
+			"uint", "uint16", "uint32", "uint64",
+			"float32", "float64":
+			return true
+		}
+	}
+	return false
 }

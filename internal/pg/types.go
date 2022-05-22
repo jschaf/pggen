@@ -53,7 +53,7 @@ type (
 		Name string     // pg_type.typname: data type name
 	}
 
-	// VoidType is an empty type. A void type doesn't appear in output but it's
+	// VoidType is an empty type. A void type doesn't appear in output, but it's
 	// necessary to scan rows.
 	VoidType struct{}
 
@@ -65,7 +65,7 @@ type (
 		// begin with an underscore. From pg_type.typname.
 		Name string
 		// pg_type.typelem: the element type of the array
-		ElemType Type
+		Elem Type
 	}
 
 	EnumType struct {
@@ -77,7 +77,7 @@ type (
 		// All textual labels for this enum in sort order.
 		Labels []string
 		// When an enum type is created, its members are assigned sort-order
-		// positions 1..n. But members added later might be given negative or
+		// positions 1...n. But members added later might be given negative or
 		// fractional values of enumsortorder. The only requirement on these
 		// values is that they be correctly ordered and unique within each enum
 		// type.
@@ -117,7 +117,7 @@ type (
 	// placeholderType is an internal, temporary type that we resolve in a second
 	// pass. Useful because we resolve types sequentially by kind. For example, we
 	// resolve all composite types before resolving array types. This approach
-	// requires two passes for cases like when a composite type has an child type
+	// requires two passes for cases like when a composite type has a child type
 	// that's an array.
 	placeholderType struct {
 		ID pgtype.OID // pg_type.oid: row identifier
