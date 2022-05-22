@@ -6,6 +6,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/jschaf/pggen/internal/ast"
+	"github.com/jschaf/pggen/internal/difftest"
 	"github.com/jschaf/pggen/internal/pg"
 	"github.com/jschaf/pggen/internal/pgtest"
 	"github.com/jschaf/pggen/internal/texts"
@@ -38,16 +39,18 @@ func TestInferrer_InferTypes(t *testing.T) {
 	require.NoError(t, err)
 
 	tests := []struct {
+		name  string
 		query *ast.SourceQuery
 		want  TypedQuery
 	}{
 		{
-			&ast.SourceQuery{
+			name: "literal query",
+			query: &ast.SourceQuery{
 				Name:        "LiteralQuery",
 				PreparedSQL: "SELECT 1 as one, 'foo' as two",
 				ResultKind:  ast.ResultKindOne,
 			},
-			TypedQuery{
+			want: TypedQuery{
 				Name:        "LiteralQuery",
 				ResultKind:  ast.ResultKindOne,
 				PreparedSQL: "SELECT 1 as one, 'foo' as two",
@@ -58,12 +61,13 @@ func TestInferrer_InferTypes(t *testing.T) {
 			},
 		},
 		{
-			&ast.SourceQuery{
+			name: "union one col",
+			query: &ast.SourceQuery{
 				Name:        "UnionOneCol",
 				PreparedSQL: "SELECT 1 AS num UNION SELECT 2 AS num",
 				ResultKind:  ast.ResultKindMany,
 			},
-			TypedQuery{
+			want: TypedQuery{
 				Name:        "UnionOneCol",
 				ResultKind:  ast.ResultKindMany,
 				PreparedSQL: "SELECT 1 AS num UNION SELECT 2 AS num",
@@ -73,12 +77,13 @@ func TestInferrer_InferTypes(t *testing.T) {
 			},
 		},
 		{
-			&ast.SourceQuery{
+			name: "one col domain type",
+			query: &ast.SourceQuery{
 				Name:        "Domain",
 				PreparedSQL: "SELECT '94109'::us_postal_code",
 				ResultKind:  ast.ResultKindOne,
 			},
-			TypedQuery{
+			want: TypedQuery{
 				Name:        "Domain",
 				ResultKind:  ast.ResultKindOne,
 				PreparedSQL: "SELECT '94109'::us_postal_code",
@@ -90,7 +95,8 @@ func TestInferrer_InferTypes(t *testing.T) {
 			},
 		},
 		{
-			&ast.SourceQuery{
+			name: "one col domain type",
+			query: &ast.SourceQuery{
 				Name: "UnionEnumArrays",
 				PreparedSQL: texts.Dedent(`
 					SELECT enum_range('phone'::device_type, 'phone'::device_type) AS device_types
@@ -99,7 +105,7 @@ func TestInferrer_InferTypes(t *testing.T) {
 				`),
 				ResultKind: ast.ResultKindMany,
 			},
-			TypedQuery{
+			want: TypedQuery{
 				Name:       "UnionEnumArrays",
 				ResultKind: ast.ResultKindMany,
 				PreparedSQL: texts.Dedent(`
@@ -126,14 +132,15 @@ func TestInferrer_InferTypes(t *testing.T) {
 			},
 		},
 		{
-			&ast.SourceQuery{
+			name: "find by first name",
+			query: &ast.SourceQuery{
 				Name:        "FindByFirstName",
 				PreparedSQL: "SELECT first_name FROM author WHERE first_name = $1;",
 				ParamNames:  []string{"FirstName"},
 				ResultKind:  ast.ResultKindMany,
 				Doc:         newCommentGroup("--   Hello  ", "-- name: Foo"),
 			},
-			TypedQuery{
+			want: TypedQuery{
 				Name:        "FindByFirstName",
 				ResultKind:  ast.ResultKindMany,
 				Doc:         []string{"Hello"},
@@ -147,14 +154,15 @@ func TestInferrer_InferTypes(t *testing.T) {
 			},
 		},
 		{
-			&ast.SourceQuery{
+			name: "find by first name join",
+			query: &ast.SourceQuery{
 				Name:        "FindByFirstNameJoin",
 				PreparedSQL: "SELECT a1.first_name FROM author a1 JOIN author a2 USING (author_id) WHERE a1.first_name = $1;",
 				ParamNames:  []string{"FirstName"},
 				ResultKind:  ast.ResultKindMany,
 				Doc:         newCommentGroup("--   Hello  ", "-- name: Foo"),
 			},
-			TypedQuery{
+			want: TypedQuery{
 				Name:        "FindByFirstNameJoin",
 				ResultKind:  ast.ResultKindMany,
 				Doc:         []string{"Hello"},
@@ -168,14 +176,15 @@ func TestInferrer_InferTypes(t *testing.T) {
 			},
 		},
 		{
-			&ast.SourceQuery{
+			name: "delete by author ID",
+			query: &ast.SourceQuery{
 				Name:        "DeleteAuthorByID",
 				PreparedSQL: "DELETE FROM author WHERE author_id = $1;",
 				ParamNames:  []string{"AuthorID"},
 				ResultKind:  ast.ResultKindExec,
 				Doc:         newCommentGroup("-- One", "--- - two", "-- name: Foo"),
 			},
-			TypedQuery{
+			want: TypedQuery{
 				Name:        "DeleteAuthorByID",
 				ResultKind:  ast.ResultKindExec,
 				Doc:         []string{"One", "- two"},
@@ -187,33 +196,58 @@ func TestInferrer_InferTypes(t *testing.T) {
 			},
 		},
 		{
-			&ast.SourceQuery{
+			name: "delete by author id returning",
+			query: &ast.SourceQuery{
 				Name:        "DeleteAuthorByIDReturning",
-				PreparedSQL: "DELETE FROM author WHERE author_id = $1 RETURNING author_id, first_name;",
+				PreparedSQL: "DELETE FROM author WHERE author_id = $1 RETURNING author_id, first_name, suffix;",
 				ParamNames:  []string{"AuthorID"},
 				ResultKind:  ast.ResultKindMany,
 			},
-			TypedQuery{
+			want: TypedQuery{
 				Name:        "DeleteAuthorByIDReturning",
 				ResultKind:  ast.ResultKindMany,
-				PreparedSQL: "DELETE FROM author WHERE author_id = $1 RETURNING author_id, first_name;",
+				PreparedSQL: "DELETE FROM author WHERE author_id = $1 RETURNING author_id, first_name, suffix;",
 				Inputs: []InputParam{
 					{PgName: "AuthorID", PgType: pg.Int4},
 				},
 				Outputs: []OutputColumn{
 					{PgName: "author_id", PgType: pg.Int4, Nullable: false},
 					{PgName: "first_name", PgType: pg.Text, Nullable: false},
+					{PgName: "suffix", PgType: pg.Text, Nullable: true},
 				},
 			},
 		},
 		{
-			&ast.SourceQuery{
+			name: "update by author id returning",
+			query: &ast.SourceQuery{
+				Name:        "UpdateByAuthorIDReturning",
+				PreparedSQL: "UPDATE author set first_name = 'foo' WHERE author_id = $1 RETURNING author_id, first_name, suffix;",
+				ParamNames:  []string{"AuthorID"},
+				ResultKind:  ast.ResultKindMany,
+			},
+			want: TypedQuery{
+				Name:        "UpdateByAuthorIDReturning",
+				ResultKind:  ast.ResultKindMany,
+				PreparedSQL: "UPDATE author set first_name = 'foo' WHERE author_id = $1 RETURNING author_id, first_name, suffix;",
+				Inputs: []InputParam{
+					{PgName: "AuthorID", PgType: pg.Int4},
+				},
+				Outputs: []OutputColumn{
+					{PgName: "author_id", PgType: pg.Int4, Nullable: false},
+					{PgName: "first_name", PgType: pg.Text, Nullable: false},
+					{PgName: "suffix", PgType: pg.Text, Nullable: true},
+				},
+			},
+		},
+		{
+			name: "void one",
+			query: &ast.SourceQuery{
 				Name:        "VoidOne",
 				PreparedSQL: "SELECT ''::void;",
 				ParamNames:  []string{},
 				ResultKind:  ast.ResultKindExec,
 			},
-			TypedQuery{
+			want: TypedQuery{
 				Name:        "VoidOne",
 				ResultKind:  ast.ResultKindExec,
 				PreparedSQL: "SELECT ''::void;",
@@ -224,13 +258,14 @@ func TestInferrer_InferTypes(t *testing.T) {
 			},
 		},
 		{
-			&ast.SourceQuery{
+			name: "void two",
+			query: &ast.SourceQuery{
 				Name:        "VoidTwo",
 				PreparedSQL: "SELECT 'foo' as foo, ''::void;",
 				ParamNames:  []string{},
 				ResultKind:  ast.ResultKindOne,
 			},
-			TypedQuery{
+			want: TypedQuery{
 				Name:        "VoidTwo",
 				ResultKind:  ast.ResultKindOne,
 				PreparedSQL: "SELECT 'foo' as foo, ''::void;",
@@ -242,6 +277,7 @@ func TestInferrer_InferTypes(t *testing.T) {
 			},
 		},
 		{
+			"pragma proto type",
 			&ast.SourceQuery{
 				Name:        "PragmaProtoType",
 				PreparedSQL: "SELECT 1 as one, 'foo' as two",
@@ -261,7 +297,7 @@ func TestInferrer_InferTypes(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		t.Run(tt.query.Name, func(t *testing.T) {
+		t.Run(tt.name, func(t *testing.T) {
 			inferrer := NewInferrer(conn)
 			got, err := inferrer.InferTypes(tt.query)
 			if err != nil {
@@ -270,9 +306,7 @@ func TestInferrer_InferTypes(t *testing.T) {
 			opts := cmp.Options{
 				cmpopts.IgnoreFields(pg.EnumType{}, "ChildOIDs"),
 			}
-			if diff := cmp.Diff(tt.want, got, opts); diff != "" {
-				t.Errorf("mismatch (-want +got):\n%s", diff)
-			}
+			difftest.AssertSame(t, tt.want, got, opts)
 		})
 	}
 }

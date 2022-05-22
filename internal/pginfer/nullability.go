@@ -13,8 +13,8 @@ import (
 func isColNullable(query *ast.SourceQuery, plan Plan, out string, column pg.Column) bool {
 	switch {
 	case len(out) == 0:
-		// No output? Not sure what this means but do the check here so we don't
-		// have to do it in each case below.
+		// No output? Not sure what this means but do the check here so that we
+		// don't have to do it in each case below.
 		return false
 	case strings.HasPrefix(out, "'"):
 		return false // literal string can't be null
