@@ -4,10 +4,10 @@ package gotype
 // composite types) is a composite type.
 func HasCompositeType(t Type) bool {
 	switch t := t.(type) {
-	case CompositeType:
-		return true
-	case ArrayType:
+	case *ArrayType:
 		return HasCompositeType(t.Elem)
+	case *CompositeType:
+		return true
 	default:
 		return false
 	}
@@ -17,15 +17,15 @@ func HasCompositeType(t Type) bool {
 // composite types) is an array type.
 func HasArrayType(t Type) bool {
 	switch t := t.(type) {
-	case CompositeType:
+	case *ArrayType:
+		return true
+	case *CompositeType:
 		for _, typ := range t.FieldTypes {
 			if ok := HasArrayType(typ); ok {
 				return true
 			}
 		}
 		return false
-	case ArrayType:
-		return true
 	default:
 		return false
 	}

@@ -90,12 +90,6 @@ func (tr *typeResolver) newArrayValue(name, elemName string, defaultVal func() p
 	return typ
 }
 
-// newSomeTableArray creates a new pgtype.ValueTranscoder for the Postgres
-// '_some_array' array type.
-func (tr *typeResolver) newSomeTableArray() pgtype.ValueTranscoder {
-	return tr.newArrayValue("_some_array", "some_table", tr.newSomeTable)
-}
-
 // newSomeTable creates a new pgtype.ValueTranscoder for the Postgres
 // composite type 'some_table'.
 func (tr *typeResolver) newSomeTable() pgtype.ValueTranscoder {
@@ -104,4 +98,10 @@ func (tr *typeResolver) newSomeTable() pgtype.ValueTranscoder {
 		compositeField{"foo", "int2", &pgtype.Int2{}},
 		compositeField{"bar_baz", "text", &pgtype.Text{}},
 	)
+}
+
+// newSomeTableArray creates a new pgtype.ValueTranscoder for the Postgres
+// '_some_array' array type.
+func (tr *typeResolver) newSomeTableArray() pgtype.ValueTranscoder {
+	return tr.newArrayValue("_some_array", "some_table", tr.newSomeTable)
 }

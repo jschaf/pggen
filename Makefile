@@ -37,7 +37,7 @@ acceptance-test:
 
 .PHONY: update-acceptance-test
 update-acceptance-test:
-	DOCKER_API_VERSION=1.39 go test ./example/acceptance_test.go -update
+	go test ./example/acceptance_test.go -update
 
 .PHONY: lint
 lint:

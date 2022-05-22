@@ -19,12 +19,12 @@ type TemplatedPackage struct {
 type TemplatedFile struct {
 	Pkg        TemplatedPackage // the parent package containing this file
 	PkgPath    string           // full package path, like "github.com/foo/bar"
-	GoPkg      string           // the name of the Go package to use for the generated file
+	GoPkg      string           // the name of the Go package to use for the "package foo" declaration
 	SourcePath string           // absolute path to source SQL file
 	Queries    []TemplatedQuery // the queries with all template information
 	Imports    []string         // Go imports
 	// True if this file is the leader file. The leader defines common code used
-	// by by all queries in the same directory. Only one leader per directory.
+	// by all queries in the same directory. Only one leader per directory.
 	IsLeader bool
 	// Any declarations this file should declare. Only set on leader.
 	Declarers []Declarer
@@ -43,8 +43,8 @@ type TemplatedQuery struct {
 }
 
 type TemplatedParam struct {
-	UpperName string // name of the param in UpperCamelCase, like 'FirstName' from pggen.arg('FirstName')
-	LowerName string // name of the param in lowerCamelCase, like 'firstName' from pggen.arg('FirstName')
+	UpperName string // name of the param in UpperCamelCase, like 'FirstName' from pggen.arg('first_name')
+	LowerName string // name of the param in lowerCamelCase, like 'firstName' from pggen.arg('first_name')
 	QualType  string // package-qualified Go type to use for this param
 	Type      gotype.Type
 }
@@ -134,19 +134,23 @@ func (tq TemplatedQuery) EmitParamStruct() string {
 // for use in a method invocation.
 func (tq TemplatedQuery) EmitParamNames() string {
 	appendParam := func(sb *strings.Builder, typ gotype.Type, name string) {
-		switch typ := typ.(type) {
-		case gotype.CompositeType:
+		switch typ := gotype.UnwrapNestedType(typ).(type) {
+		case *gotype.CompositeType:
 			sb.WriteString("q.types.")
 			sb.WriteString(NameCompositeInitFunc(typ))
 			sb.WriteString("(")
 			sb.WriteString(name)
 			sb.WriteString(")")
-		case gotype.ArrayType:
-			sb.WriteString("q.types.")
-			sb.WriteString(NameArrayInitFunc(typ))
-			sb.WriteString("(")
-			sb.WriteString(name)
-			sb.WriteString(")")
+		case *gotype.ArrayType:
+			if gotype.IsPrimitiveArray(typ) {
+				sb.WriteString(name)
+			} else {
+				sb.WriteString("q.types.")
+				sb.WriteString(NameArrayInitFunc(typ))
+				sb.WriteString("(")
+				sb.WriteString(name)
+				sb.WriteString(")")
+			}
 		default:
 			sb.WriteString(name)
 		}
@@ -187,10 +191,10 @@ func (tq TemplatedQuery) EmitRowScanArgs() (string, error) {
 	sb := strings.Builder{}
 	sb.Grow(15 * len(tq.Outputs))
 	for i, out := range tq.Outputs {
-		switch typ := out.Type.(type) {
-		case gotype.ArrayType:
-			switch typ.Elem.(type) {
-			case gotype.EnumType, gotype.CompositeType:
+		switch typ := gotype.UnwrapNestedType(out.Type).(type) {
+		case *gotype.ArrayType:
+			switch gotype.UnwrapNestedType(typ.Elem).(type) {
+			case *gotype.EnumType, *gotype.CompositeType:
 				sb.WriteString(out.LowerName)
 				sb.WriteString("Array")
 			default:
@@ -202,20 +206,20 @@ func (tq TemplatedQuery) EmitRowScanArgs() (string, error) {
 				}
 			}
 
-		case gotype.CompositeType:
+		case *gotype.CompositeType:
 			sb.WriteString(out.LowerName)
 			sb.WriteString("Row")
 
-		case gotype.VoidType:
-			sb.WriteString("nil")
-
-		case gotype.EnumType, gotype.OpaqueType:
+		case *gotype.EnumType, *gotype.OpaqueType:
 			if hasOnlyOneNonVoid {
 				sb.WriteString("&item")
 			} else {
 				sb.WriteString("&item.")
 				sb.WriteString(out.UpperName)
 			}
+
+		case *gotype.VoidType:
+			sb.WriteString("nil")
 
 		default:
 			return "", fmt.Errorf("unhandled type to emit row scan: %s %T", typ.BaseName(), typ)
@@ -284,16 +288,16 @@ func (tq TemplatedQuery) EmitResultDecoders() (string, error) {
 	sb := &strings.Builder{}
 	const indent = "\n\t" // 1 level indent inside querier method
 	for _, out := range tq.Outputs {
-		switch typ := out.Type.(type) {
-		case gotype.CompositeType:
+		switch typ := gotype.UnwrapNestedType(out.Type).(type) {
+		case *gotype.CompositeType:
 			sb.WriteString(indent)
 			sb.WriteString(out.LowerName)
 			sb.WriteString("Row := q.types.")
 			sb.WriteString(NameCompositeTranscoderFunc(typ))
 			sb.WriteString("()")
-		case gotype.ArrayType:
-			switch typ.Elem.(type) {
-			case gotype.EnumType, gotype.CompositeType:
+		case *gotype.ArrayType:
+			switch gotype.UnwrapNestedType(typ.Elem).(type) {
+			case *gotype.EnumType, *gotype.CompositeType:
 				// For all other array elems, a normal array works.
 				sb.WriteString(indent)
 				sb.WriteString(out.LowerName)
@@ -322,8 +326,8 @@ func (tq TemplatedQuery) EmitResultAssigns(zeroVal string) (string, error) {
 		indent += "\t" // a :many query processes items in a for loop
 	}
 	for _, out := range tq.Outputs {
-		switch typ := out.Type.(type) {
-		case gotype.CompositeType:
+		switch typ := gotype.UnwrapNestedType(out.Type).(type) {
+		case *gotype.CompositeType:
 			sb.WriteString(indent)
 			sb.WriteString("if err := ")
 			sb.WriteString(out.LowerName)
@@ -341,9 +345,9 @@ func (tq TemplatedQuery) EmitResultAssigns(zeroVal string) (string, error) {
 			sb.WriteString(" row: %w\", err)")
 			sb.WriteString(indent)
 			sb.WriteString("}")
-		case gotype.ArrayType:
-			switch typ.Elem.(type) {
-			case gotype.CompositeType, gotype.EnumType:
+		case *gotype.ArrayType:
+			switch gotype.UnwrapNestedType(typ.Elem).(type) {
+			case *gotype.CompositeType, *gotype.EnumType:
 				sb.WriteString(indent)
 				sb.WriteString("if err := ")
 				sb.WriteString(out.LowerName)
@@ -461,12 +465,12 @@ func (tq TemplatedQuery) EmitRowStruct() string {
 }
 
 // removeVoidColumns makes a copy of cols with all VoidType columns removed.
-// Useful because return types shouldn't contain the void type but we need
+// Useful because return types shouldn't contain the void type, but we need
 // to use a nil placeholder for void types when scanning a pgx.Row.
 func removeVoidColumns(cols []TemplatedColumn) []TemplatedColumn {
 	outs := make([]TemplatedColumn, 0, len(cols))
 	for _, col := range cols {
-		if _, ok := col.Type.(gotype.VoidType); ok {
+		if _, ok := col.Type.(*gotype.VoidType); ok {
 			continue
 		}
 		outs = append(outs, col)

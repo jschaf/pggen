@@ -29,8 +29,10 @@ func NewTypeResolver(c casing.Caser, overrides map[string]string) TypeResolver {
 func (tr TypeResolver) Resolve(pgt pg.Type, nullable bool, pkgPath string) (gotype.Type, error) {
 	// Custom user override.
 	if goType, ok := tr.overrides[pgt.String()]; ok {
-		opaque := gotype.NewOpaqueType(goType)
-		opaque.PgTyp = pgt
+		opaque, err := gotype.ParseOpaqueType(goType, pgt)
+		if err != nil {
+			return nil, fmt.Errorf("resolve custom type: %w", err)
+		}
 		return opaque, nil
 	}
 
@@ -44,33 +46,43 @@ func (tr TypeResolver) Resolve(pgt pg.Type, nullable bool, pkgPath string) (goty
 	}
 	if isKnownType {
 		switch typ := typ.(type) {
-		case gotype.ArrayType:
-			typ.PgArray = pgt.(pg.ArrayType)
+		case *gotype.ArrayType:
+			arrTyp, ok := pgt.(pg.ArrayType)
+			if !ok {
+				return nil, fmt.Errorf("resolve known type %q does not have pg array type %q", typ, pgt)
+			}
+			typ.PgArray = arrTyp
 			return typ, nil
-		case gotype.CompositeType:
+		case *gotype.CompositeType:
 			typ.PgComposite = pgt.(pg.CompositeType)
 			return typ, nil
-		case gotype.EnumType:
+		case *gotype.ImportType:
+			ot := typ.Type.(*gotype.OpaqueType)
+			ot.PgType = pgt
+			return typ, nil
+		case *gotype.EnumType:
 			typ.PgEnum = pgt.(pg.EnumType)
 			return typ, nil
-		case gotype.OpaqueType:
-			typ.PgTyp = pgt
+		case *gotype.OpaqueType:
+			typ.PgType = pgt
 			return typ, nil
-		case gotype.VoidType:
-			return gotype.VoidType{}, nil
+		case *gotype.PointerType:
+			return typ, nil
+		case *gotype.VoidType:
+			return &gotype.VoidType{}, nil
 		default:
-			return nil, fmt.Errorf("resolve unhandled known postgres type %T", pgt)
+			return nil, fmt.Errorf("resolve unhandled known postgres type %T", typ)
 		}
 	}
 
 	// New type that pggen will define in generated source code.
 	switch pgt := pgt.(type) {
 	case pg.ArrayType:
-		elemType, err := tr.Resolve(pgt.ElemType, nullable, pkgPath)
+		elemType, err := tr.Resolve(pgt.Elem, nullable, pkgPath)
 		if err != nil {
 			return nil, fmt.Errorf("resolve array elem type for array type %q: %w", pgt.Name, err)
 		}
-		return gotype.NewArrayType(pkgPath, pgt, tr.caser, elemType), nil
+		return gotype.NewArrayType(pgt, elemType), nil
 	case pg.EnumType:
 		enum := gotype.NewEnumType(pkgPath, pgt, tr.caser)
 		return enum, nil
@@ -92,7 +104,7 @@ func CreateCompositeType(
 	pgt pg.CompositeType,
 	resolver TypeResolver,
 	caser casing.Caser,
-) (gotype.CompositeType, error) {
+) (gotype.Type, error) {
 	name := caser.ToUpperGoIdent(pgt.Name)
 	if name == "" {
 		name = gotype.ChooseFallbackName(pgt.Name, "UnnamedStruct")
@@ -107,17 +119,18 @@ func CreateCompositeType(
 		fieldNames[i] = ident
 		fieldType, err := resolver.Resolve(pgt.ColumnTypes[i] /*nullable*/, true, pkgPath)
 		if err != nil {
-			return gotype.CompositeType{}, fmt.Errorf("resolve composite column type %s.%s: %w", pgt.Name, colName, err)
+			return nil, fmt.Errorf("resolve composite column type %s.%s: %w", pgt.Name, colName, err)
 		}
 		fieldTypes[i] = fieldType
 	}
-	ct := gotype.CompositeType{
+	ct := &gotype.CompositeType{
 		PgComposite: pgt,
-		PkgPath:     pkgPath,
-		Pkg:         gotype.ExtractShortPackage([]byte(pkgPath)),
 		Name:        name,
 		FieldNames:  fieldNames,
 		FieldTypes:  fieldTypes,
+	}
+	if pkgPath != "" {
+		return &gotype.ImportType{PkgPath: pkgPath, Type: ct}, nil
 	}
 	return ct, nil
 }

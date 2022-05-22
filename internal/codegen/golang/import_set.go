@@ -24,7 +24,7 @@ func (s *ImportSet) AddPackage(p string) {
 // types.
 func (s *ImportSet) AddType(typ gotype.Type) {
 	s.AddPackage(typ.Import())
-	comp, ok := typ.(gotype.CompositeType)
+	comp, ok := typ.(*gotype.CompositeType)
 	if !ok {
 		return
 	}

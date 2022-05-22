@@ -90,32 +90,6 @@ func (tr *typeResolver) newArrayValue(name, elemName string, defaultVal func() p
 	return typ
 }
 
-// newSomeTableArray creates a new pgtype.ValueTranscoder for the Postgres
-// '_some_array' array type.
-func (tr *typeResolver) newSomeTableArray() pgtype.ValueTranscoder {
-	return tr.newArrayValue("_some_array", "some_table", tr.newSomeTable)
-}
-
-// newSomeTableArrayInit creates an initialized pgtype.ValueTranscoder for the
-// Postgres array type '_some_array' to encode query parameters.
-func (tr *typeResolver) newSomeTableArrayInit(ps SomeArray) pgtype.ValueTranscoder {
-	dec := tr.newSomeTableArray()
-	if err := dec.Set(tr.newSomeTableArrayRaw(ps)); err != nil {
-		panic("encode SomeArray: " + err.Error()) // should always succeed
-	}
-	return textPreferrer{ValueTranscoder: dec, typeName: "_some_array"}
-}
-
-// newSomeTableArrayRaw returns all elements for the Postgres array type '_some_array'
-// as a slice of interface{} for use with the pgtype.Value Set method.
-func (tr *typeResolver) newSomeTableArrayRaw(vs SomeArray) []interface{} {
-	elems := make([]interface{}, len(vs))
-	for i, v := range vs {
-		elems[i] = tr.newSomeTableRaw(v)
-	}
-	return elems
-}
-
 // newSomeTable creates a new pgtype.ValueTranscoder for the Postgres
 // composite type 'some_table'.
 func (tr *typeResolver) newSomeTable() pgtype.ValueTranscoder {
@@ -133,4 +107,30 @@ func (tr *typeResolver) newSomeTableRaw(v SomeTable) []interface{} {
 		v.Foo,
 		v.BarBaz,
 	}
+}
+
+// newSomeTableArray creates a new pgtype.ValueTranscoder for the Postgres
+// '_some_array' array type.
+func (tr *typeResolver) newSomeTableArray() pgtype.ValueTranscoder {
+	return tr.newArrayValue("_some_array", "some_table", tr.newSomeTable)
+}
+
+// newSomeTableArrayInit creates an initialized pgtype.ValueTranscoder for the
+// Postgres array type '_some_array' to encode query parameters.
+func (tr *typeResolver) newSomeTableArrayInit(ps []SomeTable) pgtype.ValueTranscoder {
+	dec := tr.newSomeTableArray()
+	if err := dec.Set(tr.newSomeTableArrayRaw(ps)); err != nil {
+		panic("encode []SomeTable: " + err.Error()) // should always succeed
+	}
+	return textPreferrer{ValueTranscoder: dec, typeName: "_some_array"}
+}
+
+// newSomeTableArrayRaw returns all elements for the Postgres array type '_some_array'
+// as a slice of interface{} for use with the pgtype.Value Set method.
+func (tr *typeResolver) newSomeTableArrayRaw(vs []SomeTable) []interface{} {
+	elems := make([]interface{}, len(vs))
+	for i, v := range vs {
+		elems[i] = tr.newSomeTableRaw(v)
+	}
+	return elems
 }

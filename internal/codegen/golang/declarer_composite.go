@@ -10,7 +10,7 @@ import (
 // NameCompositeTranscoderFunc returns the function name that creates a
 // pgtype.ValueTranscoder for the composite type that's used to decode rows
 // returned by Postgres.
-func NameCompositeTranscoderFunc(typ gotype.CompositeType) string {
+func NameCompositeTranscoderFunc(typ *gotype.CompositeType) string {
 	return "new" + typ.Name
 }
 
@@ -18,25 +18,25 @@ func NameCompositeTranscoderFunc(typ gotype.CompositeType) string {
 // initialized pgtype.ValueTranscoder for the composite type used as a query
 // parameters. This function is only necessary for top-level types. Descendant
 // types use the raw functions, named by NameCompositeRawFunc.
-func NameCompositeInitFunc(typ gotype.CompositeType) string {
+func NameCompositeInitFunc(typ *gotype.CompositeType) string {
 	return "new" + typ.Name + "Init"
 }
 
-// NameCompositeRawFunc returns the function name that create the
+// NameCompositeRawFunc returns the function name that creates the
 // []interface{} array for the composite type so that we can use it with a
 // parent encoder function, like NameCompositeInitFunc, in the pgtype.Value
 // Set call.
-func NameCompositeRawFunc(typ gotype.CompositeType) string {
+func NameCompositeRawFunc(typ *gotype.CompositeType) string {
 	return "new" + typ.Name + "Raw"
 }
 
 // CompositeTypeDeclarer declares a new Go struct to represent a Postgres
 // composite type.
 type CompositeTypeDeclarer struct {
-	comp gotype.CompositeType
+	comp *gotype.CompositeType
 }
 
-func NewCompositeTypeDeclarer(comp gotype.CompositeType) CompositeTypeDeclarer {
+func NewCompositeTypeDeclarer(comp *gotype.CompositeType) CompositeTypeDeclarer {
 	return CompositeTypeDeclarer{comp: comp}
 }
 
@@ -70,7 +70,7 @@ func (c CompositeTypeDeclarer) Declare(pkgPath string) (string, error) {
 		sb.WriteRune('\t')
 		sb.WriteString(name)
 		// Type
-		qualType := c.comp.FieldTypes[i].QualifyRel(pkgPath)
+		qualType := gotype.QualifyType(c.comp.FieldTypes[i], pkgPath)
 		sb.WriteString(strings.Repeat(" ", nameLen-len(name)))
 		sb.WriteString(qualType)
 		// JSON struct tag
@@ -86,7 +86,7 @@ func (c CompositeTypeDeclarer) Declare(pkgPath string) (string, error) {
 
 // getLongestNameTypes returns the length of the longest name and type name for
 // all child fields of a composite type. Useful for aligning struct definitions.
-func getLongestNameTypes(typ gotype.CompositeType, pkgPath string) (int, int) {
+func getLongestNameTypes(typ *gotype.CompositeType, pkgPath string) (int, int) {
 	nameLen := 0
 	for _, name := range typ.FieldNames {
 		if n := len(name); n > nameLen {
@@ -97,7 +97,7 @@ func getLongestNameTypes(typ gotype.CompositeType, pkgPath string) (int, int) {
 
 	typeLen := 0
 	for _, childType := range typ.FieldTypes {
-		if n := len(childType.QualifyRel(pkgPath)); n > typeLen {
+		if n := len(gotype.QualifyType(childType, pkgPath)); n > typeLen {
 			typeLen = n
 		}
 	}
@@ -109,10 +109,10 @@ func getLongestNameTypes(typ gotype.CompositeType, pkgPath string) (int, int) {
 // CompositeTranscoderDeclarer declares a new Go function that creates a pgx
 // decoder for the Postgres type represented by the gotype.CompositeType.
 type CompositeTranscoderDeclarer struct {
-	typ gotype.CompositeType
+	typ *gotype.CompositeType
 }
 
-func NewCompositeTranscoderDeclarer(typ gotype.CompositeType) CompositeTranscoderDeclarer {
+func NewCompositeTranscoderDeclarer(typ *gotype.CompositeType) CompositeTranscoderDeclarer {
 	return CompositeTranscoderDeclarer{typ}
 }
 
@@ -153,20 +153,20 @@ func (c CompositeTranscoderDeclarer) Declare(pkgPath string) (string, error) {
 		sb.WriteString(", ")
 
 		// field default pgtype.ValueTranscoder
-		switch fieldType := c.typ.FieldTypes[i].(type) {
-		case gotype.CompositeType:
+		switch fieldType := gotype.UnwrapNestedType(c.typ.FieldTypes[i]).(type) {
+		case *gotype.CompositeType:
 			childFuncName := NameCompositeTranscoderFunc(fieldType)
 			sb.WriteString("tr.")
 			sb.WriteString(childFuncName)
 			sb.WriteString("()")
-		case gotype.EnumType:
+		case *gotype.EnumType:
 			sb.WriteString(NameEnumTranscoderFunc(fieldType))
 			sb.WriteString("()")
-		case gotype.ArrayType:
+		case *gotype.ArrayType:
 			sb.WriteString("tr.")
 			sb.WriteString(NameArrayTranscoderFunc(fieldType))
 			sb.WriteString("()")
-		case gotype.VoidType:
+		case *gotype.VoidType:
 			// skip
 		default:
 			sb.WriteString("&") // pgx needs pointers to types
@@ -182,7 +182,7 @@ func (c CompositeTranscoderDeclarer) Declare(pkgPath string) (string, error) {
 					fieldType = decoderType
 				}
 
-				sb.WriteString(fieldType.QualifyRel(pkgPath))
+				sb.WriteString(gotype.QualifyType(fieldType, pkgPath))
 				sb.WriteString("{}")
 			}
 		}
@@ -209,10 +209,10 @@ func (c CompositeTranscoderDeclarer) Declare(pkgPath string) (string, error) {
 // Postgres binary format requires the type OID but pggen doesn't necessarily
 // know the OIDs of the types. The text format, however, doesn't require OIDs.
 type CompositeInitDeclarer struct {
-	typ gotype.CompositeType
+	typ *gotype.CompositeType
 }
 
-func NewCompositeInitDeclarer(typ gotype.CompositeType) CompositeInitDeclarer {
+func NewCompositeInitDeclarer(typ *gotype.CompositeType) CompositeInitDeclarer {
 	return CompositeInitDeclarer{typ}
 }
 
@@ -257,10 +257,10 @@ func (c CompositeInitDeclarer) Declare(string) (string, error) {
 // Revisit after https://github.com/jackc/pgtype/pull/100 to see if we can
 // simplify
 type CompositeRawDeclarer struct {
-	typ gotype.CompositeType
+	typ *gotype.CompositeType
 }
 
-func NewCompositeRawDeclarer(typ gotype.CompositeType) CompositeRawDeclarer {
+func NewCompositeRawDeclarer(typ *gotype.CompositeType) CompositeRawDeclarer {
 	return CompositeRawDeclarer{typ}
 }
 
@@ -295,21 +295,21 @@ func (c CompositeRawDeclarer) Declare(string) (string, error) {
 	for i, fieldType := range c.typ.FieldTypes {
 		fieldName := c.typ.FieldNames[i]
 		sb.WriteString("\n\t\t")
-		switch fieldType := fieldType.(type) {
-		case gotype.CompositeType:
+		switch fieldType := gotype.UnwrapNestedType(fieldType).(type) {
+		case *gotype.CompositeType:
 			childFuncName := NameCompositeRawFunc(fieldType)
 			sb.WriteString("tr.")
 			sb.WriteString(childFuncName)
 			sb.WriteString("(v.")
 			sb.WriteString(fieldName)
 			sb.WriteString(")")
-		case gotype.ArrayType:
+		case *gotype.ArrayType:
 			sb.WriteString("tr.")
 			sb.WriteString(NameArrayRawFunc(fieldType))
 			sb.WriteString("(v.")
 			sb.WriteString(fieldName)
 			sb.WriteString(")")
-		case gotype.VoidType:
+		case *gotype.VoidType:
 			sb.WriteString("nil")
 		default:
 			sb.WriteString("v.")

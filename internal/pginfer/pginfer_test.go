@@ -113,7 +113,7 @@ func TestInferrer_InferTypes(t *testing.T) {
 						PgType: pg.ArrayType{
 							ID:   deviceTypeArrOID,
 							Name: "_device_type",
-							ElemType: pg.EnumType{
+							Elem: pg.EnumType{
 								ID:     deviceTypeOID,
 								Name:   "device_type",
 								Labels: []string{"phone", "laptop"},
