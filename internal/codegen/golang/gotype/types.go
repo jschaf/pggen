@@ -298,15 +298,38 @@ func UnwrapNestedType(typ Type) Type {
 	}
 }
 
-func IsPrimitiveArray(typ *ArrayType) bool {
-	switch elem := UnwrapNestedType(typ.Elem).(type) {
-	case *OpaqueType:
-		switch elem.Name {
-		case "string", "int", "int16", "int32", "int64",
-			"uint", "uint16", "uint32", "uint64",
-			"float32", "float64":
-			return true
-		}
+// IsPgxSupportedArray returns true if pgx can handle the translation from the
+// Go array type into the Postgres type.
+func IsPgxSupportedArray(typ *ArrayType) bool {
+	elem := typ.Elem
+	if ptr, ok := elem.(*PointerType); ok {
+		elem = ptr.Elem
 	}
-	return false
+
+	var pkgPath string
+	if imp, ok := elem.(*ImportType); ok {
+		pkgPath = imp.PkgPath
+		elem = imp.Type
+	}
+
+	base, ok := elem.(*OpaqueType)
+	if !ok {
+		return false
+	}
+
+	name := base.Name
+	if pkgPath != "" {
+		name = pkgPath + "." + name
+	}
+
+	switch name {
+	case "string", "byte", "rune",
+		"int", "int16", "int32", "int64",
+		"uint", "uint16", "uint32", "uint64",
+		"float32", "float64",
+		"time.Time":
+		return true
+	default:
+		return false
+	}
 }
