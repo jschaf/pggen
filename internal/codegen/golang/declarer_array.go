@@ -19,14 +19,40 @@ func NameArrayTranscoderFunc(typ *gotype.ArrayType) string {
 // query parameters. This function is only necessary for top-level types.
 // Descendant types use the raw functions, named by NameArrayRawFunc.
 func NameArrayInitFunc(typ *gotype.ArrayType) string {
-	return "new" + typ.Elem.BaseName() + "ArrayInit"
+	elem := typ.Elem
+	if t, ok := elem.(*gotype.ImportType); ok {
+		elem = t.Type
+	}
+	hasPtr := false
+	if t, ok := elem.(*gotype.PointerType); ok {
+		hasPtr = true
+		elem = t.Elem
+	}
+	if hasPtr {
+		return "new" + elem.BaseName() + "PtrArrayInit"
+	} else {
+		return "new" + elem.BaseName() + "ArrayInit"
+	}
 }
 
 // NameArrayRawFunc returns the function name that create the []interface{}
 // array for the array type so that we can use it with a parent encoder
 // function, like NameCompositeInitFunc, in the pgtype.Value Set call.
 func NameArrayRawFunc(typ *gotype.ArrayType) string {
-	return "new" + typ.Elem.BaseName() + "ArrayRaw"
+	elem := typ.Elem
+	if t, ok := elem.(*gotype.ImportType); ok {
+		elem = t.Type
+	}
+	hasPtr := false
+	if t, ok := elem.(*gotype.PointerType); ok {
+		hasPtr = true
+		elem = t.Elem
+	}
+	if hasPtr {
+		return "new" + elem.BaseName() + "PtrArrayRaw"
+	} else {
+		return "new" + elem.BaseName() + "ArrayRaw"
+	}
 }
 
 // ArrayTranscoderDeclarer declares a new Go function that creates a
@@ -160,7 +186,7 @@ func (a ArrayRawDeclarer) DedupeKey() string {
 	return "type_resolver::" + a.typ.BaseName() + "_03_raw"
 }
 
-func (a ArrayRawDeclarer) Declare(string) (string, error) {
+func (a ArrayRawDeclarer) Declare(pkgPath string) (string, error) {
 	funcName := NameArrayRawFunc(a.typ)
 	sb := &strings.Builder{}
 	sb.Grow(256)
@@ -176,7 +202,7 @@ func (a ArrayRawDeclarer) Declare(string) (string, error) {
 	sb.WriteString("func (tr *typeResolver) ")
 	sb.WriteString(funcName)
 	sb.WriteString("(vs ")
-	sb.WriteString(a.typ.BaseName())
+	sb.WriteString(gotype.QualifyType(a.typ, pkgPath))
 	sb.WriteString(") []interface{} {\n\t")
 
 	// Function body

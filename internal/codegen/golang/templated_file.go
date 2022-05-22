@@ -142,14 +142,19 @@ func (tq TemplatedQuery) EmitParamNames() string {
 			sb.WriteString(name)
 			sb.WriteString(")")
 		case *gotype.ArrayType:
-			if gotype.IsPrimitiveArray(typ) {
+			if gotype.IsPgxSupportedArray(typ) {
 				sb.WriteString(name)
-			} else {
+				break
+			}
+			switch gotype.UnwrapNestedType(typ.Elem).(type) {
+			case *gotype.CompositeType, *gotype.EnumType:
 				sb.WriteString("q.types.")
 				sb.WriteString(NameArrayInitFunc(typ))
 				sb.WriteString("(")
 				sb.WriteString(name)
 				sb.WriteString(")")
+			default:
+				sb.WriteString(name)
 			}
 		default:
 			sb.WriteString(name)

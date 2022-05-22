@@ -55,7 +55,7 @@ func FindInputDeclarers(typ gotype.Type) DeclarerSet {
 			NewCompositeInitDeclarer(typ),
 		)
 	case *gotype.ArrayType:
-		if gotype.IsPrimitiveArray(typ) {
+		if gotype.IsPgxSupportedArray(typ) {
 			break
 		}
 		switch gotype.UnwrapNestedType(typ.Elem).(type) {
@@ -84,7 +84,7 @@ func findInputDeclsHelper(typ gotype.Type, decls DeclarerSet) {
 		}
 
 	case *gotype.ArrayType:
-		if gotype.IsPrimitiveArray(typ) {
+		if gotype.IsPgxSupportedArray(typ) {
 			return
 		}
 		decls.AddAll(
@@ -129,7 +129,7 @@ func findOutputDeclsHelper(typ gotype.Type, decls DeclarerSet, hadCompositeParen
 		}
 
 	case *gotype.ArrayType:
-		if gotype.IsPrimitiveArray(typ) {
+		if gotype.IsPgxSupportedArray(typ) {
 			return
 		}
 		decls.AddAll(NewTypeResolverDeclarer())

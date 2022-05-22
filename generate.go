@@ -59,7 +59,7 @@ type GenerateOptions struct {
 	Acronyms map[string]string
 	// A map from a Postgres type name to a fully qualified Go type.
 	TypeOverrides map[string]string
-	// What level to log at.
+	// What log level to log at.
 	LogLevel zapcore.Level
 }
 
