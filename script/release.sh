@@ -2,6 +2,11 @@
 
 set -euo pipefail
 
+if [[ -z "${GITHUB_TOKEN:-}" ]]; then
+  echo 'error: no GITHUB_TOKEN env var'
+  exit 1
+fi
+
 day="$(date '+%Y-%m-%d')"
 echo "preparing assets for release $day"
 
@@ -34,15 +39,21 @@ if ! command -v "$GH_REL_BIN"; then
   url=https://github.com/github-release/github-release/releases/download/v0.10.0/linux-amd64-github-release.bz2
   curl -L --fail --silent "${url}" | bzip2 -dc >"$GH_REL_BIN"
   chmod +x "$GH_REL_BIN"
+else
+  echo 'github-release already downloaded'
 fi
 
 # Delete the remote tag since we're creating a new release tagged today.
+echo 'deleting existing release tag'
 git push origin ":refs/tags/$day" 2>/dev/null
 # Create or move the day tag to the latest commit.
 git tag -f "$day"
+git push origin "$day"
+
 # Delete any existing releases. We only support 1 release per day.
 # Ignore errors if we try to delete a release that doesn't exist.
-"${GH_REL_BIN}" delete --user jschaf --repo pggen --tag "$day" 2>/dev/null || true
+echo 'deleting existing releases'
+"${GH_REL_BIN}" delete --user jschaf --repo pggen --tag "$day" || true
 
 echo
 echo "creating release $day"
