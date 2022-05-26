@@ -46,7 +46,7 @@ git tag -f "$day"
 
 echo
 echo "creating release $day"
-"${GH_REL_BIN}" release --user jschaf --repo pggen --tag "$day" --name "$day"
+"${GH_REL_BIN}" release --user jschaf --repo pggen --tag "$day" --name "$day" --pre-release
 
 # Upload each of the zipped binaries.
 for target in "${targets[@]}"; do
