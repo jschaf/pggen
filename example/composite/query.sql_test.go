@@ -96,9 +96,9 @@ func TestNewQuerier_ArraysInput(t *testing.T) {
 	t.Run("ArraysInput", func(t *testing.T) {
 		want := Arrays{
 			Texts:  []string{"foo", "bar"},
-			Int8s:  []*int{ptrs.NewInt(1), ptrs.NewInt(2), ptrs.NewInt(3)},
+			Int8s:  []*int{ptrs.Int(1), ptrs.Int(2), ptrs.Int(3)},
 			Bools:  []bool{true, true, false},
-			Floats: []*float64{ptrs.NewFloat64(33.3), ptrs.NewFloat64(66.6)},
+			Floats: []*float64{ptrs.Float64(33.3), ptrs.Float64(66.6)},
 		}
 		got, err := q.ArraysInput(context.Background(), want)
 		require.NoError(t, err)
