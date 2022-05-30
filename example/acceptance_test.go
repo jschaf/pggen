@@ -120,6 +120,14 @@ func TestExamples(t *testing.T) {
 			},
 		},
 		{
+			name: "example/function",
+			args: []string{
+				"--schema-glob", "example/function/schema.sql",
+				"--query-glob", "example/function/query.sql",
+				"--go-type", "hstore=map[string]string",
+			},
+		},
+		{
 			name: "example/go_pointer_types",
 			args: []string{
 				"--schema-glob", "example/go_pointer_types/schema.sql",
