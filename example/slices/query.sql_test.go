@@ -11,6 +11,32 @@ import (
 	"time"
 )
 
+func TestNewQuerier_GetBools(t *testing.T) {
+	ctx := context.Background()
+	conn, cleanup := pgtest.NewPostgresSchema(t, []string{"schema.sql"})
+	defer cleanup()
+
+	q := NewQuerier(conn)
+
+	t.Run("GetBools", func(t *testing.T) {
+		want := []bool{true, true, false}
+		got, err := q.GetBools(ctx, want)
+		require.NoError(t, err)
+		difftest.AssertSame(t, want, got)
+	})
+
+	t.Run("GetBoolsBatch", func(t *testing.T) {
+		batch := &pgx.Batch{}
+		want := []bool{true, true, false}
+		q.GetBoolsBatch(batch, want)
+		results := conn.SendBatch(ctx, batch)
+		defer errs.CaptureT(t, results.Close, "close batch results")
+		got, err := q.GetBoolsScan(results)
+		require.NoError(t, err)
+		difftest.AssertSame(t, want, got)
+	})
+}
+
 func TestNewQuerier_GetOneTimestamp(t *testing.T) {
 	ctx := context.Background()
 	conn, cleanup := pgtest.NewPostgresSchema(t, []string{"schema.sql"})

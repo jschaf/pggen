@@ -36,6 +36,13 @@ type Querier interface {
 	InsertScreenshotBlocksBatch(batch genericBatch, screenshotID int, body string)
 	// InsertScreenshotBlocksScan scans the result of an executed InsertScreenshotBlocksBatch query.
 	InsertScreenshotBlocksScan(results pgx.BatchResults) (InsertScreenshotBlocksRow, error)
+
+	ArraysInput(ctx context.Context, arrays Arrays) (Arrays, error)
+	// ArraysInputBatch enqueues a ArraysInput query into batch to be executed
+	// later by the batch.
+	ArraysInputBatch(batch genericBatch, arrays Arrays)
+	// ArraysInputScan scans the result of an executed ArraysInputBatch query.
+	ArraysInputScan(results pgx.BatchResults) (Arrays, error)
 }
 
 type DBQuerier struct {
@@ -122,7 +129,18 @@ func PrepareAllQueries(ctx context.Context, p preparer) error {
 	if _, err := p.Prepare(ctx, insertScreenshotBlocksSQL, insertScreenshotBlocksSQL); err != nil {
 		return fmt.Errorf("prepare query 'InsertScreenshotBlocks': %w", err)
 	}
+	if _, err := p.Prepare(ctx, arraysInputSQL, arraysInputSQL); err != nil {
+		return fmt.Errorf("prepare query 'ArraysInput': %w", err)
+	}
 	return nil
+}
+
+// Arrays represents the Postgres composite type "arrays".
+type Arrays struct {
+	Texts  []string   `json:"texts"`
+	Int8s  []*int     `json:"int8s"`
+	Bools  []bool     `json:"bools"`
+	Floats []*float64 `json:"floats"`
 }
 
 // Blocks represents the Postgres composite type "blocks".
@@ -218,6 +236,35 @@ func (tr *typeResolver) newArrayValue(name, elemName string, defaultVal func() p
 	return typ
 }
 
+// newArrays creates a new pgtype.ValueTranscoder for the Postgres
+// composite type 'arrays'.
+func (tr *typeResolver) newArrays() pgtype.ValueTranscoder {
+	return tr.newCompositeValue(
+		"arrays",
+		compositeField{"texts", "_text", &pgtype.TextArray{}},
+		compositeField{"int8s", "_int8", &pgtype.Int8Array{}},
+		compositeField{"bools", "_bool", &pgtype.BoolArray{}},
+		compositeField{"floats", "_float8", &pgtype.Float8Array{}},
+	)
+}
+
+// newArraysInit creates an initialized pgtype.ValueTranscoder for the
+// Postgres composite type 'arrays' to encode query parameters.
+func (tr *typeResolver) newArraysInit(v Arrays) pgtype.ValueTranscoder {
+	return tr.setValue(tr.newArrays(), tr.newArraysRaw(v))
+}
+
+// newArraysRaw returns all composite fields for the Postgres composite
+// type 'arrays' as a slice of interface{} to encode query parameters.
+func (tr *typeResolver) newArraysRaw(v Arrays) []interface{} {
+	return []interface{}{
+		v.Texts,
+		v.Int8s,
+		v.Bools,
+		v.Floats,
+	}
+}
+
 // newBlocks creates a new pgtype.ValueTranscoder for the Postgres
 // composite type 'blocks'.
 func (tr *typeResolver) newBlocks() pgtype.ValueTranscoder {
@@ -233,6 +280,16 @@ func (tr *typeResolver) newBlocks() pgtype.ValueTranscoder {
 // '_blocks' array type.
 func (tr *typeResolver) newBlocksArray() pgtype.ValueTranscoder {
 	return tr.newArrayValue("_blocks", "blocks", tr.newBlocks)
+}
+
+// newboolArrayRaw returns all elements for the Postgres array type '_bool'
+// as a slice of interface{} for use with the pgtype.Value Set method.
+func (tr *typeResolver) newboolArrayRaw(vs []bool) []interface{} {
+	elems := make([]interface{}, len(vs))
+	for i, v := range vs {
+		elems[i] = v
+	}
+	return elems
 }
 
 const searchScreenshotsSQL = `SELECT
@@ -420,6 +477,42 @@ func (q *DBQuerier) InsertScreenshotBlocksScan(results pgx.BatchResults) (Insert
 	var item InsertScreenshotBlocksRow
 	if err := row.Scan(&item.ID, &item.ScreenshotID, &item.Body); err != nil {
 		return item, fmt.Errorf("scan InsertScreenshotBlocksBatch row: %w", err)
+	}
+	return item, nil
+}
+
+const arraysInputSQL = `SELECT $1::arrays;`
+
+// ArraysInput implements Querier.ArraysInput.
+func (q *DBQuerier) ArraysInput(ctx context.Context, arrays Arrays) (Arrays, error) {
+	ctx = context.WithValue(ctx, "pggen_query_name", "ArraysInput")
+	row := q.conn.QueryRow(ctx, arraysInputSQL, q.types.newArraysInit(arrays))
+	var item Arrays
+	arraysRow := q.types.newArrays()
+	if err := row.Scan(arraysRow); err != nil {
+		return item, fmt.Errorf("query ArraysInput: %w", err)
+	}
+	if err := arraysRow.AssignTo(&item); err != nil {
+		return item, fmt.Errorf("assign ArraysInput row: %w", err)
+	}
+	return item, nil
+}
+
+// ArraysInputBatch implements Querier.ArraysInputBatch.
+func (q *DBQuerier) ArraysInputBatch(batch genericBatch, arrays Arrays) {
+	batch.Queue(arraysInputSQL, q.types.newArraysInit(arrays))
+}
+
+// ArraysInputScan implements Querier.ArraysInputScan.
+func (q *DBQuerier) ArraysInputScan(results pgx.BatchResults) (Arrays, error) {
+	row := results.QueryRow()
+	var item Arrays
+	arraysRow := q.types.newArrays()
+	if err := row.Scan(arraysRow); err != nil {
+		return item, fmt.Errorf("scan ArraysInputBatch row: %w", err)
+	}
+	if err := arraysRow.AssignTo(&item); err != nil {
+		return item, fmt.Errorf("assign ArraysInput row: %w", err)
 	}
 	return item, nil
 }

@@ -28,3 +28,7 @@ INSERT
 INTO blocks (screenshot_id, body)
 VALUES (pggen.arg('ScreenshotID'), pggen.arg('Body'))
 RETURNING id, screenshot_id, body;
+
+
+-- name: ArraysInput :one
+SELECT pggen.arg('arrays')::arrays;

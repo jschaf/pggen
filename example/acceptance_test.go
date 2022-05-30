@@ -54,6 +54,8 @@ func TestExamples(t *testing.T) {
 			args: []string{
 				"--schema-glob", "example/composite/schema.sql",
 				"--query-glob", "example/composite/query.sql",
+				"--go-type", "_bool=[]bool",
+				"--go-type", "bool=bool",
 				"--go-type", "int8=int",
 				"--go-type", "int4=int",
 				"--go-type", "text=string",
@@ -71,6 +73,8 @@ func TestExamples(t *testing.T) {
 			args: []string{
 				"--schema-glob", "example/slices/schema.sql",
 				"--query-glob", "example/slices/query.sql",
+				"--go-type", "_bool=[]bool",
+				"--go-type", "bool=bool",
 				"--go-type", "timestamp=*time.Time",
 				"--go-type", "_timestamp=[]*time.Time",
 				"--go-type", "timestamptz=*time.Time",

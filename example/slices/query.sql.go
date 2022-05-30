@@ -17,6 +17,13 @@ import (
 // calling SendBatch on pgx.Conn, pgxpool.Pool, or pgx.Tx, use the Scan methods
 // to parse the results.
 type Querier interface {
+	GetBools(ctx context.Context, data []bool) ([]bool, error)
+	// GetBoolsBatch enqueues a GetBools query into batch to be executed
+	// later by the batch.
+	GetBoolsBatch(batch genericBatch, data []bool)
+	// GetBoolsScan scans the result of an executed GetBoolsBatch query.
+	GetBoolsScan(results pgx.BatchResults) ([]bool, error)
+
 	GetOneTimestamp(ctx context.Context, data *time.Time) (*time.Time, error)
 	// GetOneTimestampBatch enqueues a GetOneTimestamp query into batch to be executed
 	// later by the batch.
@@ -114,6 +121,9 @@ type preparer interface {
 // is an optional optimization to avoid a network round-trip the first time pgx
 // runs a query if pgx statement caching is enabled.
 func PrepareAllQueries(ctx context.Context, p preparer) error {
+	if _, err := p.Prepare(ctx, getBoolsSQL, getBoolsSQL); err != nil {
+		return fmt.Errorf("prepare query 'GetBools': %w", err)
+	}
 	if _, err := p.Prepare(ctx, getOneTimestampSQL, getOneTimestampSQL); err != nil {
 		return fmt.Errorf("prepare query 'GetOneTimestamp': %w", err)
 	}
@@ -159,6 +169,95 @@ func (tr *typeResolver) setValue(vt pgtype.ValueTranscoder, val interface{}) pgt
 		panic(fmt.Sprintf("set ValueTranscoder %T to %+v: %s", vt, val, err))
 	}
 	return vt
+}
+
+type compositeField struct {
+	name       string                 // name of the field
+	typeName   string                 // Postgres type name
+	defaultVal pgtype.ValueTranscoder // default value to use
+}
+
+func (tr *typeResolver) newCompositeValue(name string, fields ...compositeField) pgtype.ValueTranscoder {
+	if _, val, ok := tr.findValue(name); ok {
+		return val
+	}
+	fs := make([]pgtype.CompositeTypeField, len(fields))
+	vals := make([]pgtype.ValueTranscoder, len(fields))
+	isBinaryOk := true
+	for i, field := range fields {
+		oid, val, ok := tr.findValue(field.typeName)
+		if !ok {
+			oid = unknownOID
+			val = field.defaultVal
+		}
+		isBinaryOk = isBinaryOk && oid != unknownOID
+		fs[i] = pgtype.CompositeTypeField{Name: field.name, OID: oid}
+		vals[i] = val
+	}
+	// Okay to ignore error because it's only thrown when the number of field
+	// names does not equal the number of ValueTranscoders.
+	typ, _ := pgtype.NewCompositeTypeValues(name, fs, vals)
+	if !isBinaryOk {
+		return textPreferrer{typ, name}
+	}
+	return typ
+}
+
+func (tr *typeResolver) newArrayValue(name, elemName string, defaultVal func() pgtype.ValueTranscoder) pgtype.ValueTranscoder {
+	if _, val, ok := tr.findValue(name); ok {
+		return val
+	}
+	elemOID, elemVal, ok := tr.findValue(elemName)
+	elemValFunc := func() pgtype.ValueTranscoder {
+		return pgtype.NewValue(elemVal).(pgtype.ValueTranscoder)
+	}
+	if !ok {
+		elemOID = unknownOID
+		elemValFunc = defaultVal
+	}
+	typ := pgtype.NewArrayType(name, elemOID, elemValFunc)
+	if elemOID == unknownOID {
+		return textPreferrer{typ, name}
+	}
+	return typ
+}
+
+// newboolArrayRaw returns all elements for the Postgres array type '_bool'
+// as a slice of interface{} for use with the pgtype.Value Set method.
+func (tr *typeResolver) newboolArrayRaw(vs []bool) []interface{} {
+	elems := make([]interface{}, len(vs))
+	for i, v := range vs {
+		elems[i] = v
+	}
+	return elems
+}
+
+const getBoolsSQL = `SELECT $1::boolean[];`
+
+// GetBools implements Querier.GetBools.
+func (q *DBQuerier) GetBools(ctx context.Context, data []bool) ([]bool, error) {
+	ctx = context.WithValue(ctx, "pggen_query_name", "GetBools")
+	row := q.conn.QueryRow(ctx, getBoolsSQL, data)
+	item := []bool{}
+	if err := row.Scan(&item); err != nil {
+		return item, fmt.Errorf("query GetBools: %w", err)
+	}
+	return item, nil
+}
+
+// GetBoolsBatch implements Querier.GetBoolsBatch.
+func (q *DBQuerier) GetBoolsBatch(batch genericBatch, data []bool) {
+	batch.Queue(getBoolsSQL, data)
+}
+
+// GetBoolsScan implements Querier.GetBoolsScan.
+func (q *DBQuerier) GetBoolsScan(results pgx.BatchResults) ([]bool, error) {
+	row := results.QueryRow()
+	item := []bool{}
+	if err := row.Scan(&item); err != nil {
+		return item, fmt.Errorf("scan GetBoolsBatch row: %w", err)
+	}
+	return item, nil
 }
 
 const getOneTimestampSQL = `SELECT $1::timestamp;`

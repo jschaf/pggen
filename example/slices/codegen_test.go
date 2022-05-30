@@ -23,6 +23,8 @@ func TestGenerate_Go_Example_Slices(t *testing.T) {
 			GoPackage:  "slices",
 			Language:   pggen.LangGo,
 			TypeOverrides: map[string]string{
+				"_bool":        "[]bool",
+				"bool":         "bool",
 				"timestamp":    "*time.Time",
 				"_timestamp":   "[]*time.Time",
 				"timestamptz":  "*time.Time",
