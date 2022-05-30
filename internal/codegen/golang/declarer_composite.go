@@ -163,6 +163,12 @@ func (c CompositeTranscoderDeclarer) Declare(pkgPath string) (string, error) {
 			sb.WriteString(NameEnumTranscoderFunc(fieldType))
 			sb.WriteString("()")
 		case *gotype.ArrayType:
+			if typ, ok := gotype.FindKnownTypePgx(fieldType.PgArray.OID()); ok {
+				sb.WriteString("&") // pgx needs pointers to types
+				sb.WriteString(gotype.QualifyType(typ, pkgPath))
+				sb.WriteString("{}")
+				break
+			}
 			sb.WriteString("tr.")
 			sb.WriteString(NameArrayTranscoderFunc(fieldType))
 			sb.WriteString("()")
@@ -255,7 +261,7 @@ func (c CompositeInitDeclarer) Declare(string) (string, error) {
 // can only set pgtype.CompositeType from a []interface{}.
 //
 // Revisit after https://github.com/jackc/pgtype/pull/100 to see if we can
-// simplify
+// simplify.
 type CompositeRawDeclarer struct {
 	typ *gotype.CompositeType
 }
@@ -304,6 +310,11 @@ func (c CompositeRawDeclarer) Declare(string) (string, error) {
 			sb.WriteString(fieldName)
 			sb.WriteString(")")
 		case *gotype.ArrayType:
+			if _, ok := gotype.FindKnownTypePgx(fieldType.PgArray.OID()); ok {
+				sb.WriteString("v.")
+				sb.WriteString(fieldName)
+				break
+			}
 			sb.WriteString("tr.")
 			sb.WriteString(NameArrayRawFunc(fieldType))
 			sb.WriteString("(v.")

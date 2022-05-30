@@ -3,8 +3,10 @@ package composite
 import (
 	"context"
 	"github.com/jackc/pgx/v4"
+	"github.com/jschaf/pggen/internal/difftest"
 	"github.com/jschaf/pggen/internal/errs"
 	"github.com/jschaf/pggen/internal/pgtest"
+	"github.com/jschaf/pggen/internal/ptrs"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"testing"
@@ -82,6 +84,25 @@ func TestNewQuerier_SearchScreenshots(t *testing.T) {
 		rows, err := q.SearchScreenshotsOneColScan(results)
 		require.NoError(t, err)
 		assert.Equal(t, [][]Blocks{want[0].Blocks}, rows)
+	})
+}
+
+func TestNewQuerier_ArraysInput(t *testing.T) {
+	conn, cleanup := pgtest.NewPostgresSchema(t, []string{"schema.sql"})
+	defer cleanup()
+
+	q := NewQuerier(conn)
+
+	t.Run("ArraysInput", func(t *testing.T) {
+		want := Arrays{
+			Texts:  []string{"foo", "bar"},
+			Int8s:  []*int{ptrs.NewInt(1), ptrs.NewInt(2), ptrs.NewInt(3)},
+			Bools:  []bool{true, true, false},
+			Floats: []*float64{ptrs.NewFloat64(33.3), ptrs.NewFloat64(66.6)},
+		}
+		got, err := q.ArraysInput(context.Background(), want)
+		require.NoError(t, err)
+		difftest.AssertSame(t, want, got)
 	})
 }
 

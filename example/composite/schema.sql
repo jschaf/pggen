@@ -7,3 +7,10 @@ CREATE TABLE blocks (
   screenshot_id bigint NOT NULL REFERENCES screenshots (id),
   body          text NOT NULL
 );
+
+CREATE TYPE arrays AS (
+  texts  text[],
+  int8s  int8[],
+  bools  boolean[],
+  floats float8[]
+);

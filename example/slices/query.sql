@@ -1,3 +1,6 @@
+-- name: GetBools :one
+SELECT pggen.arg('data')::boolean[];
+
 -- name: GetOneTimestamp :one
 SELECT pggen.arg('data')::timestamp;
 
