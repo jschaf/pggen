@@ -22,11 +22,12 @@ func TestGenerate_Go_Example_Composite(t *testing.T) {
 			GoPackage:  "composite",
 			Language:   pggen.LangGo,
 			TypeOverrides: map[string]string{
-				"_bool": "[]bool",
-				"bool":  "bool",
-				"int8":  "int",
-				"int4":  "int",
-				"text":  "string",
+				"_bool":  "[]bool",
+				"bool":   "bool",
+				"int8":   "int",
+				"int4":   "int",
+				"text":   "string",
+				"citext": "github.com/jackc/pgtype.Text",
 			},
 		})
 	if err != nil {

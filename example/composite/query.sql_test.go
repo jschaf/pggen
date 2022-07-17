@@ -2,6 +2,7 @@ package composite
 
 import (
 	"context"
+	"github.com/jackc/pgtype"
 	"github.com/jackc/pgx/v4"
 	"github.com/jschaf/pggen/internal/difftest"
 	"github.com/jschaf/pggen/internal/errs"
@@ -104,6 +105,21 @@ func TestNewQuerier_ArraysInput(t *testing.T) {
 		require.NoError(t, err)
 		difftest.AssertSame(t, want, got)
 	})
+}
+
+func TestNewQuerier_UserEmails(t *testing.T) {
+	conn, cleanup := pgtest.NewPostgresSchema(t, []string{"schema.sql"})
+	defer cleanup()
+
+	q := NewQuerier(conn)
+
+	got, err := q.UserEmails(context.Background())
+	require.NoError(t, err)
+	want := UserEmail{
+		ID:    "foo",
+		Email: pgtype.Text{String: "bar@example.com", Status: pgtype.Present},
+	}
+	difftest.AssertSame(t, want, got)
 }
 
 func insertScreenshotBlock(t *testing.T, q *DBQuerier, screenID int, body string) InsertScreenshotBlocksRow {

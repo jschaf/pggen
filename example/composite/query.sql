@@ -29,6 +29,8 @@ INTO blocks (screenshot_id, body)
 VALUES (pggen.arg('ScreenshotID'), pggen.arg('Body'))
 RETURNING id, screenshot_id, body;
 
-
 -- name: ArraysInput :one
 SELECT pggen.arg('arrays')::arrays;
+
+-- name: UserEmails :one
+SELECT ('foo', 'bar@example.com')::user_email;

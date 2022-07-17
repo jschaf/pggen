@@ -43,6 +43,13 @@ type Querier interface {
 	ArraysInputBatch(batch genericBatch, arrays Arrays)
 	// ArraysInputScan scans the result of an executed ArraysInputBatch query.
 	ArraysInputScan(results pgx.BatchResults) (Arrays, error)
+
+	UserEmails(ctx context.Context) (UserEmail, error)
+	// UserEmailsBatch enqueues a UserEmails query into batch to be executed
+	// later by the batch.
+	UserEmailsBatch(batch genericBatch)
+	// UserEmailsScan scans the result of an executed UserEmailsBatch query.
+	UserEmailsScan(results pgx.BatchResults) (UserEmail, error)
 }
 
 type DBQuerier struct {
@@ -132,6 +139,9 @@ func PrepareAllQueries(ctx context.Context, p preparer) error {
 	if _, err := p.Prepare(ctx, arraysInputSQL, arraysInputSQL); err != nil {
 		return fmt.Errorf("prepare query 'ArraysInput': %w", err)
 	}
+	if _, err := p.Prepare(ctx, userEmailsSQL, userEmailsSQL); err != nil {
+		return fmt.Errorf("prepare query 'UserEmails': %w", err)
+	}
 	return nil
 }
 
@@ -148,6 +158,12 @@ type Blocks struct {
 	ID           int    `json:"id"`
 	ScreenshotID int    `json:"screenshot_id"`
 	Body         string `json:"body"`
+}
+
+// UserEmail represents the Postgres composite type "user_email".
+type UserEmail struct {
+	ID    string      `json:"id"`
+	Email pgtype.Text `json:"email"`
 }
 
 // typeResolver looks up the pgtype.ValueTranscoder by Postgres type name.
@@ -273,6 +289,16 @@ func (tr *typeResolver) newBlocks() pgtype.ValueTranscoder {
 		compositeField{"id", "int4", &pgtype.Int4{}},
 		compositeField{"screenshot_id", "int8", &pgtype.Int8{}},
 		compositeField{"body", "text", &pgtype.Text{}},
+	)
+}
+
+// newUserEmail creates a new pgtype.ValueTranscoder for the Postgres
+// composite type 'user_email'.
+func (tr *typeResolver) newUserEmail() pgtype.ValueTranscoder {
+	return tr.newCompositeValue(
+		"user_email",
+		compositeField{"id", "text", &pgtype.Text{}},
+		compositeField{"email", "citext", &pgtype.Text{}},
 	)
 }
 
@@ -513,6 +539,42 @@ func (q *DBQuerier) ArraysInputScan(results pgx.BatchResults) (Arrays, error) {
 	}
 	if err := arraysRow.AssignTo(&item); err != nil {
 		return item, fmt.Errorf("assign ArraysInput row: %w", err)
+	}
+	return item, nil
+}
+
+const userEmailsSQL = `SELECT ('foo', 'bar@example.com')::user_email;`
+
+// UserEmails implements Querier.UserEmails.
+func (q *DBQuerier) UserEmails(ctx context.Context) (UserEmail, error) {
+	ctx = context.WithValue(ctx, "pggen_query_name", "UserEmails")
+	row := q.conn.QueryRow(ctx, userEmailsSQL)
+	var item UserEmail
+	rowRow := q.types.newUserEmail()
+	if err := row.Scan(rowRow); err != nil {
+		return item, fmt.Errorf("query UserEmails: %w", err)
+	}
+	if err := rowRow.AssignTo(&item); err != nil {
+		return item, fmt.Errorf("assign UserEmails row: %w", err)
+	}
+	return item, nil
+}
+
+// UserEmailsBatch implements Querier.UserEmailsBatch.
+func (q *DBQuerier) UserEmailsBatch(batch genericBatch) {
+	batch.Queue(userEmailsSQL)
+}
+
+// UserEmailsScan implements Querier.UserEmailsScan.
+func (q *DBQuerier) UserEmailsScan(results pgx.BatchResults) (UserEmail, error) {
+	row := results.QueryRow()
+	var item UserEmail
+	rowRow := q.types.newUserEmail()
+	if err := row.Scan(rowRow); err != nil {
+		return item, fmt.Errorf("scan UserEmailsBatch row: %w", err)
+	}
+	if err := rowRow.AssignTo(&item); err != nil {
+		return item, fmt.Errorf("assign UserEmails row: %w", err)
 	}
 	return item, nil
 }

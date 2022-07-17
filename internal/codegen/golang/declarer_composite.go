@@ -182,13 +182,16 @@ func (c CompositeTranscoderDeclarer) Declare(pkgPath string) (string, error) {
 			if pgType == nil || pgType == (pg.VoidType{}) {
 				sb.WriteString("nil,")
 			} else {
-				// We need the pgx variant because it matches the interface expected by
-				// newCompositeValue, pgtype.ValueTranscoder.
+				var qualType string
 				if decoderType, ok := gotype.FindKnownTypePgx(pgType.OID()); ok {
-					fieldType = decoderType
+					// Look for the pgx variant it matches the interface expected by
+					// newCompositeValue, pgtype.ValueTranscoder.
+					qualType = gotype.QualifyType(decoderType, pkgPath)
+				} else {
+					// Attempt to use the original, provided type.
+					qualType = gotype.QualifyType(c.typ.FieldTypes[i], pkgPath)
 				}
-
-				sb.WriteString(gotype.QualifyType(fieldType, pkgPath))
+				sb.WriteString(qualType)
 				sb.WriteString("{}")
 			}
 		}
