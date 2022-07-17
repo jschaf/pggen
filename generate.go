@@ -192,7 +192,7 @@ func parseQueryFiles(queryFiles []string, inferrer *pginfer.Inferrer) ([]codegen
 	for i, file := range queryFiles {
 		srcPath, err := filepath.Abs(file)
 		if err != nil {
-			return nil, fmt.Errorf("resovle absolute path for %q: %w", file, err)
+			return nil, fmt.Errorf("resolve absolute path for %q: %w", file, err)
 		}
 		queryFile, err := parseQueries(srcPath, inferrer)
 		if err != nil {
