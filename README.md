@@ -151,43 +151,41 @@ is far more revealing than the pitch.
 
 ### Download precompiled binaries
 
-Precompiled binaries. Change the last two lines if you want to install somewhere 
-other than `~/bin/pggen`.
+Precompiled binaries from the latest release. Change `~/bin` if you want to
+install to a different directory. All assets are listed on the [releases] page.
+
+[releases]: https://github.com/jschaf/pggen/releases
 
 -   MacOS Apple Silicon (arm64)
 
     ```shell
-    PGGEN_URL='https://github.com/jschaf/pggen/releases/latest/download/pggen-darwin-arm64.zip';
-    curl --silent --show-error --location --fail "$PGGEN_URL" --output "${TMPDIR:-/private/tmp}/pggen.zip" &&
-      unzip -p "${TMPDIR:-/private/tmp}/pggen.zip" pggen-darwin-arm64 > ~/bin/pggen &&
-      chmod +x ~/bin/pggen
+    mkdir -p ~/bin \
+      && curl --silent --show-error --location --fail 'https://github.com/jschaf/pggen/releases/latest/download/pggen-darwin-arm64.tar.xz' \
+      | tar -xJf - -C ~/bin/    
     ```
     
 -   MacOS Intel (amd64)
 
     ```shell
-    PGGEN_URL='https://github.com/jschaf/pggen/releases/latest/download/pggen-darwin-amd64.zip';
-    curl --silent --show-error --location --fail "$PGGEN_URL" --output "${TMPDIR:-/private/tmp}/pggen.zip" &&
-      unzip -p "${TMPDIR:-/private/tmp}/pggen.zip" pggen-darwin-amd64 > ~/bin/pggen &&
-      chmod +x ~/bin/pggen
+    mkdir -p ~/bin \
+      && curl --silent --show-error --location --fail 'https://github.com/jschaf/pggen/releases/latest/download/pggen-darwin-amd64.tar.xz' \
+      | tar -xJf - -C ~/bin/    
     ```
 
 -   Linux (amd64)
 
     ```shell
-    PGGEN_URL='https://github.com/jschaf/pggen/releases/latest/download/pggen-linux-amd64.zip';
-    curl --silent --show-error --location --fail "$PGGEN_URL" --output "${TMPDIR:-/tmp}/pggen.zip" &&
-      unzip -p "${TMPDIR:-/tmp}/pggen.zip" pggen-linux-amd64 > ~/bin/pggen &&
-      chmod +x ~/bin/pggen
+    mkdir -p ~/bin \
+      && curl --silent --show-error --location --fail 'https://github.com/jschaf/pggen/releases/latest/download/pggen-linux-amd64.tar.xz' \
+      | tar -xJf - -C ~/bin/    
     ```
     
 -   Windows (amd64)
 
     ```shell
-    PGGEN_URL='https://github.com/jschaf/pggen/releases/latest/download/pggen-windows-amd64.zip';
-    curl --silent --show-error --location --fail "$PGGEN_URL" --output "${TMPDIR:-/tmp}/pggen.zip" &&
-      unzip -p "${TMPDIR:-/tmp}/pggen.zip" pggen-windows-amd64.exe > ~/bin/pggen.exe &&
-      chmod +x ~/bin/pggen.exe
+    mkdir -p ~/bin \
+      && curl --silent --show-error --location --fail 'https://github.com/jschaf/pggen/releases/latest/download/pggen-windows-amd64.tar.xz' \
+      | tar -xJf - -C ~/bin/    
     ```
 
 Make sure pggen works:
@@ -428,16 +426,17 @@ Examples embedded in the repo:
 
 # IDE integration
 
-If your IDE provides SQL autocomplete, you may want to get rid of its warnings by executing the following snippets (on your dev database):
+If your IDE provides SQL autocomplete, you may want to get rid of its warnings
+by declaring the following DDL schema.
 
 ```sql
--- Improve IDE integration (removes warnings only, this is just a stub)
+-- Exists solely so editors don't underline every pggen.arg() expression in
+-- squiggly red.
 CREATE SCHEMA pggen;
-CREATE FUNCTION pggen.arg(param TEXT) RETURNS TEXT AS 'SELECT NULL' LANGUAGE sql;
 
--- Remove IDE integration improvements
-DROP FUNCTION pggen.arg(param TEXT);
-DROP SCHEMA pggen;
+-- pggen.arg defines a named parameter that's eventually compiled into a
+-- placeholder for a prepared query: $1, $2, etc.
+CREATE FUNCTION pggen.arg(param TEXT) RETURNS text AS $$SELECT null$$ LANGUAGE sql;
 ```
 
 # Tutorial
