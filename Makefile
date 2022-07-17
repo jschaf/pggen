@@ -43,29 +43,10 @@ update-acceptance-test:
 lint:
 	golangci-lint run
 
-.PHONY: binary-all
-binary-all: binary-darwin-amd64 binary-darwin-arm64 binary-linux-amd64 binary-windows-amd64
-
 .PHONY: dist-dir
 dist-dir:
 	mkdir -p dist
 
-.PHONY: binary-darwin-amd64
-binary-darwin-amd64: dist-dir
-	GOOS=darwin GOARCH=amd64 go build ${ldflags} -o dist/pggen-darwin-amd64 ./cmd/pggen
-
-.PHONY: binary-darwin-arm64
-binary-darwin-arm64: dist-dir
-	GOOS=darwin GOARCH=arm64 go build ${ldflags} -o dist/pggen-darwin-arm64 ./cmd/pggen
-
-.PHONY: binary-linux-amd64
-binary-linux-amd64: dist-dir
-	GOOS=linux GOARCH=amd64 go build ${ldflags} -o dist/pggen-linux-amd64 ./cmd/pggen
-
-.PHONY: binary-windows-amd64
-binary-windows-amd64: dist-dir
-	GOOS=windows GOARCH=amd64 go build ${ldflags} -o dist/pggen-windows-amd64.exe ./cmd/pggen
-
 .PHONY: release
-release: binary-all
+release:
 	./script/release.sh

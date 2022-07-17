@@ -1,0 +1,25 @@
+# This is an example .goreleaser.yml file with some sensible defaults.
+# Make sure to check the documentation at https://goreleaser.com
+builds:
+  - env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - windows
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    main: ./cmd/pggen
+    ldflags:
+      - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}}
+archives:
+  - files:
+      - none*
+    format: tar.xz
+    name_template: "{{ .ProjectName }}-{{ .Os }}-{{ .Arch }}"
+checksum:
+  disable: true
+changelog:
+  sort: asc
+  use: github-native
