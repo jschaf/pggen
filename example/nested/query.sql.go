@@ -196,7 +196,7 @@ func (tr *typeResolver) newCompositeValue(name string, fields ...compositeField)
 	// names does not equal the number of ValueTranscoders.
 	typ, _ := pgtype.NewCompositeTypeValues(name, fs, vals)
 	if !isBinaryOk {
-		return textPreferrer{typ, name}
+		return textPreferrer{ValueTranscoder: typ, typeName: name}
 	}
 	return typ
 }
@@ -215,7 +215,7 @@ func (tr *typeResolver) newArrayValue(name, elemName string, defaultVal func() p
 	}
 	typ := pgtype.NewArrayType(name, elemOID, elemValFunc)
 	if elemOID == unknownOID {
-		return textPreferrer{typ, name}
+		return textPreferrer{ValueTranscoder: typ, typeName: name}
 	}
 	return typ
 }
@@ -225,8 +225,8 @@ func (tr *typeResolver) newArrayValue(name, elemName string, defaultVal func() p
 func (tr *typeResolver) newDimensions() pgtype.ValueTranscoder {
 	return tr.newCompositeValue(
 		"dimensions",
-		compositeField{"width", "int4", &pgtype.Int4{}},
-		compositeField{"height", "int4", &pgtype.Int4{}},
+		compositeField{name: "width", typeName: "int4", defaultVal: &pgtype.Int4{}},
+		compositeField{name: "height", typeName: "int4", defaultVal: &pgtype.Int4{}},
 	)
 }
 
@@ -235,9 +235,9 @@ func (tr *typeResolver) newDimensions() pgtype.ValueTranscoder {
 func (tr *typeResolver) newProductImageSetType() pgtype.ValueTranscoder {
 	return tr.newCompositeValue(
 		"product_image_set_type",
-		compositeField{"name", "text", &pgtype.Text{}},
-		compositeField{"orig_image", "product_image_type", tr.newProductImageType()},
-		compositeField{"images", "_product_image_type", tr.newProductImageTypeArray()},
+		compositeField{name: "name", typeName: "text", defaultVal: &pgtype.Text{}},
+		compositeField{name: "orig_image", typeName: "product_image_type", defaultVal: tr.newProductImageType()},
+		compositeField{name: "images", typeName: "_product_image_type", defaultVal: tr.newProductImageTypeArray()},
 	)
 }
 
@@ -246,8 +246,8 @@ func (tr *typeResolver) newProductImageSetType() pgtype.ValueTranscoder {
 func (tr *typeResolver) newProductImageType() pgtype.ValueTranscoder {
 	return tr.newCompositeValue(
 		"product_image_type",
-		compositeField{"source", "text", &pgtype.Text{}},
-		compositeField{"dimensions", "dimensions", tr.newDimensions()},
+		compositeField{name: "source", typeName: "text", defaultVal: &pgtype.Text{}},
+		compositeField{name: "dimensions", typeName: "dimensions", defaultVal: tr.newDimensions()},
 	)
 }
 
@@ -377,7 +377,7 @@ type textPreferrer struct {
 func (t textPreferrer) PreferredParamFormat() int16 { return pgtype.TextFormatCode }
 
 func (t textPreferrer) NewTypeValue() pgtype.Value {
-	return textPreferrer{pgtype.NewValue(t.ValueTranscoder).(pgtype.ValueTranscoder), t.typeName}
+	return textPreferrer{ValueTranscoder: pgtype.NewValue(t.ValueTranscoder).(pgtype.ValueTranscoder), typeName: t.typeName}
 }
 
 func (t textPreferrer) TypeName() string {

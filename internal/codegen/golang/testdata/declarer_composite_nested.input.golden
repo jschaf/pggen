@@ -71,7 +71,7 @@ func (tr *typeResolver) newCompositeValue(name string, fields ...compositeField)
 	// names does not equal the number of ValueTranscoders.
 	typ, _ := pgtype.NewCompositeTypeValues(name, fs, vals)
 	if !isBinaryOk {
-		return textPreferrer{typ, name}
+		return textPreferrer{ValueTranscoder: typ, typeName: name}
 	}
 	return typ
 }
@@ -90,7 +90,7 @@ func (tr *typeResolver) newArrayValue(name, elemName string, defaultVal func() p
 	}
 	typ := pgtype.NewArrayType(name, elemOID, elemValFunc)
 	if elemOID == unknownOID {
-		return textPreferrer{typ, name}
+		return textPreferrer{ValueTranscoder: typ, typeName: name}
 	}
 	return typ
 }
@@ -100,7 +100,7 @@ func (tr *typeResolver) newArrayValue(name, elemName string, defaultVal func() p
 func (tr *typeResolver) newFooType() pgtype.ValueTranscoder {
 	return tr.newCompositeValue(
 		"foo_type",
-		compositeField{"alpha", "text", &pgtype.Text{}},
+		compositeField{name: "alpha", typeName: "text", defaultVal: &pgtype.Text{}},
 	)
 }
 
@@ -117,8 +117,8 @@ func (tr *typeResolver) newFooTypeRaw(v FooType) []interface{} {
 func (tr *typeResolver) newSomeTableNested() pgtype.ValueTranscoder {
 	return tr.newCompositeValue(
 		"some_table_nested",
-		compositeField{"foo", "foo_type", tr.newFooType()},
-		compositeField{"bar_baz", "text", &pgtype.Text{}},
+		compositeField{name: "foo", typeName: "foo_type", defaultVal: tr.newFooType()},
+		compositeField{name: "bar_baz", typeName: "text", defaultVal: &pgtype.Text{}},
 	)
 }
 

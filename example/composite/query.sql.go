@@ -228,7 +228,7 @@ func (tr *typeResolver) newCompositeValue(name string, fields ...compositeField)
 	// names does not equal the number of ValueTranscoders.
 	typ, _ := pgtype.NewCompositeTypeValues(name, fs, vals)
 	if !isBinaryOk {
-		return textPreferrer{typ, name}
+		return textPreferrer{ValueTranscoder: typ, typeName: name}
 	}
 	return typ
 }
@@ -247,7 +247,7 @@ func (tr *typeResolver) newArrayValue(name, elemName string, defaultVal func() p
 	}
 	typ := pgtype.NewArrayType(name, elemOID, elemValFunc)
 	if elemOID == unknownOID {
-		return textPreferrer{typ, name}
+		return textPreferrer{ValueTranscoder: typ, typeName: name}
 	}
 	return typ
 }
@@ -257,10 +257,10 @@ func (tr *typeResolver) newArrayValue(name, elemName string, defaultVal func() p
 func (tr *typeResolver) newArrays() pgtype.ValueTranscoder {
 	return tr.newCompositeValue(
 		"arrays",
-		compositeField{"texts", "_text", &pgtype.TextArray{}},
-		compositeField{"int8s", "_int8", &pgtype.Int8Array{}},
-		compositeField{"bools", "_bool", &pgtype.BoolArray{}},
-		compositeField{"floats", "_float8", &pgtype.Float8Array{}},
+		compositeField{name: "texts", typeName: "_text", defaultVal: &pgtype.TextArray{}},
+		compositeField{name: "int8s", typeName: "_int8", defaultVal: &pgtype.Int8Array{}},
+		compositeField{name: "bools", typeName: "_bool", defaultVal: &pgtype.BoolArray{}},
+		compositeField{name: "floats", typeName: "_float8", defaultVal: &pgtype.Float8Array{}},
 	)
 }
 
@@ -286,9 +286,9 @@ func (tr *typeResolver) newArraysRaw(v Arrays) []interface{} {
 func (tr *typeResolver) newBlocks() pgtype.ValueTranscoder {
 	return tr.newCompositeValue(
 		"blocks",
-		compositeField{"id", "int4", &pgtype.Int4{}},
-		compositeField{"screenshot_id", "int8", &pgtype.Int8{}},
-		compositeField{"body", "text", &pgtype.Text{}},
+		compositeField{name: "id", typeName: "int4", defaultVal: &pgtype.Int4{}},
+		compositeField{name: "screenshot_id", typeName: "int8", defaultVal: &pgtype.Int8{}},
+		compositeField{name: "body", typeName: "text", defaultVal: &pgtype.Text{}},
 	)
 }
 
@@ -297,8 +297,8 @@ func (tr *typeResolver) newBlocks() pgtype.ValueTranscoder {
 func (tr *typeResolver) newUserEmail() pgtype.ValueTranscoder {
 	return tr.newCompositeValue(
 		"user_email",
-		compositeField{"id", "text", &pgtype.Text{}},
-		compositeField{"email", "citext", &pgtype.Text{}},
+		compositeField{name: "id", typeName: "text", defaultVal: &pgtype.Text{}},
+		compositeField{name: "email", typeName: "citext", defaultVal: &pgtype.Text{}},
 	)
 }
 
@@ -593,7 +593,7 @@ type textPreferrer struct {
 func (t textPreferrer) PreferredParamFormat() int16 { return pgtype.TextFormatCode }
 
 func (t textPreferrer) NewTypeValue() pgtype.Value {
-	return textPreferrer{pgtype.NewValue(t.ValueTranscoder).(pgtype.ValueTranscoder), t.typeName}
+	return textPreferrer{ValueTranscoder: pgtype.NewValue(t.ValueTranscoder).(pgtype.ValueTranscoder), typeName: t.typeName}
 }
 
 func (t textPreferrer) TypeName() string {

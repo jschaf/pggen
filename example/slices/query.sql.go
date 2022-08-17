@@ -198,7 +198,7 @@ func (tr *typeResolver) newCompositeValue(name string, fields ...compositeField)
 	// names does not equal the number of ValueTranscoders.
 	typ, _ := pgtype.NewCompositeTypeValues(name, fs, vals)
 	if !isBinaryOk {
-		return textPreferrer{typ, name}
+		return textPreferrer{ValueTranscoder: typ, typeName: name}
 	}
 	return typ
 }
@@ -217,7 +217,7 @@ func (tr *typeResolver) newArrayValue(name, elemName string, defaultVal func() p
 	}
 	typ := pgtype.NewArrayType(name, elemOID, elemValFunc)
 	if elemOID == unknownOID {
-		return textPreferrer{typ, name}
+		return textPreferrer{ValueTranscoder: typ, typeName: name}
 	}
 	return typ
 }
@@ -404,7 +404,7 @@ type textPreferrer struct {
 func (t textPreferrer) PreferredParamFormat() int16 { return pgtype.TextFormatCode }
 
 func (t textPreferrer) NewTypeValue() pgtype.Value {
-	return textPreferrer{pgtype.NewValue(t.ValueTranscoder).(pgtype.ValueTranscoder), t.typeName}
+	return textPreferrer{ValueTranscoder: pgtype.NewValue(t.ValueTranscoder).(pgtype.ValueTranscoder), typeName: t.typeName}
 }
 
 func (t textPreferrer) TypeName() string {

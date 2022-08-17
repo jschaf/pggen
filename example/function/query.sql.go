@@ -179,7 +179,7 @@ func (tr *typeResolver) newCompositeValue(name string, fields ...compositeField)
 	// names does not equal the number of ValueTranscoders.
 	typ, _ := pgtype.NewCompositeTypeValues(name, fs, vals)
 	if !isBinaryOk {
-		return textPreferrer{typ, name}
+		return textPreferrer{ValueTranscoder: typ, typeName: name}
 	}
 	return typ
 }
@@ -198,7 +198,7 @@ func (tr *typeResolver) newArrayValue(name, elemName string, defaultVal func() p
 	}
 	typ := pgtype.NewArrayType(name, elemOID, elemValFunc)
 	if elemOID == unknownOID {
-		return textPreferrer{typ, name}
+		return textPreferrer{ValueTranscoder: typ, typeName: name}
 	}
 	return typ
 }
@@ -208,8 +208,8 @@ func (tr *typeResolver) newArrayValue(name, elemName string, defaultVal func() p
 func (tr *typeResolver) newListItem() pgtype.ValueTranscoder {
 	return tr.newCompositeValue(
 		"list_item",
-		compositeField{"name", "text", &pgtype.Text{}},
-		compositeField{"color", "text", &pgtype.Text{}},
+		compositeField{name: "name", typeName: "text", defaultVal: &pgtype.Text{}},
+		compositeField{name: "color", typeName: "text", defaultVal: &pgtype.Text{}},
 	)
 }
 
@@ -218,8 +218,8 @@ func (tr *typeResolver) newListItem() pgtype.ValueTranscoder {
 func (tr *typeResolver) newListStats() pgtype.ValueTranscoder {
 	return tr.newCompositeValue(
 		"list_stats",
-		compositeField{"val1", "text", &pgtype.Text{}},
-		compositeField{"val2", "_int4", &pgtype.Int4Array{}},
+		compositeField{name: "val1", typeName: "text", defaultVal: &pgtype.Text{}},
+		compositeField{name: "val2", typeName: "_int4", defaultVal: &pgtype.Int4Array{}},
 	)
 }
 
@@ -314,7 +314,7 @@ type textPreferrer struct {
 func (t textPreferrer) PreferredParamFormat() int16 { return pgtype.TextFormatCode }
 
 func (t textPreferrer) NewTypeValue() pgtype.Value {
-	return textPreferrer{pgtype.NewValue(t.ValueTranscoder).(pgtype.ValueTranscoder), t.typeName}
+	return textPreferrer{ValueTranscoder: pgtype.NewValue(t.ValueTranscoder).(pgtype.ValueTranscoder), typeName: t.typeName}
 }
 
 func (t textPreferrer) TypeName() string {
