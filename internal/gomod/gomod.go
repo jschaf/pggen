@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"github.com/jschaf/pggen/internal/paths"
 	"golang.org/x/mod/modfile"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sync"
@@ -45,7 +44,7 @@ func ParsePath() (string, error) {
 			return
 		}
 		p := filepath.Join(dir, "go.mod")
-		bs, err := ioutil.ReadFile(p)
+		bs, err := os.ReadFile(p)
 		if err != nil {
 			goModPathErr = fmt.Errorf("read go.mod: %w", err)
 			return

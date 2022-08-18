@@ -7,7 +7,7 @@ import (
 	"github.com/jschaf/pggen/internal/ast"
 	gotok "go/token"
 	"io"
-	"io/ioutil"
+	"os"
 )
 
 // If src != nil, readSource converts src to a []byte if possible; otherwise it
@@ -26,11 +26,11 @@ func readSource(filename string, src interface{}) ([]byte, error) {
 				return s.Bytes(), nil
 			}
 		case io.Reader:
-			return ioutil.ReadAll(s)
+			return io.ReadAll(s)
 		}
 		return nil, errors.New("invalid source")
 	}
-	return ioutil.ReadFile(filename)
+	return os.ReadFile(filename)
 }
 
 // A Mode value is a set of flags (or 0).

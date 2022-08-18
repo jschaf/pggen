@@ -4,7 +4,7 @@ import (
 	"github.com/jschaf/pggen"
 	"github.com/jschaf/pggen/internal/pgtest"
 	"github.com/stretchr/testify/assert"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"testing"
 )
@@ -35,14 +35,14 @@ func TestGenerate_Go_Example_Order(t *testing.T) {
 	}
 
 	for _, file := range []string{"customer.sql.go", "price.sql.go"} {
-		wantQueries, err := ioutil.ReadFile(file)
+		wantQueries, err := os.ReadFile(file)
 		if err != nil {
 			t.Fatalf("read wanted file %s: %s", file, err)
 		}
 
 		gotFile := filepath.Join(tmpDir, file)
 		assert.FileExists(t, gotFile, "Generate() should emit "+file)
-		gotQueries, err := ioutil.ReadFile(gotFile)
+		gotQueries, err := os.ReadFile(gotFile)
 		if err != nil {
 			t.Fatalf("read generated %s: %s", file, err)
 		}

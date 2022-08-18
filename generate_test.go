@@ -4,7 +4,7 @@ import (
 	"github.com/jschaf/pggen/internal/pgtest"
 	"github.com/jschaf/pggen/internal/texts"
 	"github.com/stretchr/testify/assert"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"testing"
 )
@@ -43,7 +43,7 @@ func TestGenerate_Golang_Error(t *testing.T) {
 			defer cleanupFunc()
 			tmpDir := t.TempDir()
 			queryFile := filepath.Join(tmpDir, "query.sql")
-			err := ioutil.WriteFile(queryFile, []byte(tt.queries), 0644)
+			err := os.WriteFile(queryFile, []byte(tt.queries), 0644)
 			if err != nil {
 				t.Fatal(err)
 			}
