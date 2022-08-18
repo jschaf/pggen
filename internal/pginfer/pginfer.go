@@ -11,6 +11,7 @@ import (
 	"github.com/jackc/pgtype"
 	"github.com/jackc/pgx/v4"
 	"github.com/jschaf/pggen/internal/ast"
+	"github.com/jschaf/pggen/internal/codegen/golang/gotype"
 	"github.com/jschaf/pggen/internal/errs"
 	"github.com/jschaf/pggen/internal/pg"
 )
@@ -49,6 +50,8 @@ type InputParam struct {
 	DefaultVal string
 	// The postgres type of this param as reported by Postgres.
 	PgType pg.Type
+	// Fully qualified Go type to override the Go type for the input Pg type.
+	TypeOverride gotype.Type
 }
 
 // OutputColumn is a single column output from a select query or returning
@@ -149,10 +152,18 @@ func (inf *Inferrer) inferInputTypes(query *ast.SourceQuery) (ps []InputParam, m
 	params := make([]InputParam, len(query.ParamNames))
 	for i := 0; i < len(params); i++ {
 		pgType := types[pgtype.OID(oids[i])]
+		var goType gotype.Type
+		if overrideType, present := query.ParamTypeOverrides[query.ParamNames[i]]; present {
+			goType, err = gotype.ParseOpaqueType(overrideType, pgType)
+			if err != nil {
+				return nil, fmt.Errorf("resolve custom arg type: %w", err)
+			}
+		}
 		params[i] = InputParam{
-			PgName:     query.ParamNames[i],
-			DefaultVal: "",
-			PgType:     pgType,
+			PgName:       query.ParamNames[i],
+			DefaultVal:   "",
+			PgType:       pgType,
+			TypeOverride: goType,
 		}
 	}
 	return params, nil

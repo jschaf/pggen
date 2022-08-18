@@ -144,10 +144,15 @@ func (tm Templater) templateFile(file codegen.QueryFile, isLeader bool) (Templat
 		// Build inputs.
 		inputs := make([]TemplatedParam, len(query.Inputs))
 		for i, input := range query.Inputs {
-			goType, err := tm.resolver.Resolve(input.PgType /*nullable*/, false, pkgPath)
-			if err != nil {
-				return TemplatedFile{}, nil, err
+			goType := input.TypeOverride
+			var err error
+			if goType == nil { // no custom arg type defined
+				goType, err = tm.resolver.Resolve(input.PgType /*nullable*/, false, pkgPath)
+				if err != nil {
+					return TemplatedFile{}, nil, err
+				}
 			}
+
 			imports.AddType(goType)
 			inputs[i] = TemplatedParam{
 				UpperName: tm.chooseUpperName(input.PgName, "UnnamedParam", i, len(query.Inputs)),

@@ -203,6 +203,7 @@ func (p *parser) errorExpected(pos gotok.Pos, msg string) {
 
 // Regexp to extract query annotations that control output.
 var annotationRegexp = regexp.MustCompile(`name: ([a-zA-Z0-9_$]+)[ \t]+(:many|:one|:exec)[ \t]*(.*)`)
+var annotationArgRegexp = regexp.MustCompile(`arg: ([a-zA-Z_][[a-zA-Z0-9_]*)[ \t]+(.*[a-zA-Z_][[a-zA-Z0-9_$]*)[ \t]*(.*)`)
 
 func (p *parser) parseQuery() ast.Query {
 	if p.trace {
@@ -246,7 +247,40 @@ func (p *parser) parseQuery() ast.Query {
 		p.error(pos, "no comment preceding query")
 		return &ast.BadQuery{From: pos, To: p.pos}
 	}
-	last := doc.List[len(doc.List)-1]
+
+	paramTypeOverrides := make(map[string]string, 4)
+	annotationPos := len(doc.List) - 1
+
+	for ; annotationPos > 0; annotationPos-- {
+		argAnnotations := annotationArgRegexp.FindStringSubmatch(doc.List[annotationPos].Text)
+		if argAnnotations == nil {
+			break
+		}
+
+		argName, argGoType := argAnnotations[1], argAnnotations[2]
+
+		if _, present := paramTypeOverrides[argName]; present {
+			p.error(pos, "duplicate arg type override for "+argName+": "+argAnnotations[0])
+			return &ast.BadQuery{From: pos, To: p.pos}
+		}
+
+		unknownArg := true
+		for _, arg := range names {
+			if argName == arg.name {
+				unknownArg = false
+				break
+			}
+		}
+		if unknownArg {
+			p.error(pos, "arg type override for unknown arg "+argName+": "+argAnnotations[0])
+			return &ast.BadQuery{From: pos, To: p.pos}
+		}
+
+		paramTypeOverrides[argName] = argGoType
+
+	}
+
+	last := doc.List[annotationPos]
 	annotations := annotationRegexp.FindStringSubmatch(last.Text)
 	if annotations == nil {
 		p.error(pos, "no 'name: <name> :<type>' token found in comment before query; comment line: \""+last.Text+`"`)
@@ -263,15 +297,16 @@ func (p *parser) parseQuery() ast.Query {
 	preparedSQL, params := prepareSQL(templateSQL, names)
 
 	return &ast.SourceQuery{
-		Name:        annotations[1],
-		Doc:         doc,
-		Start:       pos,
-		SourceSQL:   templateSQL,
-		PreparedSQL: preparedSQL,
-		ParamNames:  params,
-		ResultKind:  ast.ResultKind(annotations[2]),
-		Pragmas:     pragmas,
-		Semi:        semi,
+		Name:               annotations[1],
+		Doc:                doc,
+		Start:              pos,
+		SourceSQL:          templateSQL,
+		PreparedSQL:        preparedSQL,
+		ParamNames:         params,
+		ParamTypeOverrides: paramTypeOverrides,
+		ResultKind:         ast.ResultKind(annotations[2]),
+		Pragmas:            pragmas,
+		Semi:               semi,
 	}
 }
 
