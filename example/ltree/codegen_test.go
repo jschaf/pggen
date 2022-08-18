@@ -4,7 +4,7 @@ import (
 	"github.com/jschaf/pggen"
 	"github.com/jschaf/pggen/internal/pgtest"
 	"github.com/stretchr/testify/assert"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"testing"
 )
@@ -33,11 +33,11 @@ func TestGenerate_Go_Example_ltree(t *testing.T) {
 	wantQueriesFile := "query.sql.go"
 	gotQueriesFile := filepath.Join(tmpDir, "query.sql.go")
 	assert.FileExists(t, gotQueriesFile, "Generate() should emit query.sql.go")
-	wantQueries, err := ioutil.ReadFile(wantQueriesFile)
+	wantQueries, err := os.ReadFile(wantQueriesFile)
 	if err != nil {
 		t.Fatalf("read wanted query.go.sql: %s", err)
 	}
-	gotQueries, err := ioutil.ReadFile(gotQueriesFile)
+	gotQueries, err := os.ReadFile(gotQueriesFile)
 	if err != nil {
 		t.Fatalf("read generated query.go.sql: %s", err)
 	}

@@ -5,8 +5,8 @@ import (
 	crand "crypto/rand"
 	"encoding/binary"
 	"github.com/jackc/pgx/v4"
-	"io/ioutil"
 	"math/rand"
+	"os"
 	"strconv"
 	"strings"
 	"testing"
@@ -82,7 +82,7 @@ func NewPostgresSchema(t *testing.T, sqlFiles []string, opts ...Option) (*pgx.Co
 	t.Helper()
 	sb := &strings.Builder{}
 	for _, file := range sqlFiles {
-		bs, err := ioutil.ReadFile(file)
+		bs, err := os.ReadFile(file)
 		if err != nil {
 			t.Fatalf("read test db sql file: %s", err)
 		}

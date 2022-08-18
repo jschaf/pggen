@@ -16,7 +16,7 @@ import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	gotok "go/token"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"time"
 )
@@ -176,7 +176,7 @@ func connectPostgres(
 			return nil, nopErrEnricher, nopCleanup, fmt.Errorf("cannot run non-sql schema file on Postgres "+
 				"(*.sh and *.sql.gz files only supported without --postgres-connection): %s", script)
 		}
-		bs, err := ioutil.ReadFile(script)
+		bs, err := os.ReadFile(script)
 		if err != nil {
 			return nil, nil, nopCleanup, fmt.Errorf("read schema file: %w", err)
 		}

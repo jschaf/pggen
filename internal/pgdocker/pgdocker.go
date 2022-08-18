@@ -17,7 +17,6 @@ import (
 	"go.uber.org/multierr"
 	"go.uber.org/zap"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -99,7 +98,7 @@ func (c *Client) GetContainerLogs() (logs string, mErr error) {
 	if err != nil {
 		return "", fmt.Errorf("get container logs: %w", err)
 	}
-	bs, err := ioutil.ReadAll(logsR)
+	bs, err := io.ReadAll(logsR)
 	if err != nil {
 		return "", fmt.Errorf("reall all container logs: %w", err)
 	}
@@ -157,7 +156,7 @@ func (c *Client) buildImage(ctx context.Context, initScripts []string) (id strin
 		return "", fmt.Errorf("build postgres docker image: %w", err)
 	}
 	defer errs.Capture(&mErr, resp.Body.Close, "close image build response")
-	response, err := ioutil.ReadAll(resp.Body)
+	response, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return "", fmt.Errorf("read image build response: %w", err)
 	}
