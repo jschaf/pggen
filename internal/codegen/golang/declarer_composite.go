@@ -146,11 +146,11 @@ func (c CompositeTranscoderDeclarer) Declare(pkgPath string) (string, error) {
 	// newCompositeValue - field names of the composite type
 	for i := range c.typ.FieldNames {
 		sb.WriteString("\n\t\t")
-		sb.WriteString(`compositeField{`)
+		sb.WriteString(`compositeField{name: `)
 		sb.WriteString(strconv.Quote(c.typ.PgComposite.ColumnNames[i])) // field name
-		sb.WriteString(", ")
+		sb.WriteString(", typeName: ")
 		sb.WriteString(strconv.Quote(c.typ.PgComposite.ColumnTypes[i].String())) // field type name
-		sb.WriteString(", ")
+		sb.WriteString(", defaultVal: ")
 
 		// field default pgtype.ValueTranscoder
 		switch fieldType := gotype.UnwrapNestedType(c.typ.FieldTypes[i]).(type) {
