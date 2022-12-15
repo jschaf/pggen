@@ -24,12 +24,12 @@ func TestInferrer_InferTypes(t *testing.T) {
 			suffix text NULL
 		);
 
-		CREATE TYPE device_type AS ENUM (
+		CREATE TYPE device_type AS enum (
 			'phone',
 			'laptop'
 		);
 
-		CREATE DOMAIN us_postal_code AS TEXT;
+		CREATE DOMAIN us_postal_code AS text;
 	`))
 	defer cleanupFunc()
 	q := pg.NewQuerier(conn)
@@ -293,6 +293,26 @@ func TestInferrer_InferTypes(t *testing.T) {
 					{PgName: "two", PgType: pg.Text, Nullable: false},
 				},
 				ProtobufType: "foo.Bar",
+			},
+		},
+		{
+			name: "aggregate non-null column has null output",
+			query: &ast.SourceQuery{
+				Name:        "ArrayAggFirstName",
+				PreparedSQL: "SELECT array_agg(first_name) AS names FROM author;",
+				ParamNames:  []string{},
+				ResultKind:  ast.ResultKindOne,
+				Doc:         newCommentGroup("--   Hello  ", "-- name: Foo"),
+			},
+			want: TypedQuery{
+				Name:        "ArrayAggFirstName",
+				ResultKind:  ast.ResultKindOne,
+				Doc:         []string{"Hello"},
+				PreparedSQL: "SELECT array_agg(first_name) AS names FROM author;",
+				Inputs:      []InputParam{},
+				Outputs: []OutputColumn{
+					{PgName: "names", PgType: pg.TextArray, Nullable: true},
+				},
 			},
 		},
 	}
