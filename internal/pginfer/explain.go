@@ -3,6 +3,7 @@ package pginfer
 import (
 	"context"
 	"fmt"
+
 	"github.com/jschaf/pggen/internal/ast"
 )
 
@@ -23,6 +24,11 @@ type Plan struct {
 	Outputs  []string // the output expressions if any
 }
 
+type ExplainQueryResultRow struct {
+	Plan            map[string]interface{} `json:"Plan,omitempty"`
+	QueryIdentifier *uint64                `json:"QueryIdentifier,omitempty"`
+}
+
 // explainQuery executes explain plan to get the node plan type and the format
 // of the output columns.
 func (inf *Inferrer) explainQuery(query *ast.SourceQuery) (Plan, error) {
@@ -30,15 +36,15 @@ func (inf *Inferrer) explainQuery(query *ast.SourceQuery) (Plan, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
 	defer cancel()
 	row := inf.conn.QueryRow(ctx, explainQuery, createParamArgs(query)...)
-	explain := make([]map[string]map[string]interface{}, 0, 1)
+	explain := make([]ExplainQueryResultRow, 0, 1)
 	if err := row.Scan(&explain); err != nil {
 		return Plan{}, fmt.Errorf("explain prepared query: %w", err)
 	}
 	if len(explain) == 0 {
 		return Plan{}, fmt.Errorf("no explain output")
 	}
-	plan, ok := explain[0]["Plan"]
-	if !ok {
+	plan := explain[0].Plan
+	if len(plan) == 0 {
 		return Plan{}, fmt.Errorf("explain output had no 'Plan' node")
 	}
 
