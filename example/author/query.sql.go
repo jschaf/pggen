@@ -40,6 +40,14 @@ type Querier interface {
 	// FindAuthorNamesScan scans the result of an executed FindAuthorNamesBatch query.
 	FindAuthorNamesScan(results pgx.BatchResults) ([]FindAuthorNamesRow, error)
 
+	// FindFirstNames finds one (or zero) authors by ID.
+	FindFirstNames(ctx context.Context, authorID int32) ([]*string, error)
+	// FindFirstNamesBatch enqueues a FindFirstNames query into batch to be executed
+	// later by the batch.
+	FindFirstNamesBatch(batch genericBatch, authorID int32)
+	// FindFirstNamesScan scans the result of an executed FindFirstNamesBatch query.
+	FindFirstNamesScan(results pgx.BatchResults) ([]*string, error)
+
 	// DeleteAuthors deletes authors with a first name of "joe".
 	DeleteAuthors(ctx context.Context) (pgconn.CommandTag, error)
 	// DeleteAuthorsBatch enqueues a DeleteAuthors query into batch to be executed
@@ -80,6 +88,20 @@ type Querier interface {
 	InsertAuthorSuffixBatch(batch genericBatch, params InsertAuthorSuffixParams)
 	// InsertAuthorSuffixScan scans the result of an executed InsertAuthorSuffixBatch query.
 	InsertAuthorSuffixScan(results pgx.BatchResults) (InsertAuthorSuffixRow, error)
+
+	StringAggFirstName(ctx context.Context, authorID int32) (*string, error)
+	// StringAggFirstNameBatch enqueues a StringAggFirstName query into batch to be executed
+	// later by the batch.
+	StringAggFirstNameBatch(batch genericBatch, authorID int32)
+	// StringAggFirstNameScan scans the result of an executed StringAggFirstNameBatch query.
+	StringAggFirstNameScan(results pgx.BatchResults) (*string, error)
+
+	ArrayAggFirstName(ctx context.Context, authorID int32) ([]string, error)
+	// ArrayAggFirstNameBatch enqueues a ArrayAggFirstName query into batch to be executed
+	// later by the batch.
+	ArrayAggFirstNameBatch(batch genericBatch, authorID int32)
+	// ArrayAggFirstNameScan scans the result of an executed ArrayAggFirstNameBatch query.
+	ArrayAggFirstNameScan(results pgx.BatchResults) ([]string, error)
 }
 
 type DBQuerier struct {
@@ -166,6 +188,9 @@ func PrepareAllQueries(ctx context.Context, p preparer) error {
 	if _, err := p.Prepare(ctx, findAuthorNamesSQL, findAuthorNamesSQL); err != nil {
 		return fmt.Errorf("prepare query 'FindAuthorNames': %w", err)
 	}
+	if _, err := p.Prepare(ctx, findFirstNamesSQL, findFirstNamesSQL); err != nil {
+		return fmt.Errorf("prepare query 'FindFirstNames': %w", err)
+	}
 	if _, err := p.Prepare(ctx, deleteAuthorsSQL, deleteAuthorsSQL); err != nil {
 		return fmt.Errorf("prepare query 'DeleteAuthors': %w", err)
 	}
@@ -180,6 +205,12 @@ func PrepareAllQueries(ctx context.Context, p preparer) error {
 	}
 	if _, err := p.Prepare(ctx, insertAuthorSuffixSQL, insertAuthorSuffixSQL); err != nil {
 		return fmt.Errorf("prepare query 'InsertAuthorSuffix': %w", err)
+	}
+	if _, err := p.Prepare(ctx, stringAggFirstNameSQL, stringAggFirstNameSQL); err != nil {
+		return fmt.Errorf("prepare query 'StringAggFirstName': %w", err)
+	}
+	if _, err := p.Prepare(ctx, arrayAggFirstNameSQL, arrayAggFirstNameSQL); err != nil {
+		return fmt.Errorf("prepare query 'ArrayAggFirstName': %w", err)
 	}
 	return nil
 }
@@ -366,6 +397,56 @@ func (q *DBQuerier) FindAuthorNamesScan(results pgx.BatchResults) ([]FindAuthorN
 	return items, err
 }
 
+const findFirstNamesSQL = `SELECT first_name FROM author ORDER BY author_id = $1;`
+
+// FindFirstNames implements Querier.FindFirstNames.
+func (q *DBQuerier) FindFirstNames(ctx context.Context, authorID int32) ([]*string, error) {
+	ctx = context.WithValue(ctx, "pggen_query_name", "FindFirstNames")
+	rows, err := q.conn.Query(ctx, findFirstNamesSQL, authorID)
+	if err != nil {
+		return nil, fmt.Errorf("query FindFirstNames: %w", err)
+	}
+	defer rows.Close()
+	items := []*string{}
+	for rows.Next() {
+		var item string
+		if err := rows.Scan(&item); err != nil {
+			return nil, fmt.Errorf("scan FindFirstNames row: %w", err)
+		}
+		items = append(items, &item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("close FindFirstNames rows: %w", err)
+	}
+	return items, err
+}
+
+// FindFirstNamesBatch implements Querier.FindFirstNamesBatch.
+func (q *DBQuerier) FindFirstNamesBatch(batch genericBatch, authorID int32) {
+	batch.Queue(findFirstNamesSQL, authorID)
+}
+
+// FindFirstNamesScan implements Querier.FindFirstNamesScan.
+func (q *DBQuerier) FindFirstNamesScan(results pgx.BatchResults) ([]*string, error) {
+	rows, err := results.Query()
+	if err != nil {
+		return nil, fmt.Errorf("query FindFirstNamesBatch: %w", err)
+	}
+	defer rows.Close()
+	items := []*string{}
+	for rows.Next() {
+		var item string
+		if err := rows.Scan(&item); err != nil {
+			return nil, fmt.Errorf("scan FindFirstNamesBatch row: %w", err)
+		}
+		items = append(items, &item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("close FindFirstNamesBatch rows: %w", err)
+	}
+	return items, err
+}
+
 const deleteAuthorsSQL = `DELETE FROM author WHERE first_name = 'joe';`
 
 // DeleteAuthors implements Querier.DeleteAuthors.
@@ -523,6 +604,62 @@ func (q *DBQuerier) InsertAuthorSuffixScan(results pgx.BatchResults) (InsertAuth
 	var item InsertAuthorSuffixRow
 	if err := row.Scan(&item.AuthorID, &item.FirstName, &item.LastName, &item.Suffix); err != nil {
 		return item, fmt.Errorf("scan InsertAuthorSuffixBatch row: %w", err)
+	}
+	return item, nil
+}
+
+const stringAggFirstNameSQL = `SELECT string_agg(first_name, ',') AS names FROM author WHERE author_id = $1;`
+
+// StringAggFirstName implements Querier.StringAggFirstName.
+func (q *DBQuerier) StringAggFirstName(ctx context.Context, authorID int32) (*string, error) {
+	ctx = context.WithValue(ctx, "pggen_query_name", "StringAggFirstName")
+	row := q.conn.QueryRow(ctx, stringAggFirstNameSQL, authorID)
+	var item *string
+	if err := row.Scan(&item); err != nil {
+		return item, fmt.Errorf("query StringAggFirstName: %w", err)
+	}
+	return item, nil
+}
+
+// StringAggFirstNameBatch implements Querier.StringAggFirstNameBatch.
+func (q *DBQuerier) StringAggFirstNameBatch(batch genericBatch, authorID int32) {
+	batch.Queue(stringAggFirstNameSQL, authorID)
+}
+
+// StringAggFirstNameScan implements Querier.StringAggFirstNameScan.
+func (q *DBQuerier) StringAggFirstNameScan(results pgx.BatchResults) (*string, error) {
+	row := results.QueryRow()
+	var item *string
+	if err := row.Scan(&item); err != nil {
+		return item, fmt.Errorf("scan StringAggFirstNameBatch row: %w", err)
+	}
+	return item, nil
+}
+
+const arrayAggFirstNameSQL = `SELECT array_agg(first_name) AS names FROM author WHERE author_id = $1;`
+
+// ArrayAggFirstName implements Querier.ArrayAggFirstName.
+func (q *DBQuerier) ArrayAggFirstName(ctx context.Context, authorID int32) ([]string, error) {
+	ctx = context.WithValue(ctx, "pggen_query_name", "ArrayAggFirstName")
+	row := q.conn.QueryRow(ctx, arrayAggFirstNameSQL, authorID)
+	item := []string{}
+	if err := row.Scan(&item); err != nil {
+		return item, fmt.Errorf("query ArrayAggFirstName: %w", err)
+	}
+	return item, nil
+}
+
+// ArrayAggFirstNameBatch implements Querier.ArrayAggFirstNameBatch.
+func (q *DBQuerier) ArrayAggFirstNameBatch(batch genericBatch, authorID int32) {
+	batch.Queue(arrayAggFirstNameSQL, authorID)
+}
+
+// ArrayAggFirstNameScan implements Querier.ArrayAggFirstNameScan.
+func (q *DBQuerier) ArrayAggFirstNameScan(results pgx.BatchResults) ([]string, error) {
+	row := results.QueryRow()
+	item := []string{}
+	if err := row.Scan(&item); err != nil {
+		return item, fmt.Errorf("scan ArrayAggFirstNameBatch row: %w", err)
 	}
 	return item, nil
 }

@@ -271,21 +271,35 @@ func (tq TemplatedQuery) EmitResultType() (string, error) {
 // var declaration so that JSON serialization returns an empty array instead of
 // null.
 func (tq TemplatedQuery) EmitResultTypeInit(name string) (string, error) {
-	result, err := tq.EmitResultType()
-	if err != nil {
-		return "", fmt.Errorf("create result type for EmitResultTypeInit: %w", err)
+	switch tq.ResultKind {
+	case ast.ResultKindOne:
+		result, err := tq.EmitResultType()
+		if err != nil {
+			return "", fmt.Errorf("create result type for EmitResultTypeInit: %w", err)
+		}
+		isArr := strings.HasPrefix(result, "[]")
+		if isArr {
+			return name + " := " + result + "{}", nil
+		}
+		return "var " + name + " " + result, nil
+
+	case ast.ResultKindMany:
+		result, err := tq.EmitResultType()
+		if err != nil {
+			return "", fmt.Errorf("create result type for EmitResultTypeInit: %w", err)
+		}
+		isArr := strings.HasPrefix(result, "[]")
+		if isArr {
+			return name + " := " + result + "{}", nil
+		}
+		// Remove pointer. Return the right type by adding an address operator, "&",
+		// where needed.
+		result = strings.TrimPrefix(result, "*")
+		return "var " + name + " " + result, nil
+
+	default:
+		return "", fmt.Errorf("unhandled EmitResultTypeInit for kind %s", tq.ResultKind)
 	}
-	if tq.ResultKind != ast.ResultKindMany && tq.ResultKind != ast.ResultKindOne {
-		return "", fmt.Errorf("unhandled EmitResultTypeInit type %s for kind %s", result, tq.ResultKind)
-	}
-	isArr := strings.HasPrefix(result, "[]")
-	if isArr {
-		return name + " := " + result + "{}", nil
-	}
-	// Remove pointer. Return the right type by adding an address operator, "&",
-	// where needed.
-	raw := strings.TrimPrefix(result, "*")
-	return "var " + name + " " + raw, nil
 }
 
 // EmitResultDecoders declares all initialization required for output types.
@@ -399,15 +413,24 @@ func (tq TemplatedQuery) EmitResultElem() (string, error) {
 //   items = append(items, item)
 //   items = append(items, &item)
 func (tq TemplatedQuery) EmitResultExpr(name string) (string, error) {
-	result, err := tq.EmitResultType()
-	if err != nil {
-		return "", fmt.Errorf("unhandled EmitResultExpr type: %w", err)
+	switch tq.ResultKind {
+	case ast.ResultKindOne:
+		return name, nil
+
+	case ast.ResultKindMany:
+		result, err := tq.EmitResultType()
+		if err != nil {
+			return "", fmt.Errorf("unhandled EmitResultExpr type: %w", err)
+		}
+		isPtr := strings.HasPrefix(result, "[]*") || strings.HasPrefix(result, "*")
+		if isPtr {
+			return "&" + name, nil
+		}
+		return name, nil
+
+	default:
+		return "", fmt.Errorf("unhandled EmitResultExpr type: %s", tq.ResultKind)
 	}
-	isPtr := strings.HasPrefix(result, "[]*") || strings.HasPrefix(result, "*")
-	if isPtr {
-		return "&" + name, nil
-	}
-	return name, nil
 }
 
 // getLongestOutput returns the length of the longest name and type name in all
