@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"github.com/jschaf/pggen/internal/errs"
+	"github.com/jschaf/pggen/internal/ptrs"
 	"github.com/stretchr/testify/require"
 	"testing"
 
@@ -133,6 +134,31 @@ func TestNewQuerier_FindAuthors_PrepareAllQueries(t *testing.T) {
 			},
 		}
 		assert.Equal(t, want, authors)
+	})
+}
+
+func TestNewQuerier_FindFirstNames(t *testing.T) {
+	conn, cleanup := pgtest.NewPostgresSchema(t, []string{"schema.sql"})
+	defer cleanup()
+
+	q := NewQuerier(conn)
+	adamsID := insertAuthor(t, q, "john", "adams")
+	insertAuthor(t, q, "george", "washington")
+
+	t.Run("FindAuthorByID", func(t *testing.T) {
+		firstNames, err := q.FindFirstNames(context.Background(), adamsID)
+		require.NoError(t, err)
+		assert.Equal(t, []*string{ptrs.String("george"), ptrs.String("john")}, firstNames)
+	})
+
+	t.Run("FindFirstNamesBatch", func(t *testing.T) {
+		batch := &pgx.Batch{}
+		q.FindFirstNamesBatch(batch, adamsID)
+		results := conn.SendBatch(context.Background(), batch)
+		defer errs.CaptureT(t, results.Close, "close batch results")
+		firstNames, err := q.FindFirstNamesScan(results)
+		require.NoError(t, err)
+		assert.Equal(t, []*string{ptrs.String("george"), ptrs.String("john")}, firstNames)
 	})
 }
 
@@ -296,6 +322,96 @@ func TestNewQuerier_DeleteAuthorsByFullNameBatch(t *testing.T) {
 			},
 		}
 		assert.Equal(t, want, authors, "only one author with first name george should remain")
+	})
+}
+
+func TestNewQuerier_StringAggFirstName(t *testing.T) {
+	conn, cleanup := pgtest.NewPostgresSchema(t, []string{"schema.sql"})
+	defer cleanup()
+	q := NewQuerier(conn)
+	washingtonID := insertAuthor(t, q, "george", "washington")
+	_, err := q.InsertAuthorSuffix(context.Background(), InsertAuthorSuffixParams{
+		FirstName: "george",
+		LastName:  "washington",
+		Suffix:    "Jr.",
+	})
+	require.NoError(t, err)
+
+	t.Run("StringAggFirstName - null", func(t *testing.T) {
+		firstNames, err := q.StringAggFirstName(context.Background(), 999)
+		require.NoError(t, err)
+		require.Nil(t, firstNames)
+	})
+
+	t.Run("StringAggFirstNameBatch - null", func(t *testing.T) {
+		batch := &pgx.Batch{}
+		q.StringAggFirstNameBatch(batch, 999)
+		results := conn.SendBatch(context.Background(), batch)
+		defer errs.CaptureT(t, results.Close, "close results")
+		firstNames, err := q.StringAggFirstNameScan(results)
+		require.NoError(t, err)
+		require.Nil(t, firstNames)
+	})
+
+	t.Run("StringAggFirstName - one", func(t *testing.T) {
+		firstNames, err := q.StringAggFirstName(context.Background(), washingtonID)
+		require.NoError(t, err)
+		assert.Equal(t, "george", *firstNames)
+	})
+
+	t.Run("StringAggFirstNameBatch - one", func(t *testing.T) {
+		batch := &pgx.Batch{}
+		q.StringAggFirstNameBatch(batch, washingtonID)
+		results := conn.SendBatch(context.Background(), batch)
+		defer errs.CaptureT(t, results.Close, "close results")
+		firstNames, err := q.StringAggFirstNameScan(results)
+		require.NoError(t, err)
+		assert.Equal(t, "george", *firstNames)
+	})
+}
+
+func TestNewQuerier_ArrayAggFirstName(t *testing.T) {
+	conn, cleanup := pgtest.NewPostgresSchema(t, []string{"schema.sql"})
+	defer cleanup()
+	q := NewQuerier(conn)
+	washingtonID := insertAuthor(t, q, "george", "washington")
+	_, err := q.InsertAuthorSuffix(context.Background(), InsertAuthorSuffixParams{
+		FirstName: "george",
+		LastName:  "washington",
+		Suffix:    "Jr.",
+	})
+	require.NoError(t, err)
+
+	t.Run("ArrayAggFirstName - null", func(t *testing.T) {
+		firstNames, err := q.ArrayAggFirstName(context.Background(), 999)
+		require.NoError(t, err)
+		require.Nil(t, firstNames)
+	})
+
+	t.Run("ArrayAggFirstNameBatch - null", func(t *testing.T) {
+		batch := &pgx.Batch{}
+		q.ArrayAggFirstNameBatch(batch, 999)
+		results := conn.SendBatch(context.Background(), batch)
+		defer errs.CaptureT(t, results.Close, "close results")
+		firstNames, err := q.ArrayAggFirstNameScan(results)
+		require.NoError(t, err)
+		require.Nil(t, firstNames)
+	})
+
+	t.Run("ArrayAggFirstName - one", func(t *testing.T) {
+		firstNames, err := q.ArrayAggFirstName(context.Background(), washingtonID)
+		require.NoError(t, err)
+		assert.Equal(t, []string{"george"}, firstNames)
+	})
+
+	t.Run("ArrayAggFirstNameBatch - one", func(t *testing.T) {
+		batch := &pgx.Batch{}
+		q.ArrayAggFirstNameBatch(batch, washingtonID)
+		results := conn.SendBatch(context.Background(), batch)
+		defer errs.CaptureT(t, results.Close, "close results")
+		firstNames, err := q.ArrayAggFirstNameScan(results)
+		require.NoError(t, err)
+		assert.Equal(t, []string{"george"}, firstNames)
 	})
 }
 

@@ -10,6 +10,10 @@ SELECT * FROM author WHERE first_name = pggen.arg('FirstName');
 -- name: FindAuthorNames :many
 SELECT first_name, last_name FROM author ORDER BY author_id = pggen.arg('AuthorID');
 
+-- FindFirstNames finds one (or zero) authors by ID.
+-- name: FindFirstNames :many
+SELECT first_name FROM author ORDER BY author_id = pggen.arg('AuthorID');
+
 -- DeleteAuthors deletes authors with a first name of "joe".
 -- name: DeleteAuthors :exec
 DELETE FROM author WHERE first_name = 'joe';
@@ -38,3 +42,9 @@ RETURNING author_id;
 INSERT INTO author (first_name, last_name, suffix)
 VALUES (pggen.arg('FirstName'), pggen.arg('LastName'), pggen.arg('Suffix'))
 RETURNING author_id, first_name, last_name, suffix;
+
+-- name: StringAggFirstName :one
+SELECT string_agg(first_name, ',') AS names FROM author WHERE author_id = pggen.arg('author_id');
+
+-- name: ArrayAggFirstName :one
+SELECT array_agg(first_name) AS names FROM author WHERE author_id = pggen.arg('author_id');

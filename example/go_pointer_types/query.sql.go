@@ -198,11 +198,11 @@ LIMIT 1;`
 func (q *DBQuerier) GenSeries1(ctx context.Context) (*int, error) {
 	ctx = context.WithValue(ctx, "pggen_query_name", "GenSeries1")
 	row := q.conn.QueryRow(ctx, genSeries1SQL)
-	var item int
+	var item *int
 	if err := row.Scan(&item); err != nil {
-		return &item, fmt.Errorf("query GenSeries1: %w", err)
+		return item, fmt.Errorf("query GenSeries1: %w", err)
 	}
-	return &item, nil
+	return item, nil
 }
 
 // GenSeries1Batch implements Querier.GenSeries1Batch.
@@ -213,11 +213,11 @@ func (q *DBQuerier) GenSeries1Batch(batch genericBatch) {
 // GenSeries1Scan implements Querier.GenSeries1Scan.
 func (q *DBQuerier) GenSeries1Scan(results pgx.BatchResults) (*int, error) {
 	row := results.QueryRow()
-	var item int
+	var item *int
 	if err := row.Scan(&item); err != nil {
-		return &item, fmt.Errorf("scan GenSeries1Batch row: %w", err)
+		return item, fmt.Errorf("scan GenSeries1Batch row: %w", err)
 	}
-	return &item, nil
+	return item, nil
 }
 
 const genSeriesSQL = `SELECT n
@@ -359,11 +359,11 @@ LIMIT 1;`
 func (q *DBQuerier) GenSeriesStr1(ctx context.Context) (*string, error) {
 	ctx = context.WithValue(ctx, "pggen_query_name", "GenSeriesStr1")
 	row := q.conn.QueryRow(ctx, genSeriesStr1SQL)
-	var item string
+	var item *string
 	if err := row.Scan(&item); err != nil {
-		return &item, fmt.Errorf("query GenSeriesStr1: %w", err)
+		return item, fmt.Errorf("query GenSeriesStr1: %w", err)
 	}
-	return &item, nil
+	return item, nil
 }
 
 // GenSeriesStr1Batch implements Querier.GenSeriesStr1Batch.
@@ -374,11 +374,11 @@ func (q *DBQuerier) GenSeriesStr1Batch(batch genericBatch) {
 // GenSeriesStr1Scan implements Querier.GenSeriesStr1Scan.
 func (q *DBQuerier) GenSeriesStr1Scan(results pgx.BatchResults) (*string, error) {
 	row := results.QueryRow()
-	var item string
+	var item *string
 	if err := row.Scan(&item); err != nil {
-		return &item, fmt.Errorf("scan GenSeriesStr1Batch row: %w", err)
+		return item, fmt.Errorf("scan GenSeriesStr1Batch row: %w", err)
 	}
-	return &item, nil
+	return item, nil
 }
 
 const genSeriesStrSQL = `SELECT n::text

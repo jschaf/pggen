@@ -266,11 +266,11 @@ const getOneTimestampSQL = `SELECT $1::timestamp;`
 func (q *DBQuerier) GetOneTimestamp(ctx context.Context, data *time.Time) (*time.Time, error) {
 	ctx = context.WithValue(ctx, "pggen_query_name", "GetOneTimestamp")
 	row := q.conn.QueryRow(ctx, getOneTimestampSQL, data)
-	var item time.Time
+	var item *time.Time
 	if err := row.Scan(&item); err != nil {
-		return &item, fmt.Errorf("query GetOneTimestamp: %w", err)
+		return item, fmt.Errorf("query GetOneTimestamp: %w", err)
 	}
-	return &item, nil
+	return item, nil
 }
 
 // GetOneTimestampBatch implements Querier.GetOneTimestampBatch.
@@ -281,11 +281,11 @@ func (q *DBQuerier) GetOneTimestampBatch(batch genericBatch, data *time.Time) {
 // GetOneTimestampScan implements Querier.GetOneTimestampScan.
 func (q *DBQuerier) GetOneTimestampScan(results pgx.BatchResults) (*time.Time, error) {
 	row := results.QueryRow()
-	var item time.Time
+	var item *time.Time
 	if err := row.Scan(&item); err != nil {
-		return &item, fmt.Errorf("scan GetOneTimestampBatch row: %w", err)
+		return item, fmt.Errorf("scan GetOneTimestampBatch row: %w", err)
 	}
-	return &item, nil
+	return item, nil
 }
 
 const getManyTimestamptzsSQL = `SELECT *
