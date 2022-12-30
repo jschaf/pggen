@@ -4,16 +4,17 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"os"
+	"path/filepath"
+	"sort"
+	"strings"
+
 	"github.com/bmatcuk/doublestar"
 	"github.com/jschaf/pggen"
 	"github.com/jschaf/pggen/internal/flags"
 	"github.com/jschaf/pggen/internal/texts"
 	"github.com/peterbourgon/ff/v3/ffcli"
 	"go.uber.org/zap"
-	"os"
-	"path/filepath"
-	"sort"
-	"strings"
 )
 
 // Set via ldflags for release binaries.
@@ -129,6 +130,8 @@ func newGenCmd() *ffcli.Command {
 					outDir = dir
 				}
 			}
+
+			outDir, _ = filepath.Abs(outDir)
 
 			// Parse two acronym formats: "--acronym api" and "--acronym oids=OIDs"
 			acros := make(map[string]string)
