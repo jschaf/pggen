@@ -109,7 +109,9 @@ func Generate(opts GenerateOptions) (mErr error) {
 	if opts.Acronyms == nil {
 		opts.Acronyms = make(map[string]string, 1)
 	}
-	opts.Acronyms["id"] = "ID"
+	if _, ok := opts.Acronyms["id"]; !ok {
+		opts.Acronyms["id"] = "ID"
+	}
 	switch opts.Language {
 	case LangGo:
 		goOpts := golang.GenerateOptions{
