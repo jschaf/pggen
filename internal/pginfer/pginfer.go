@@ -44,9 +44,6 @@ type TypedQuery struct {
 type InputParam struct {
 	// Name of the param, like 'FirstName' in pggen.arg('FirstName').
 	PgName string
-	// Default value to use for the param when executing the query on Postgres.
-	// Like 'joe' in pggen.arg('FirstName', 'joe').
-	DefaultVal string
 	// The postgres type of this param as reported by Postgres.
 	PgType pg.Type
 }
@@ -150,9 +147,8 @@ func (inf *Inferrer) inferInputTypes(query *ast.SourceQuery) (ps []InputParam, m
 	for i := 0; i < len(params); i++ {
 		pgType := types[pgtype.OID(oids[i])]
 		params[i] = InputParam{
-			PgName:     query.ParamNames[i],
-			DefaultVal: "",
-			PgType:     pgType,
+			PgName: query.ParamNames[i],
+			PgType: pgType,
 		}
 	}
 	return params, nil
