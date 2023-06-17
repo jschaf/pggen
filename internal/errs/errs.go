@@ -10,10 +10,10 @@ import (
 // original err by wrapping in a MultiError if err is non-nil. If msg is not
 // empty, wrap the error returned by closer with the msg.
 //
-// - If errF returns nil, do nothing.
-// - If errF returns an error and *err == nil, replace *err with the error.
-// - If errF returns an error and *err != nil, replace *err with a MultiError
-//   containing *err and the errF err.
+//   - If errF returns nil, do nothing.
+//   - If errF returns an error and *err == nil, replace *err with the error.
+//   - If errF returns an error and *err != nil, replace *err with a MultiError
+//     containing *err and the errF err.
 func Capture(err *error, errF func() error, msg string) {
 	fErr := errF()
 	if fErr == nil {

@@ -6,6 +6,8 @@ import (
 )
 
 // If you add to this list, also add to defaultKnownTypes below.
+//
+//goland:noinspection GoNameStartsWithPackageName
 var (
 	Bool             = BaseType{ID: pgtype.BoolOID, Name: "bool"}
 	Bytea            = BaseType{ID: pgtype.ByteaOID, Name: "bytea"}

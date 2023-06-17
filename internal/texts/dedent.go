@@ -19,6 +19,7 @@ import (
 //   - If the line only has whitespace, replace it with a single newline.
 //   - If the line has non-whitespace chars, find the common whitespace prefix
 //     of all such lines.
+//
 // - Remove the common whitespace prefix from each line.
 func Dedent(text string) string {
 	indent := math.MaxInt32

@@ -410,8 +410,8 @@ func (tq TemplatedQuery) EmitResultElem() (string, error) {
 // for :one queries or to append for :many queries. Useful for figuring out if
 // we need to use the address operator. Controls the string item and &item in:
 //
-//   items = append(items, item)
-//   items = append(items, &item)
+//	items = append(items, item)
+//	items = append(items, &item)
 func (tq TemplatedQuery) EmitResultExpr(name string) (string, error) {
 	switch tq.ResultKind {
 	case ast.ResultKindOne:

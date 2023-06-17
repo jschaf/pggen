@@ -45,6 +45,7 @@ func FindKnownTypeNonNullable(oid pgtype.OID) (Type, bool) {
 }
 
 // Native go types are not prefixed.
+//
 //goland:noinspection GoUnusedGlobalVariable
 var (
 	Bool          = MustParseKnownType("bool", pg.Bool)
