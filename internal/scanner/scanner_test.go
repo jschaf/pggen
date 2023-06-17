@@ -1,10 +1,11 @@
 package scanner
 
 import (
-	"github.com/jschaf/pggen/internal/token"
-	"github.com/stretchr/testify/assert"
 	gotok "go/token"
 	"testing"
+
+	"github.com/jschaf/pggen/internal/token"
+	"github.com/stretchr/testify/assert"
 )
 
 func newlineCount(s string) int {
@@ -49,9 +50,12 @@ func (ec *errorCollector) asHandler() ErrorHandler {
 	}
 }
 
-func frag(lit string) stringTok    { return stringTok{t: token.QueryFragment, lit: lit, raw: lit} }
-func str(lit string) stringTok     { return stringTok{t: token.String, lit: lit, raw: lit} }
-func ident(ident string) stringTok { return stringTok{t: token.QuotedIdent, lit: ident, raw: ident} }
+func frag(lit string) stringTok         { return stringTok{t: token.QueryFragment, lit: lit, raw: lit} }
+func lineComment(lit string) stringTok  { return stringTok{t: token.LineComment, lit: lit, raw: lit} }
+func blockComment(lit string) stringTok { return stringTok{t: token.BlockComment, lit: lit, raw: lit} }
+func str(lit string) stringTok          { return stringTok{t: token.String, lit: lit, raw: lit} }
+func ident(ident string) stringTok      { return stringTok{t: token.QuotedIdent, lit: ident, raw: ident} }
+func directive(lit string) stringTok    { return stringTok{t: token.Directive, lit: lit, raw: lit} }
 
 func TestScanner_Scan(t *testing.T) {
 	type testCase struct {
@@ -71,6 +75,10 @@ func TestScanner_Scan(t *testing.T) {
 		{"/* abc */", []stringTok{{t: token.BlockComment, lit: "/* abc */"}}, nil},
 		{"/* /* abc */ */", []stringTok{{t: token.BlockComment, lit: "/* /* abc */ */"}}, nil},
 		{"SELECT 1", []stringTok{frag("SELECT 1")}, nil},
+		{"SELECT pggen.arg('arg1')", []stringTok{frag("SELECT "), directive("pggen.arg('arg1')")}, nil},
+		{"SELECT pggen.arg('arg2', null::int)", []stringTok{frag("SELECT "), directive("pggen.arg('arg2', null::int)")}, nil},
+		{"SELECT pggen.arg('arg2', exists(SELECT 1 FROM bar))", []stringTok{frag("SELECT "), directive("pggen.arg('arg2', exists(SELECT 1 FROM bar))")}, nil},
+		{"SELECT pggen.arg('arg2', exists(SELECT '}'\n-- test comment }\n/* test comment }*/ FROM bar))", []stringTok{frag("SELECT "), directive("pggen.arg('arg2', exists(SELECT '}'\n-- test comment }\n/* test comment }*/ FROM bar))")}, nil},
 		{"SELECT abc$", []stringTok{frag("SELECT abc$")}, nil},
 		{"SELECT a$$bc", []stringTok{frag("SELECT a$$bc")}, nil},
 		{"SELECT a$$$bc", []stringTok{frag("SELECT a$$$bc")}, nil},

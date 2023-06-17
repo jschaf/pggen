@@ -3,10 +3,11 @@ package scanner
 import (
 	"bytes"
 	"fmt"
-	"github.com/jschaf/pggen/internal/token"
 	gotok "go/token"
 	"unicode"
 	"unicode/utf8"
+
+	"github.com/jschaf/pggen/internal/token"
 )
 
 const (
@@ -130,6 +131,22 @@ func (s *Scanner) peek() byte {
 		return s.src[s.rdOffset]
 	}
 	return 0
+}
+
+// peekDirective looks ahead from most recently read character without
+// advancing the scanner. If the lookahead finds patterns matching the `pggen.arg(` directive, then peekDirective returns true and otherwise false
+func (s *Scanner) peekDirective() bool {
+	patterns := []string{"pggen.arg(", "pggen.arg ("}
+	for _, pattern := range patterns {
+		n := len(pattern)
+		if s.offset+n < len(s.src) {
+			nextString := string(s.src[s.offset : s.offset+n])
+			if nextString == pattern {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func (s *Scanner) skipWhitespace() {
@@ -265,6 +282,11 @@ func (s *Scanner) scanDoubleQuoteString() (token.Token, string) {
 func (s *Scanner) scanQueryFragment() (token.Token, string) {
 	offs := s.offset
 	for s.ch > 0 {
+
+		if s.peekDirective() {
+			return token.QueryFragment, string(s.src[offs:s.offset])
+		}
+
 		switch {
 		case s.ch == eof:
 			str := string(s.src[offs:s.offset])
@@ -295,6 +317,65 @@ func (s *Scanner) scanQueryFragment() (token.Token, string) {
 	return token.QueryFragment, string(s.src[offs:s.offset])
 }
 
+// scanDirective consumes pggen.arg('one_arg') or pggen.arg('one_arg', default_value_expression)
+func (s *Scanner) scanDirective() (token.Token, string) {
+	offs := s.offset
+	openParenCount := 0
+	for s.ch > 0 {
+		switch {
+		case s.ch == eof:
+			str := string(s.src[offs:s.offset])
+			s.error(offs, "illegal pggen.arg() expression: "+str)
+			return token.Illegal, str
+		case s.ch == '-' && s.peek() == '-':
+			s.scanLineComment()
+			continue
+		case s.ch == '/' && s.peek() == '*':
+			s.scanBlockComment()
+			continue
+		case s.ch == '\'':
+			s.scanSingleQuoteString()
+			continue
+		case s.ch == '"':
+			s.scanDoubleQuoteString()
+			continue
+		case s.ch == '$':
+			// A dollar sign can be part of an identifier. Consume the identifier
+			// here for cases like 'select 1 as foo$$$$bar'.
+			if isLetter(s.prevCh) || isDecimal(s.prevCh) {
+				for isLetter(s.ch) || isDecimal(s.ch) || s.ch == '$' {
+					s.next()
+				}
+				continue
+			} else {
+				s.scanDollarQuoteString()
+				continue
+			}
+		case s.ch == '(':
+			openParenCount += 1
+		case s.ch == ')':
+			openParenCount -= 1
+			if openParenCount == 0 {
+				s.next()
+				return token.Directive, string(s.src[offs:s.offset])
+			}
+			if openParenCount < 0 {
+				str := string(s.src[offs:s.offset])
+				s.error(offs, "illegal pggen.arg() expression: "+str)
+				return token.Illegal, str
+			}
+		case s.ch == ';':
+			str := string(s.src[offs:s.offset])
+			s.error(offs, "illegal pggen.arg() expression: "+str)
+			return token.Illegal, str
+		}
+		s.next()
+	}
+	str := string(s.src[offs:s.offset])
+	s.error(offs, "illegal pggen.arg() expression: "+str)
+	return token.Illegal, str
+}
+
 // Scan scans the next token and returns the token position, the token, and its
 // literal string if applicable. The source end is indicated by token.EOF.
 //
@@ -316,6 +397,12 @@ func (s *Scanner) scanQueryFragment() (token.Token, string) {
 func (s *Scanner) Scan() (pos gotok.Pos, tok token.Token, lit string) {
 	s.skipWhitespace()
 	pos = s.file.Pos(s.offset)
+
+	if s.peekDirective() {
+		tok, lit = s.scanDirective()
+		s.prev = tok
+		return
+	}
 
 	switch s.ch {
 	case eof:

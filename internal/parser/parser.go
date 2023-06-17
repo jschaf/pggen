@@ -2,14 +2,15 @@ package parser
 
 import (
 	"fmt"
-	"github.com/jschaf/pggen/internal/ast"
-	"github.com/jschaf/pggen/internal/scanner"
-	"github.com/jschaf/pggen/internal/token"
 	goscan "go/scanner"
 	gotok "go/token"
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/jschaf/pggen/internal/ast"
+	"github.com/jschaf/pggen/internal/scanner"
+	"github.com/jschaf/pggen/internal/token"
 )
 
 type parser struct {
@@ -219,9 +220,7 @@ func (p *parser) parseQuery() ast.Query {
 			p.error(p.pos, "unterminated query (no semicolon): "+string(p.src[pos:p.pos]))
 			return &ast.BadQuery{From: pos, To: p.pos}
 		}
-		hasPggenArg := strings.HasSuffix(p.lit, "pggen.arg(") ||
-			strings.HasSuffix(p.lit, "pggen.arg (")
-		if p.tok == token.QueryFragment && hasPggenArg {
+		if p.tok == token.Directive {
 			arg, ok := p.parsePggenArg()
 			if !ok {
 				return &ast.BadQuery{From: pos, To: p.pos}
@@ -329,35 +328,40 @@ func validateProtoMsgType(val string) (string, error) {
 
 // argPos is the name and position of expression like pggen.arg('foo').
 type argPos struct {
-	lo, hi int
-	name   string
+	lo, hi                 int
+	name                   string
+	defaultValueExpression string
 }
 
 // parsePggenArg parses the name from: pggen.arg('foo') and pos for the start
 // and end.
 func (p *parser) parsePggenArg() (argPos, bool) {
 	lo := int(p.pos) + strings.LastIndex(p.lit, "pggen") - 1
-	p.next() // consume query fragment that contains "pggen.arg("
-	if p.tok != token.String {
-		p.error(p.pos, `expected string literal after "pggen.arg("`)
-		return argPos{}, false
+	hi := int(p.pos) + len(p.lit) - 1
+
+	var nameStart int
+	nameEnd := -1
+
+	nameStart = strings.Index(p.lit, "'")
+	if nameStart != -1 {
+		nameEnd = (nameStart + 1) + strings.Index(p.lit[nameStart+1:], "'")
 	}
-	if len(p.lit) < 3 || p.lit[0] != '\'' || p.lit[len(p.lit)-1] != '\'' {
+
+	if nameStart == -1 || nameEnd == -1 || nameEnd-nameStart < 3 || p.lit[nameStart] != '\'' || p.lit[nameEnd] != '\'' {
 		p.error(p.pos, `expected single-quoted string literal after "pggen.arg("`)
 		return argPos{}, false
 	}
-	name := p.lit[1 : len(p.lit)-1]
-	p.next() // consume string literal
-	if p.tok != token.QueryFragment {
-		p.error(p.pos, `expected query fragment after parsing pggen.arg string`)
-		return argPos{}, false
+	name := p.lit[nameStart+1 : nameEnd]
+
+	firstComma := strings.Index(p.lit, ",")
+
+	defaultValueExpression := ""
+	if firstComma != -1 {
+		defaultValueExpression = p.lit[firstComma+1 : len(p.lit)-1]
 	}
-	if !strings.HasPrefix(p.lit, ")") {
-		p.error(p.pos, `expected closing paren ")" after parsing pggen.arg string`)
-		return argPos{}, false
-	}
-	hi := int(p.pos)
-	return argPos{lo: lo, hi: hi, name: name}, true
+
+	p.next()
+	return argPos{lo: lo, hi: hi, name: name, defaultValueExpression: defaultValueExpression}, true
 }
 
 // prepareSQL replaces each pggen.arg with the $n, respecting the order that the
