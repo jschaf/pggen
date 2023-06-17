@@ -46,4 +46,4 @@ echo 'deleting existing releases'
 
 echo
 echo "creating release $day"
-goreleaser release --config ./script/.goreleaser.yaml --rm-dist
+goreleaser release --config ./script/.goreleaser.yaml --clean
