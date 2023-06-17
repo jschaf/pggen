@@ -68,44 +68,46 @@ type ParentRelationship string
 
 //goland:noinspection GoUnusedConst
 const (
-	// Means this node is a top-level node. All nodes with a parent have set
-	// relationship that is not none.
+	// ParentRelationshipNone means this node is a top-level node. All nodes with
+	// a parent have set relationship that is not none.
 	ParentRelationshipNone ParentRelationship = ""
-	// Most common: means take in the rows from this operation as input, process
-	// them and pass them on.
+	// ParentRelationshipOuter is the most common node. It means take in the rows
+	// from this operation as input, process them and pass them on.
 	ParentRelationshipOuter ParentRelationship = "Outer"
-	// Only (but always) on second child of join operations. Means a node is the
-	// inner part of a loop.
+	// ParentRelationshipInner is only (but always) on second child of join
+	// operations. Means a node is the inner part of a loop.
 	ParentRelationshipInner ParentRelationship = "Inner"
-	// Member is for all children of Append and ModifyTable nodes.
+	// ParentRelationshipMember is for all children of Append and ModifyTable
+	// nodes.
 	ParentRelationshipMember ParentRelationship = "Member"
-	// InitPlan is calculations performed before query starts executing.
+	// ParentRelationshipInitPlan is calculations performed before query starts
+	// executing.
 	ParentRelationshipInitPlan ParentRelationship = "InitPlan"
-	// Subquery means the node is a subquery of a parent node. Since Postgres
-	// always uses subquery scans to feed subquery data to parent queries, only
-	// ever appears on the children of subquery scans.
+	// ParentRelationshipSubquery means the node is a subquery of a parent node.
+	// Since Postgres always uses subquery scans to feed subquery data to parent
+	// queries, only ever appears on the children of subquery scans.
 	ParentRelationshipSubquery ParentRelationship = "Subquery"
-	// Like a Subquery, represents a new query, but used when a subquery scan is
-	// not necessary.
+	// ParentRelationshipSubPlan is like a Subquery, represents a new query, but
+	// used when a subquery scan is not necessary.
 	ParentRelationshipSubPlan ParentRelationship = "SubPlan"
 )
 
 // Strategy determines overall execution strategies for Agg plan nodes and SetOp
 // nodes.
-// https://sourcegraph.com/github.com/postgres/postgres@8facf1ea00b7a0c08c755a0392212b83e04ae28a/-/blob/src/include/nodes/nodes.h?subtree=true#L759:14
+// https://source graph.com/github.com/postgres/postgres@8facf1ea00b7a0c08c755a0392212b83e04ae28a/-/blob/src/include/nodes/nodes.h?subtree=true#L759:14
 type Strategy string
 
 //goland:noinspection GoUnusedConst
 const (
-	// Simple agg across all input rows.
+	// StrategyPlain is a simple agg across all input rows.
 	StrategyPlain Strategy = "Plain"
-	// For grouped agg and SetOp, input must be sorted.
+	// StrategySorted is a for grouped agg and SetOp, input must be sorted.
 	StrategySorted Strategy = "Sorted"
-	// For grouped agg and SetOp, uses internal hashtable.
+	// StrategyHashed is a for grouped agg and SetOp, uses internal hashtable.
 	StrategyHashed Strategy = "Hashed"
-	// Grouped agg, hash and sort both used.
+	// StrategyMixed is a grouped agg, hash and sort both used.
 	StrategyMixed Strategy = "Mixed"
-	// For unknown aggregates.
+	// StrategyUnknown is a for unknown aggregates.
 	StrategyUnknown Strategy = "???"
 )
 
@@ -119,10 +121,10 @@ const (
 	OperationDelete Operation = "Delete"
 )
 
-// All plan nodes "derive" from the Plan structure by having the
-// Plan structure as the first field. This ensures that everything works
-// when nodes are cast to Plan's. (node pointers are frequently cast to Plan*
-// when passed around generically in the executor)
+// Plan nodes "derive" from the Plan structure by having the Plan structure as
+// the first field. This ensures that everything works when nodes are cast to
+// Plan's. (node pointers are frequently cast to Plan* when passed around
+// generically in the executor)
 // https://sourcegraph.com/github.com/postgres/postgres@8facf1ea00b7a0c08c755a0392212b83e04ae28a/-/blob/src/include/nodes/plannodes.h#L110:16
 type Plan struct {
 	// Estimated execution costs for plan (see costsize.c for more info).
@@ -165,13 +167,13 @@ type (
 	// BadNode is returned whenever a plan is not parseable.
 	BadNode struct{ Plan }
 
-	// If no outer plan, evaluate a variable-free targetlist.
+	// Result is if no outer plan, evaluate a variable-free targetlist.
 	// If outer plan, return tuples from outer plan (after a level of
 	// projection as shown by targetlist).
 	// https://sourcegraph.com/github.com/postgres/postgres@8facf1ea00b7a0c08c755a0392212b83e04ae28a/-/blob/src/include/nodes/plannodes.h#L180:1
 	Result struct{ Plan }
 
-	// Generate the concatenation of the results of sub-plans.
+	// Append is the concatenation of the results of sub-plans.
 	// Combine the results of the child operations. This can be the result of an
 	// explicit UNION ALL statement, or the need for a parent operation to
 	// consume the results of two or more children together.
@@ -184,8 +186,8 @@ type (
 	// https://www.postgresql.org/message-id/CAKJS1f9pWUwxaD%2B0kxOOUuwaBcpGQtCKi3DKE8ob_uHN-JTJhw%40mail.gmail.com
 	ProjectSet struct{ Plan }
 
-	// Apply rows produced by subplan(s) to result table(s), by inserting,
-	// updating, or deleting.
+	// ModifyTable applies rows produced by subplan(s) to result table(s), by
+	// inserting, updating, or deleting.
 	ModifyTable struct {
 		Plan
 		Operation    Operation
@@ -194,8 +196,8 @@ type (
 		Alias        string
 	}
 
-	// Combines the sorted results of the child operations, in a way that
-	// preserves their sort order.
+	// MergeAppend combines the sorted results of the child operations, in a way
+	// that preserves their sort order.
 	// Can be used for combining already-sorted rows from table partitions.
 	// https://www.pgmustard.com/docs/explain/merge-append
 	MergeAppend struct {

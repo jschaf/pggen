@@ -172,11 +172,11 @@ func newGenCmd() *ffcli.Command {
 				return err
 			}
 
-			filesDesc := "files"
+			fileDesc := "files"
 			if len(queries) == 1 {
-				filesDesc = "file"
+				fileDesc = "file"
 			}
-			fmt.Printf("generated %d query %s\n", len(queries), filesDesc)
+			fmt.Printf("generated %d query %s\n", len(queries), fileDesc)
 			return nil
 		},
 	}

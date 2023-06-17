@@ -84,7 +84,7 @@ How to use pggen in three steps:
 Why should you use `pggen` instead of the [myriad] of Go SQL bindings?
 
 - pggen generates code by introspecting the database system catalogs, so you 
-  can use *any* database extensions or custom methods and it will just work™.
+  can use *any* database extensions or custom methods, and it will just work.
   For database types that pggen doesn't recognize, you can provide your own
   type mappings.
 
@@ -124,8 +124,8 @@ is far more revealing than the pitch.
   even the simplest CRUD queries. Use [gorm] or any of alternatives listed
   at [awesome Go ORMs].
 
-- You use database other than Postgres. pggen only supports Postgres. [sqlc], a
-  similar tool which inspired pggen, has early support for MySQL.
+- You use a database other than Postgres. pggen only supports Postgres. [sqlc],
+  a similar tool which inspired pggen, has early support for MySQL.
 
 - You want an active-record pattern where models have methods like `find`, 
   `create`, `update`, and `delete`. pggen only generates code for queries you 

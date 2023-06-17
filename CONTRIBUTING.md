@@ -121,7 +121,7 @@ file in each folder in ./example.
 
 To debug generated query execution, start with the `query.sql_test.go` file in 
 each example. I've structured the tests (at least the recent ones like 
-`example/author`) so that every generated query has an isolated sub-test you can
+`example/author`) so that every generated query has an isolated subtest you can
 debug.
 
 For tests that use a Postgres instance, you can find the schema used in the test

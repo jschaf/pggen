@@ -31,8 +31,8 @@ type ColumnKey struct {
 }
 
 var (
-	columnsMu    = &sync.Mutex{}
-	columnsCache = make(map[ColumnKey]Column, 32)
+	columnsMu   = &sync.Mutex{}
+	columnCache = make(map[ColumnKey]Column, 32)
 )
 
 // FetchColumns fetches meta information about a Postgres column from the
@@ -46,7 +46,7 @@ func FetchColumns(conn *pgx.Conn, keys []ColumnKey) ([]Column, error) {
 	uncachedKeys := make([]ColumnKey, 0, len(keys))
 	columnsMu.Lock()
 	for _, key := range keys {
-		if _, ok := columnsCache[key]; !ok && key.TableOID > 0 {
+		if _, ok := columnCache[key]; !ok && key.TableOID > 0 {
 			uncachedKeys = append(uncachedKeys, key)
 		}
 	}
@@ -93,7 +93,7 @@ func FetchColumns(conn *pgx.Conn, keys []ColumnKey) ([]Column, error) {
 			return nil, fmt.Errorf("scan fetch column row: %w", err)
 		}
 		col.Null = !notNull
-		columnsCache[ColumnKey{col.TableOID, col.Number}] = col
+		columnCache[ColumnKey{col.TableOID, col.Number}] = col
 	}
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("close fetch column rows: %w", err)
@@ -107,7 +107,7 @@ func fetchCachedColumns(keys []ColumnKey) ([]Column, error) {
 	columnsMu.Lock()
 	defer columnsMu.Unlock()
 	for _, key := range keys {
-		col, ok := columnsCache[key]
+		col, ok := columnCache[key]
 		// Ignore columns not directly backed by a table.
 		if !ok && col.TableOID > 0 {
 			return nil, fmt.Errorf("missing column in fetch cache table_oid=%d Number=%d", key.TableOID, key.Number)
