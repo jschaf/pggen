@@ -16,11 +16,12 @@ func TestGenerate_Go_Example_CustomTypes(t *testing.T) {
 	tmpDir := t.TempDir()
 	err := pggen.Generate(
 		pggen.GenerateOptions{
-			ConnString: conn.Config().ConnString(),
-			QueryFiles: []string{"query.sql"},
-			OutputDir:  tmpDir,
-			GoPackage:  "custom_types",
-			Language:   pggen.LangGo,
+			ConnString:       conn.Config().ConnString(),
+			QueryFiles:       []string{"query.sql"},
+			OutputDir:        tmpDir,
+			GoPackage:        "custom_types",
+			Language:         pggen.LangGo,
+			InlineParamCount: 2,
 			TypeOverrides: map[string]string{
 				"text":    "github.com/jschaf/pggen/example/custom_types/mytype.String",
 				"int8":    "github.com/jschaf/pggen/example/custom_types.CustomInt",

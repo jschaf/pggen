@@ -13,9 +13,10 @@ import (
 
 // Templater creates query file templates.
 type Templater struct {
-	caser    casing.Caser
-	resolver TypeResolver
-	pkg      string // Go package name
+	caser            casing.Caser
+	resolver         TypeResolver
+	pkg              string // Go package name
+	inlineParamCount int
 }
 
 // TemplaterOpts is options to control the template logic.
@@ -23,13 +24,16 @@ type TemplaterOpts struct {
 	Caser    casing.Caser
 	Resolver TypeResolver
 	Pkg      string // Go package name
+	// How many params to inline when calling querier methods.
+	InlineParamCount int
 }
 
 func NewTemplater(opts TemplaterOpts) Templater {
 	return Templater{
-		pkg:      opts.Pkg,
-		caser:    opts.Caser,
-		resolver: opts.Resolver,
+		pkg:              opts.Pkg,
+		caser:            opts.Caser,
+		resolver:         opts.Resolver,
+		inlineParamCount: opts.InlineParamCount,
 	}
 }
 
@@ -179,13 +183,14 @@ func (tm Templater) templateFile(file codegen.QueryFile, isLeader bool) (Templat
 		}
 
 		queries = append(queries, TemplatedQuery{
-			Name:        tm.caser.ToUpperGoIdent(query.Name),
-			SQLVarName:  tm.caser.ToLowerGoIdent(query.Name) + "SQL",
-			ResultKind:  query.ResultKind,
-			Doc:         docs.String(),
-			PreparedSQL: query.PreparedSQL,
-			Inputs:      inputs,
-			Outputs:     outputs,
+			Name:             tm.caser.ToUpperGoIdent(query.Name),
+			SQLVarName:       tm.caser.ToLowerGoIdent(query.Name) + "SQL",
+			ResultKind:       query.ResultKind,
+			Doc:              docs.String(),
+			PreparedSQL:      query.PreparedSQL,
+			Inputs:           inputs,
+			Outputs:          outputs,
+			InlineParamCount: tm.inlineParamCount,
 		})
 	}
 

@@ -33,13 +33,14 @@ type TemplatedFile struct {
 // TemplatedQuery is a query with all information required to execute the
 // codegen template.
 type TemplatedQuery struct {
-	Name        string            // name of the query, from the comment preceding the query
-	SQLVarName  string            // name of the string variable containing the SQL
-	ResultKind  ast.ResultKind    // kind of result: :one, :many, or :exec
-	Doc         string            // doc from the source query file, formatted for Go
-	PreparedSQL string            // SQL query, ready to run with PREPARE statement
-	Inputs      []TemplatedParam  // input parameters to the query
-	Outputs     []TemplatedColumn // output columns of the query
+	Name             string            // name of the query, from the comment preceding the query
+	SQLVarName       string            // name of the string variable containing the SQL
+	ResultKind       ast.ResultKind    // kind of result: :one, :many, or :exec
+	Doc              string            // doc from the source query file, formatted for Go
+	PreparedSQL      string            // SQL query, ready to run with PREPARE statement
+	Inputs           []TemplatedParam  // input parameters to the query
+	Outputs          []TemplatedColumn // output columns of the query
+	InlineParamCount int               // inclusive count of params that will be inlined
 }
 
 type TemplatedParam struct {
@@ -82,21 +83,17 @@ func (tq TemplatedQuery) EmitPreparedSQL() string {
 // a name and type based on the number of params. For use in a method
 // definition.
 func (tq TemplatedQuery) EmitParams() string {
-	switch len(tq.Inputs) {
-	case 0:
-		return ""
-	case 1, 2:
-		sb := strings.Builder{}
-		for _, input := range tq.Inputs {
-			sb.WriteString(", ")
-			sb.WriteString(input.LowerName)
-			sb.WriteRune(' ')
-			sb.WriteString(input.QualType)
-		}
-		return sb.String()
-	default:
+	if !tq.isInlineParams() {
 		return ", params " + tq.Name + "Params"
 	}
+	sb := strings.Builder{}
+	for _, input := range tq.Inputs {
+		sb.WriteString(", ")
+		sb.WriteString(input.LowerName)
+		sb.WriteRune(' ')
+		sb.WriteString(input.QualType)
+	}
+	return sb.String()
 }
 
 func getLongestInput(inputs []TemplatedParam) int {
@@ -111,7 +108,7 @@ func getLongestInput(inputs []TemplatedParam) int {
 
 // EmitParamStruct emits the struct definition for query params if needed.
 func (tq TemplatedQuery) EmitParamStruct() string {
-	if len(tq.Inputs) < 3 {
+	if tq.isInlineParams() {
 		return ""
 	}
 	sb := &strings.Builder{}
@@ -160,10 +157,8 @@ func (tq TemplatedQuery) EmitParamNames() string {
 			sb.WriteString(name)
 		}
 	}
-	switch len(tq.Inputs) {
-	case 0:
-		return ""
-	case 1, 2:
+	switch {
+	case tq.isInlineParams():
 		sb := &strings.Builder{}
 		for _, input := range tq.Inputs {
 			sb.WriteString(", ")
@@ -178,6 +173,10 @@ func (tq TemplatedQuery) EmitParamNames() string {
 		}
 		return sb.String()
 	}
+}
+
+func (tq TemplatedQuery) isInlineParams() bool {
+	return len(tq.Inputs) <= tq.InlineParamCount
 }
 
 // EmitRowScanArgs emits the args to scan a single row from a pgx.Row or

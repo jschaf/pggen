@@ -9,7 +9,7 @@ import (
 	"testing"
 )
 
-func TestGenerate_Go_Example_Order(t *testing.T) {
+func TestGenerate_Go_Example_ERP_Order(t *testing.T) {
 	conn, cleanupFunc := pgtest.NewPostgresSchema(t, []string{
 		"../01_schema.sql",
 		"../02_schema.sql",
@@ -24,11 +24,12 @@ func TestGenerate_Go_Example_Order(t *testing.T) {
 				"customer.sql",
 				"price.sql",
 			},
-			OutputDir:     tmpDir,
-			GoPackage:     "order",
-			Language:      pggen.LangGo,
-			Acronyms:      map[string]string{"mrr": "MRR"},
-			TypeOverrides: map[string]string{"tenant_id": "int"},
+			OutputDir:        tmpDir,
+			GoPackage:        "order",
+			Language:         pggen.LangGo,
+			InlineParamCount: 2,
+			Acronyms:         map[string]string{"mrr": "MRR"},
+			TypeOverrides:    map[string]string{"tenant_id": "int"},
 		})
 	if err != nil {
 		t.Fatalf("Generate() example/erp/order: %s", err)

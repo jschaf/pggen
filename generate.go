@@ -61,6 +61,9 @@ type GenerateOptions struct {
 	TypeOverrides map[string]string
 	// What log level to log at.
 	LogLevel zapcore.Level
+	// How many params to inline when calling querier methods.
+	// Set to 0 to always create a struct for params.
+	InlineParamCount int
 }
 
 // Generate generates language specific code to safely wrap each SQL
@@ -115,10 +118,11 @@ func Generate(opts GenerateOptions) (mErr error) {
 	switch opts.Language {
 	case LangGo:
 		goOpts := golang.GenerateOptions{
-			GoPkg:         opts.GoPackage,
-			OutputDir:     opts.OutputDir,
-			Acronyms:      opts.Acronyms,
-			TypeOverrides: opts.TypeOverrides,
+			GoPkg:            opts.GoPackage,
+			OutputDir:        opts.OutputDir,
+			Acronyms:         opts.Acronyms,
+			TypeOverrides:    opts.TypeOverrides,
+			InlineParamCount: opts.InlineParamCount,
 		}
 		if err := golang.Generate(goOpts, queryFiles); err != nil {
 			return fmt.Errorf("generate go code: %w", err)

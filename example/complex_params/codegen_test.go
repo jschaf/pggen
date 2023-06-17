@@ -16,11 +16,12 @@ func TestGenerate_Go_Example_ComplexParams(t *testing.T) {
 	tmpDir := t.TempDir()
 	err := pggen.Generate(
 		pggen.GenerateOptions{
-			ConnString: conn.Config().ConnString(),
-			QueryFiles: []string{"query.sql"},
-			OutputDir:  tmpDir,
-			GoPackage:  "complex_params",
-			Language:   pggen.LangGo,
+			ConnString:       conn.Config().ConnString(),
+			QueryFiles:       []string{"query.sql"},
+			OutputDir:        tmpDir,
+			GoPackage:        "complex_params",
+			Language:         pggen.LangGo,
+			InlineParamCount: 2,
 			TypeOverrides: map[string]string{
 				"int4": "int",
 				"text": "string",

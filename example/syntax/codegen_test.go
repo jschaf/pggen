@@ -20,9 +20,10 @@ func TestGenerate_Go_Example_Syntax(t *testing.T) {
 			QueryFiles: []string{
 				"query.sql",
 			},
-			OutputDir: tmpDir,
-			GoPackage: "syntax",
-			Language:  pggen.LangGo,
+			OutputDir:        tmpDir,
+			GoPackage:        "syntax",
+			Language:         pggen.LangGo,
+			InlineParamCount: 2,
 		})
 	if err != nil {
 		t.Fatalf("Generate() example/syntax: %s", err)

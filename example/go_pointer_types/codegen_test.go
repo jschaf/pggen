@@ -16,11 +16,12 @@ func TestGenerate_Go_Example_GoPointerTypes(t *testing.T) {
 	tmpDir := t.TempDir()
 	err := pggen.Generate(
 		pggen.GenerateOptions{
-			ConnString: conn.Config().ConnString(),
-			QueryFiles: []string{"query.sql"},
-			OutputDir:  tmpDir,
-			GoPackage:  "go_pointer_types",
-			Language:   pggen.LangGo,
+			ConnString:       conn.Config().ConnString(),
+			QueryFiles:       []string{"query.sql"},
+			OutputDir:        tmpDir,
+			GoPackage:        "go_pointer_types",
+			Language:         pggen.LangGo,
+			InlineParamCount: 2,
 			TypeOverrides: map[string]string{
 				"int4":  "*int",
 				"_int4": "[]int",
