@@ -16,11 +16,12 @@ func TestGenerate_Go_Example_ltree(t *testing.T) {
 	tmpDir := t.TempDir()
 	err := pggen.Generate(
 		pggen.GenerateOptions{
-			ConnString: conn.Config().ConnString(),
-			QueryFiles: []string{"query.sql"},
-			OutputDir:  tmpDir,
-			GoPackage:  "ltree",
-			Language:   pggen.LangGo,
+			ConnString:       conn.Config().ConnString(),
+			QueryFiles:       []string{"query.sql"},
+			OutputDir:        tmpDir,
+			GoPackage:        "ltree",
+			Language:         pggen.LangGo,
+			InlineParamCount: 2,
 			TypeOverrides: map[string]string{
 				"ltree":  "github.com/jackc/pgtype.Text",
 				"_ltree": "github.com/jackc/pgtype.TextArray",

@@ -1,5 +1,4 @@
 //go:build acceptance_test
-// +build acceptance_test
 
 package example
 
@@ -141,6 +140,42 @@ func TestExamples(t *testing.T) {
 			},
 		},
 		{
+			name: "example/inline_param_count/inline0",
+			args: []string{
+				"--schema-glob", "example/inline_param_count/schema.sql",
+				"--query-glob", "example/inline_param_count/query.sql",
+				"--output-dir", "example/inline_param_count/inline0",
+				"--inline-param-count", "0",
+			},
+		},
+		{
+			name: "example/inline_param_count/inline1",
+			args: []string{
+				"--schema-glob", "example/inline_param_count/schema.sql",
+				"--query-glob", "example/inline_param_count/query.sql",
+				"--output-dir", "example/inline_param_count/inline1",
+				"--inline-param-count", "1",
+			},
+		},
+		{
+			name: "example/inline_param_count/inline2",
+			args: []string{
+				"--schema-glob", "example/inline_param_count/schema.sql",
+				"--query-glob", "example/inline_param_count/query.sql",
+				"--output-dir", "example/inline_param_count/inline2",
+				"--inline-param-count", "2",
+			},
+		},
+		{
+			name: "example/inline_param_count/inline3",
+			args: []string{
+				"--schema-glob", "example/inline_param_count/schema.sql",
+				"--query-glob", "example/inline_param_count/query.sql",
+				"--output-dir", "example/inline_param_count/inline3",
+				"--inline-param-count", "3",
+			},
+		},
+		{
 			name: "example/ltree",
 			args: []string{
 				"--schema-glob", "example/ltree/schema.sql",
@@ -251,7 +286,7 @@ func TestExamples(t *testing.T) {
 			args := append(tt.args, "--postgres-connection", connStr)
 			runPggen(t, pggen, args...)
 			if !*update {
-				assertNoDiff(t)
+				assertNoGitDiff(t)
 			}
 		})
 	}
@@ -263,7 +298,7 @@ func runPggen(t *testing.T, pggen string, args ...string) string {
 		Args: append([]string{pggen, "gen", "go"}, args...),
 		Dir:  projDir,
 	}
-	t.Log("running pggen")
+	t.Logf("running pggen: %s", cmd.String())
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Log("pggen output:\n" + string(bytes.TrimSpace(output)))
@@ -300,7 +335,7 @@ var (
 	gitBinOnce = &sync.Once{}
 )
 
-func assertNoDiff(t *testing.T) {
+func assertNoGitDiff(t *testing.T) {
 	gitBinOnce.Do(func() {
 		gitBin, gitBinErr = exec.LookPath("git")
 		if gitBinErr != nil {

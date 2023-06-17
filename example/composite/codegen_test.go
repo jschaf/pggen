@@ -16,11 +16,12 @@ func TestGenerate_Go_Example_Composite(t *testing.T) {
 	tmpDir := t.TempDir()
 	err := pggen.Generate(
 		pggen.GenerateOptions{
-			ConnString: conn.Config().ConnString(),
-			QueryFiles: []string{"query.sql"},
-			OutputDir:  tmpDir,
-			GoPackage:  "composite",
-			Language:   pggen.LangGo,
+			ConnString:       conn.Config().ConnString(),
+			QueryFiles:       []string{"query.sql"},
+			OutputDir:        tmpDir,
+			GoPackage:        "composite",
+			Language:         pggen.LangGo,
+			InlineParamCount: 2,
 			TypeOverrides: map[string]string{
 				"_bool":  "[]bool",
 				"bool":   "bool",

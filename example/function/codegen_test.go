@@ -16,11 +16,12 @@ func TestGenerate_Go_Example_Function(t *testing.T) {
 	tmpDir := t.TempDir()
 	err := pggen.Generate(
 		pggen.GenerateOptions{
-			ConnString: conn.Config().ConnString(),
-			QueryFiles: []string{"query.sql"},
-			OutputDir:  tmpDir,
-			GoPackage:  "function",
-			Language:   pggen.LangGo,
+			ConnString:       conn.Config().ConnString(),
+			QueryFiles:       []string{"query.sql"},
+			OutputDir:        tmpDir,
+			GoPackage:        "function",
+			Language:         pggen.LangGo,
+			InlineParamCount: 2,
 		})
 	if err != nil {
 		t.Fatalf("Generate() example/function: %s", err)

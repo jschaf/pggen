@@ -19,6 +19,9 @@ type GenerateOptions struct {
 	Acronyms map[string]string
 	// A map from a Postgres type name to a fully qualified Go type.
 	TypeOverrides map[string]string
+	// How many params to inline when calling querier methods.
+	// Set to 0 to always create a struct for params.
+	InlineParamCount int
 }
 
 // Generate emits generated Go files for each of the queryFiles.
@@ -30,9 +33,10 @@ func Generate(opts GenerateOptions, queryFiles []codegen.QueryFile) error {
 	caser := casing.NewCaser()
 	caser.AddAcronyms(opts.Acronyms)
 	templater := NewTemplater(TemplaterOpts{
-		Caser:    caser,
-		Resolver: NewTypeResolver(caser, opts.TypeOverrides),
-		Pkg:      pkgName,
+		Caser:            caser,
+		Resolver:         NewTypeResolver(caser, opts.TypeOverrides),
+		Pkg:              pkgName,
+		InlineParamCount: opts.InlineParamCount,
 	})
 	templatedFiles, err := templater.TemplateAll(queryFiles)
 	if err != nil {

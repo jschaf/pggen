@@ -94,6 +94,8 @@ func newGenCmd() *ffcli.Command {
 	goTypes := flags.Strings(fset, "go-type", nil,
 		"custom type mapping from Postgres to fully qualified Go type, "+
 			"like 'device_type=github.com/jschaf/pggen.DeviceType'")
+	inlineParamCount := fset.Int("inline-param-count", 2,
+		"number of params (inclusive) to inline when calling querier methods; 0 always generates a struct")
 	logLvl := zap.InfoLevel
 	fset.Var(&logLvl, "log", "log level: debug, info, or error")
 	goSubCmd := &ffcli.Command{
@@ -159,14 +161,15 @@ func newGenCmd() *ffcli.Command {
 
 			// Codegen.
 			err = pggen.Generate(pggen.GenerateOptions{
-				Language:      pggen.LangGo,
-				ConnString:    *postgresConn,
-				SchemaFiles:   schemas,
-				QueryFiles:    queries,
-				OutputDir:     outDir,
-				Acronyms:      acros,
-				TypeOverrides: typeOverrides,
-				LogLevel:      logLvl,
+				Language:         pggen.LangGo,
+				ConnString:       *postgresConn,
+				SchemaFiles:      schemas,
+				QueryFiles:       queries,
+				OutputDir:        outDir,
+				Acronyms:         acros,
+				TypeOverrides:    typeOverrides,
+				LogLevel:         logLvl,
+				InlineParamCount: *inlineParamCount,
 			})
 			if err != nil {
 				return err
