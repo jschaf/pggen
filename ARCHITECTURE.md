@@ -21,23 +21,21 @@ in the following steps.
     `pginfer.TypedQuery` in [internal/pginfer/pginfer.go].
     
     To determine the Postgres types, pggen uses itself to compile the queries
-    in [internal/pg/query.sql]. The queries leverage the Postgres catalog
-    tables to get the input parameter types. Specifically, pggen determines
-    input parameters types by using a `PREPARE` statement and querying the 
-    [`pg_prepared_statement`] table to get type information for each parameter.
+    in [internal/pg/query.sql]. The queries leverage the Postgres prepare 
+    command to find the input parameter types.
 
-    pggen determines output columns types and names by executing the query and
+    pggen determines output columns types and names by preparing the query and
     reading the field descriptions returned with the query result rows. The 
     field descriptions contain the type ID for each output column. The type ID 
     is a Postgres object ID (OID), the primary key to identify a row in the 
     [`pg_type`] catalog table.
 
-    pggen determines if an output column can be null using heuristics. If a column
-    cannot be null, pggen uses more ergonomic types to represent the output like
-    `string` instead of `pgtype.Text`. The heuristics are quite simple; see
-    [internal/pginfer/nullability.go]. A proper approach requires a control 
-    flow analysis to determine nullability. I've started down that road in 
-    [pgplan.go](./internal/pgplan/pgplan.go).
+    pggen determines if an output column can be null using heuristics. If a
+    column cannot be null, pggen uses more ergonomic types to represent the
+    output like `string` instead of `pgtype.Text`. The heuristics are quite
+    simple; see [internal/pginfer/nullability.go]. A proper approach requires a
+    control flow analysis to determine nullability. I've started down that road
+    in [pgplan.go](./internal/pgplan/pgplan.go).
 
 5.  Transform each `*ast.File` into `codegen.QueryFile` in [generate.go]
     `parseQueries`.

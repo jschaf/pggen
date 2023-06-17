@@ -561,10 +561,9 @@ We'll walk through the generated file `author/query.sql.go`:
     example, the generated query for `SELECT author_id from author` returns 
     `int32`, not a `<query_name>Row` struct.
     
-    pggen infers struct field types by running the query. When Postgres returns
-    query results, Postgres also sends the column types as a header for the 
-    results. pggen looks up the types in the header using the `pg_type` catalog 
-    table and chooses an appropriate Go type in 
+    pggen infers struct field types by preparing the query. When Postgres
+    prepares a query, Postgres returns the parameter and column types as OIDs.
+    pggen finds the type name from the returned OIDs in
     [internal/codegen/golang/gotype/types.go].
     
     Choosing an appropriate type is more difficult than might seem at first 
