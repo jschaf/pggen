@@ -32,7 +32,7 @@ func (k NodeKind) String() string {
 	return kindNames[k]
 }
 
-// All query nodes implement the Decl interface.
+// Query nodes implement the Decl interface.
 type Query interface {
 	Node
 	queryNode()

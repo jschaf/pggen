@@ -8,15 +8,15 @@ in the following steps.
     the `--schema-glob` flag in [cmd/pggen/pggen.go]. Pass the normalized 
     options to `pggen.Generate` in [generate.go].
     
-1.  Start Postgres by either connecting to the database specified in 
+2.  Start Postgres by either connecting to the database specified in 
     `--postgres-connection` or by starting a new Dockerized Postgres instance.
     [internal/pgdocker/pgdocker.go] creates and destroys Docker images for 
     pggen.
 
-1.  Parse each query files into an `*ast.File` containing many 
+3.  Parse each query files into an `*ast.File` containing many 
     `*ast.SourceQuery` nodes in [internal/parser/interface.go].
 
-1.  Infer the Postgres types and nullability for the input parameters and output
+4.  Infer the Postgres types and nullability for the input parameters and output
     columns of an `*ast.SourceQuery` and store the results in 
     `pginfer.TypedQuery` in [internal/pginfer/pginfer.go].
     
@@ -39,13 +39,13 @@ in the following steps.
     flow analysis to determine nullability. I've started down that road in 
     [pgplan.go](./internal/pgplan/pgplan.go).
 
-1.  Transform each `*ast.File` into `codegen.QueryFile` in [generate.go]
+5.  Transform each `*ast.File` into `codegen.QueryFile` in [generate.go]
     `parseQueries`.
 
-1.  Use a language-specific code generator to transform `codegen.QueryFile`
+6.  Use a language-specific code generator to transform `codegen.QueryFile`
     into a `golang.TemplatedFile` like with [internal/codegen/golang/templater.go].
 
-1.  Emit the generated code from `golang.TemplateFile` in
+7.  Emit the generated code from `golang.TemplateFile` in
     [internal/codegen/golang/templated_file.go]
     
 [cmd/pggen/pggen.go]: cmd/pggen/pggen.go

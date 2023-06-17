@@ -2,8 +2,6 @@ package pgtest
 
 import (
 	"context"
-	crand "crypto/rand"
-	"encoding/binary"
 	"github.com/jackc/pgx/v4"
 	"math/rand"
 	"os"
@@ -13,18 +11,12 @@ import (
 	"time"
 )
 
-func init() {
-	var rngSeed int64
-	_ = binary.Read(crand.Reader, binary.LittleEndian, &rngSeed)
-	rand.Seed(rngSeed)
-}
-
 // CleanupFunc deletes the schema and all database objects.
 type CleanupFunc func()
 
 type Option func(config *pgx.ConnConfig)
 
-// NewPostgresSchema opens a connection with search_path set to a randomly
+// NewPostgresSchemaString opens a connection with search_path set to a randomly
 // named, new schema and loads the sql string.
 func NewPostgresSchemaString(t *testing.T, sql string, opts ...Option) (*pgx.Conn, CleanupFunc) {
 	t.Helper()

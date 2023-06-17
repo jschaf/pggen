@@ -1,4 +1,4 @@
-// This file contains the exported entry points for invoking the parser.
+// Package parser contains the exported entry points for invoking the parser.
 package parser
 
 import (

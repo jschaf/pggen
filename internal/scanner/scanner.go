@@ -1,5 +1,3 @@
-// Package parser implements a "dumb" parser. The goal of this parser is to
-// extract queries from SQL source.
 package scanner
 
 import (

@@ -326,7 +326,7 @@ Examples embedded in the repo:
        which should render as `AuthorIDs`, not `AuthorIds`. For the IDs example,
         use `--acronym ids=IDs`.
        
-    1. Short form: `--acronym <word>`: replaces `<word>` with uppercase 
+    2. Short form: `--acronym <word>`: replaces `<word>` with uppercase 
        `<WORD>`. Equivalent to `--acronym <word>=<WORD>`
        
     By default, pggen includes `--acronym id` to render `id` as `ID`.
@@ -338,7 +338,7 @@ Examples embedded in the repo:
     CREATE TYPE device_type AS ENUM ('undefined', 'phone', 'ipad');
     ```
     
-    Generates the following Go code when used in a query:
+    pggen generates the following Go code when used in a query:
     
     ```go
     // DeviceType represents the Postgres enum device_type.
@@ -372,7 +372,7 @@ Examples embedded in the repo:
     means the Go type must fulfill at least one of following:
     
     - The Go type is a wrapper around primitive type, like `type AuthorID int`.
-      pgx will use the decode methods on the underlying primitive type.
+      pgx will use decode methods on the underlying primitive type.
 
     - The Go type implements both [`pgtype.BinaryDecoder`] and 
       [`pgtype.TextDecoder`]. pgx will use the correct decoder based on the wire
@@ -404,7 +404,7 @@ Examples embedded in the repo:
     SELECT ROW (15, 'qux')::"user" AS "user";
     ```
     
-    Generates the following Go code:
+    pggen generates the following Go code:
     
     ```go
     // User represents the Postgres composite type "user".
@@ -474,7 +474,7 @@ We'll walk through the generated file `author/query.sql.go`:
 
 -   The `Querier` interface defines the interface with methods for each SQL 
     query. Each SQL query compiles into three methods, one method for to run 
-    query by itself, and two methods to support batching a query with 
+    the query by itself, and two methods to support batching a query with 
     [`pgx.Batch`]. 
   
     ```go
@@ -574,9 +574,9 @@ We'll walk through the generated file `author/query.sql.go`:
     nullable types for all built-in Postgres types. pggen tries to infer if a 
     column is nullable or non-nullable. If a column is nullable, pggen uses a 
     `pgtype` Go type like `pgtype.Text`. If a column is non-nullable, pggen uses
-     a more ergonomic type like `string`. pggen's nullability inference in 
-    [internal/pginfer/nullability.go] is rudimentary; a proper approach requires
-     a full explain plan with some control flow analysis.
+     a more ergonomic type like `string`. pggen's nullability inference
+     implemented in [internal/pginfer/nullability.go] is rudimentary; a proper
+     approach requires a full explain-plan with some control flow analysis.
     
 -   Lastly, pggen generates the implementation for each query.
 

@@ -35,14 +35,14 @@ func TestGenerate_Go_Example_Slices(t *testing.T) {
 		t.Fatalf("Generate() example/slices: %s", err)
 	}
 
-	wantQueriesFile := "query.sql.go"
-	gotQueriesFile := filepath.Join(tmpDir, "query.sql.go")
-	assert.FileExists(t, gotQueriesFile, "Generate() should emit query.sql.go")
-	wantQueries, err := os.ReadFile(wantQueriesFile)
+	wantQueryFile := "query.sql.go"
+	gotQueryFile := filepath.Join(tmpDir, "query.sql.go")
+	assert.FileExists(t, gotQueryFile, "Generate() should emit query.sql.go")
+	wantQueries, err := os.ReadFile(wantQueryFile)
 	if err != nil {
 		t.Fatalf("read wanted query.go.sql: %s", err)
 	}
-	gotQueries, err := os.ReadFile(gotQueriesFile)
+	gotQueries, err := os.ReadFile(gotQueryFile)
 	if err != nil {
 		t.Fatalf("read generated query.go.sql: %s", err)
 	}
