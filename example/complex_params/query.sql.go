@@ -50,6 +50,13 @@ type Querier interface {
 	ParamNested3Batch(batch genericBatch, imageSet ProductImageSetType)
 	// ParamNested3Scan scans the result of an executed ParamNested3Batch query.
 	ParamNested3Scan(results pgx.BatchResults) (ProductImageSetType, error)
+
+	ParamArrayIntWithDefaultValue(ctx context.Context, ints []*int) ([]int, error)
+	// ParamArrayIntWithDefaultValueBatch enqueues a ParamArrayIntWithDefaultValue query into batch to be executed
+	// later by the batch.
+	ParamArrayIntWithDefaultValueBatch(batch genericBatch, ints []*int)
+	// ParamArrayIntWithDefaultValueScan scans the result of an executed ParamArrayIntWithDefaultValueBatch query.
+	ParamArrayIntWithDefaultValueScan(results pgx.BatchResults) ([]int, error)
 }
 
 type DBQuerier struct {
@@ -141,6 +148,9 @@ func PrepareAllQueries(ctx context.Context, p preparer) error {
 	}
 	if _, err := p.Prepare(ctx, paramNested3SQL, paramNested3SQL); err != nil {
 		return fmt.Errorf("prepare query 'ParamNested3': %w", err)
+	}
+	if _, err := p.Prepare(ctx, paramArrayIntWithDefaultValueSQL, paramArrayIntWithDefaultValueSQL); err != nil {
+		return fmt.Errorf("prepare query 'ParamArrayIntWithDefaultValue': %w", err)
 	}
 	return nil
 }
@@ -521,6 +531,34 @@ func (q *DBQuerier) ParamNested3Scan(results pgx.BatchResults) (ProductImageSetT
 	}
 	if err := productImageSetTypeRow.AssignTo(&item); err != nil {
 		return item, fmt.Errorf("assign ParamNested3 row: %w", err)
+	}
+	return item, nil
+}
+
+const paramArrayIntWithDefaultValueSQL = `SELECT coalesce($1, null::bigint[])::bigint[];`
+
+// ParamArrayIntWithDefaultValue implements Querier.ParamArrayIntWithDefaultValue.
+func (q *DBQuerier) ParamArrayIntWithDefaultValue(ctx context.Context, ints []*int) ([]int, error) {
+	ctx = context.WithValue(ctx, "pggen_query_name", "ParamArrayIntWithDefaultValue")
+	row := q.conn.QueryRow(ctx, paramArrayIntWithDefaultValueSQL, ints)
+	item := []int{}
+	if err := row.Scan(&item); err != nil {
+		return item, fmt.Errorf("query ParamArrayIntWithDefaultValue: %w", err)
+	}
+	return item, nil
+}
+
+// ParamArrayIntWithDefaultValueBatch implements Querier.ParamArrayIntWithDefaultValueBatch.
+func (q *DBQuerier) ParamArrayIntWithDefaultValueBatch(batch genericBatch, ints []*int) {
+	batch.Queue(paramArrayIntWithDefaultValueSQL, ints)
+}
+
+// ParamArrayIntWithDefaultValueScan implements Querier.ParamArrayIntWithDefaultValueScan.
+func (q *DBQuerier) ParamArrayIntWithDefaultValueScan(results pgx.BatchResults) ([]int, error) {
+	row := results.QueryRow()
+	item := []int{}
+	if err := row.Scan(&item); err != nil {
+		return item, fmt.Errorf("scan ParamArrayIntWithDefaultValueBatch row: %w", err)
 	}
 	return item, nil
 }
