@@ -13,3 +13,5 @@ SELECT pggen.arg('images')::product_image_type[];
 -- name: ParamNested3 :one
 SELECT pggen.arg('image_set')::product_image_set_type;
 
+-- name: ParamArrayIntWithDefaultValue :one
+SELECT pggen.arg('ints', null::bigint[])::bigint[];
