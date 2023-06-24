@@ -1,11 +1,12 @@
 package parser
 
 import (
+	gotok "go/token"
+	"testing"
+
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/jschaf/pggen/internal/ast"
-	gotok "go/token"
-	"testing"
 )
 
 func ignoreCommentPos() cmp.Option {
@@ -81,6 +82,18 @@ func TestParseFile_Queries(t *testing.T) {
 				Doc:         &ast.CommentGroup{List: []*ast.LineComment{{Text: "-- name: Qux :many"}}},
 				SourceSQL:   "SELECT pggen.arg('Bar'), pggen.arg('Qux'), pggen.arg('Bar');",
 				PreparedSQL: "SELECT $1, $2, $1;",
+				ParamNames:  []string{"Bar", "Qux"},
+				ResultKind:  ast.ResultKindMany,
+			},
+		},
+
+		{
+			"-- name: Qux :many\nSELECT pggen.arg('Bar', null::int), pggen.arg('Qux', 1), pggen.arg('Bar', 12);",
+			&ast.SourceQuery{
+				Name:        "Qux",
+				Doc:         &ast.CommentGroup{List: []*ast.LineComment{{Text: "-- name: Qux :many"}}},
+				SourceSQL:   "SELECT pggen.arg('Bar', null::int), pggen.arg('Qux', 1), pggen.arg('Bar', 12);",
+				PreparedSQL: "SELECT coalesce($1, null::int), coalesce($2, 1), coalesce($1, 12);",
 				ParamNames:  []string{"Bar", "Qux"},
 				ResultKind:  ast.ResultKindMany,
 			},

@@ -390,8 +390,17 @@ func prepareSQL(sql string, args []argPos) (string, []string) {
 	prev := 0
 	for _, arg := range args {
 		sb.Write(bs[prev:arg.lo])
-		sb.WriteByte('$')
-		sb.WriteString(strconv.Itoa(paramOrders[arg.name]))
+		if arg.defaultValueExpression == "" {
+			sb.WriteByte('$')
+			sb.WriteString(strconv.Itoa(paramOrders[arg.name]))
+		} else {
+			sb.WriteString("coalesce(")
+			sb.WriteByte('$')
+			sb.WriteString(strconv.Itoa(paramOrders[arg.name]))
+			sb.WriteByte(',')
+			sb.WriteString(arg.defaultValueExpression)
+			sb.WriteByte(')')
+		}
 		prev = arg.hi
 	}
 	sb.Write(bs[prev:])
