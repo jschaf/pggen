@@ -259,18 +259,19 @@ func (p *parser) parseQuery() ast.Query {
 	}
 
 	templateSQL := sql.String()
-	preparedSQL, params := prepareSQL(templateSQL, names)
+	preparedSQL, params, paramsHaveDefaults := prepareSQL(templateSQL, names)
 
 	return &ast.SourceQuery{
-		Name:        annotations[1],
-		Doc:         doc,
-		Start:       pos,
-		SourceSQL:   templateSQL,
-		PreparedSQL: preparedSQL,
-		ParamNames:  params,
-		ResultKind:  ast.ResultKind(annotations[2]),
-		Pragmas:     pragmas,
-		Semi:        semi,
+		Name:              annotations[1],
+		Doc:               doc,
+		Start:             pos,
+		SourceSQL:         templateSQL,
+		PreparedSQL:       preparedSQL,
+		ParamNames:        params,
+		ParamHaveDefaults: paramsHaveDefaults,
+		ResultKind:        ast.ResultKind(annotations[2]),
+		Pragmas:           pragmas,
+		Semi:              semi,
 	}
 }
 
@@ -366,13 +367,14 @@ func (p *parser) parsePggenArg() (argPos, bool) {
 
 // prepareSQL replaces each pggen.arg with the $n, respecting the order that the
 // arg first appeared. Args with the same name use the same $n.
-func prepareSQL(sql string, args []argPos) (string, []string) {
+func prepareSQL(sql string, args []argPos) (string, []string, map[string]bool) {
 	if len(args) == 0 {
-		return sql, nil
+		return sql, nil, nil
 	}
 	// Figure out order of each params.
 	paramOrders := make(map[string]int, len(args))
 	params := make([]string, 0, len(args))
+	paramsHaveDefaults := make(map[string]bool, len(args))
 	idx := 1
 	for _, arg := range args {
 		if _, ok := paramOrders[arg.name]; !ok {
@@ -391,9 +393,11 @@ func prepareSQL(sql string, args []argPos) (string, []string) {
 	for _, arg := range args {
 		sb.Write(bs[prev:arg.lo])
 		if arg.defaultValueExpression == "" {
+			paramsHaveDefaults[arg.name] = false
 			sb.WriteByte('$')
 			sb.WriteString(strconv.Itoa(paramOrders[arg.name]))
 		} else {
+			paramsHaveDefaults[arg.name] = true
 			sb.WriteString("coalesce(")
 			sb.WriteByte('$')
 			sb.WriteString(strconv.Itoa(paramOrders[arg.name]))
@@ -405,7 +409,7 @@ func prepareSQL(sql string, args []argPos) (string, []string) {
 	}
 	sb.Write(bs[prev:])
 
-	return sb.String(), params
+	return sb.String(), params, paramsHaveDefaults
 }
 
 // ----------------------------------------------------------------------------

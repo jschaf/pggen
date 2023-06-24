@@ -2,13 +2,14 @@ package golang
 
 import (
 	"fmt"
+	"strconv"
+	"strings"
+	"unicode"
+
 	"github.com/jschaf/pggen/internal/casing"
 	"github.com/jschaf/pggen/internal/codegen"
 	"github.com/jschaf/pggen/internal/codegen/golang/gotype"
 	"github.com/jschaf/pggen/internal/gomod"
-	"strconv"
-	"strings"
-	"unicode"
 )
 
 // Templater creates query file templates.
@@ -144,7 +145,7 @@ func (tm Templater) templateFile(file codegen.QueryFile, isLeader bool) (Templat
 		// Build inputs.
 		inputs := make([]TemplatedParam, len(query.Inputs))
 		for i, input := range query.Inputs {
-			goType, err := tm.resolver.Resolve(input.PgType /*nullable*/, false, pkgPath)
+			goType, err := tm.resolver.Resolve(input.PgType /*nullable*/, input.HasDefault, pkgPath)
 			if err != nil {
 				return TemplatedFile{}, nil, err
 			}

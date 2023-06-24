@@ -3,9 +3,10 @@ package pginfer
 import (
 	"context"
 	"fmt"
-	"github.com/jackc/pgconn"
 	"strings"
 	"time"
+
+	"github.com/jackc/pgconn"
 
 	"github.com/jackc/pgproto3/v2"
 	"github.com/jackc/pgtype"
@@ -43,6 +44,9 @@ type TypedQuery struct {
 type InputParam struct {
 	// Name of the param, like 'FirstName' in pggen.arg('FirstName').
 	PgName string
+	// Indicates whether the param has a default value -- if true then a nullable type will be inferred
+	// eg 'joe' in pggen.arg('FirstName', 'joe') maps the inferred argument type to be *string
+	HasDefault bool
 	// The postgres type of this param as reported by Postgres.
 	PgType pg.Type
 }
@@ -162,8 +166,9 @@ func (inf *Inferrer) prepareTypes(query *ast.SourceQuery) (_a []InputParam, _ []
 				return nil, nil, fmt.Errorf("no postgres type name found for parameter %s with oid %d", query.ParamNames[i], oid)
 			}
 			inputParams = append(inputParams, InputParam{
-				PgName: query.ParamNames[i],
-				PgType: inputType,
+				PgName:     query.ParamNames[i],
+				HasDefault: query.ParamHaveDefaults[query.ParamNames[i]],
+				PgType:     inputType,
 			})
 		}
 	}
