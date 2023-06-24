@@ -322,6 +322,11 @@ func (s *Scanner) scanDirective() (token.Token, string) {
 	offs := s.offset
 	openParenCount := 0
 	for s.ch > 0 {
+		if openParenCount > 0 && s.peekDirective() {
+			str := string(s.src[offs:s.offset])
+			s.error(offs, "illegal pggen.arg() expression -- nested use of pggen.arg() is not allowed: "+str)
+			return token.Illegal, str
+		}
 		switch {
 		case s.ch == eof:
 			str := string(s.src[offs:s.offset])
