@@ -117,10 +117,16 @@ func (tq TemplatedQuery) EmitParamStruct() string {
 	sb.WriteString("Params struct {\n")
 	typeCol := getLongestInput(tq.Inputs) + 1 // 1 space
 	for _, out := range tq.Inputs {
+		// Name
 		sb.WriteString("\t")
 		sb.WriteString(out.UpperName)
+		// Type
 		sb.WriteString(strings.Repeat(" ", typeCol-len(out.UpperName)))
 		sb.WriteString(out.QualType)
+		// JSON struct tag
+		sb.WriteString(" `json:")
+		sb.WriteString(strconv.Quote(out.LowerName))
+		sb.WriteString("`")
 		sb.WriteRune('\n')
 	}
 	sb.WriteString("}")
