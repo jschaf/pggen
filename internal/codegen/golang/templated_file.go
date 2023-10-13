@@ -115,16 +115,17 @@ func (tq TemplatedQuery) EmitParamStruct() string {
 	sb.WriteString("\n\ntype ")
 	sb.WriteString(tq.Name)
 	sb.WriteString("Params struct {\n")
-	typeCol := getLongestInput(tq.Inputs) + 1 // 1 space
+	maxNameLen, maxTypeLen := getLongestOutputParamStruct(tq.Inputs)
 	for _, out := range tq.Inputs {
 		// Name
 		sb.WriteString("\t")
 		sb.WriteString(out.UpperName)
 		// Type
-		sb.WriteString(strings.Repeat(" ", typeCol-len(out.UpperName)))
+		sb.WriteString(strings.Repeat(" ", maxNameLen-len(out.UpperName)))
 		sb.WriteString(out.QualType)
 		// JSON struct tag
-		sb.WriteString(" `json:")
+		sb.WriteString(strings.Repeat(" ", maxTypeLen-len(out.QualType)))
+		sb.WriteString("`json:")
 		sb.WriteString(strconv.Quote(out.LowerName))
 		sb.WriteString("`")
 		sb.WriteRune('\n')
@@ -441,6 +442,28 @@ func (tq TemplatedQuery) EmitResultExpr(name string) (string, error) {
 // getLongestOutput returns the length of the longest name and type name in all
 // columns. Useful for struct definition alignment.
 func getLongestOutput(outs []TemplatedColumn) (int, int) {
+	nameLen := 0
+	for _, out := range outs {
+		if len(out.UpperName) > nameLen {
+			nameLen = len(out.UpperName)
+		}
+	}
+	nameLen++ // 1 space to separate name from type
+
+	typeLen := 0
+	for _, out := range outs {
+		if len(out.QualType) > typeLen {
+			typeLen = len(out.QualType)
+		}
+	}
+	typeLen++ // 1 space to separate type from struct tags.
+
+	return nameLen, typeLen
+}
+
+// getLongestOutputParamStruct returns the length of the longest name and type name in all
+// columns. Useful for struct definition alignment.
+func getLongestOutputParamStruct(outs []TemplatedParam) (int, int) {
 	nameLen := 0
 	for _, out := range outs {
 		if len(out.UpperName) > nameLen {
