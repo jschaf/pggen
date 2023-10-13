@@ -506,9 +506,9 @@ WHERE first_name = $1
   AND suffix = $3;`
 
 type DeleteAuthorsByFullNameParams struct {
-	FirstName string
-	LastName  string
-	Suffix    string
+	FirstName string `json:"firstName"`
+	LastName  string `json:"lastName"`
+	Suffix    string `json:"suffix"`
 }
 
 // DeleteAuthorsByFullName implements Querier.DeleteAuthorsByFullName.
@@ -570,9 +570,9 @@ VALUES ($1, $2, $3)
 RETURNING author_id, first_name, last_name, suffix;`
 
 type InsertAuthorSuffixParams struct {
-	FirstName string
-	LastName  string
-	Suffix    string
+	FirstName string `json:"firstName"`
+	LastName  string `json:"lastName"`
+	Suffix    string `json:"suffix"`
 }
 
 type InsertAuthorSuffixRow struct {

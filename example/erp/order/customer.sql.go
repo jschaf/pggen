@@ -360,9 +360,9 @@ VALUES ($1, $2, $3)
 RETURNING *;`
 
 type InsertCustomerParams struct {
-	FirstName string
-	LastName  string
-	Email     string
+	FirstName string `json:"firstName"`
+	LastName  string `json:"lastName"`
+	Email     string `json:"email"`
 }
 
 type InsertCustomerRow struct {
@@ -403,9 +403,9 @@ VALUES ($1, $2, $3)
 RETURNING *;`
 
 type InsertOrderParams struct {
-	OrderDate  pgtype.Timestamptz
-	OrderTotal pgtype.Numeric
-	CustID     int32
+	OrderDate  pgtype.Timestamptz `json:"orderDate"`
+	OrderTotal pgtype.Numeric     `json:"orderTotal"`
+	CustID     int32              `json:"custID"`
 }
 
 type InsertOrderRow struct {
