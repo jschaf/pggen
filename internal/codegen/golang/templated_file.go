@@ -98,14 +98,26 @@ func (tq TemplatedQuery) EmitParams() string {
 	return sb.String()
 }
 
-func getLongestInput(inputs []TemplatedParam) int {
-	max := 0
-	for _, in := range inputs {
-		if len(in.UpperName) > max {
-			max = len(in.UpperName)
+// getLongestInput returns the length of the longest name and type name in all
+// columns. Useful for struct definition alignment.
+func getLongestInput(inputs []TemplatedParam) (int, int) {
+	nameLen := 0
+	for _, out := range inputs {
+		if len(out.UpperName) > nameLen {
+			nameLen = len(out.UpperName)
 		}
 	}
-	return max
+	nameLen++ // 1 space to separate name from type
+
+	typeLen := 0
+	for _, out := range inputs {
+		if len(out.QualType) > typeLen {
+			typeLen = len(out.QualType)
+		}
+	}
+	typeLen++ // 1 space to separate type from struct tags.
+
+	return nameLen, typeLen
 }
 
 // EmitParamStruct emits the struct definition for query params if needed.
@@ -117,7 +129,7 @@ func (tq TemplatedQuery) EmitParamStruct() string {
 	sb.WriteString("\n\ntype ")
 	sb.WriteString(tq.Name)
 	sb.WriteString("Params struct {\n")
-	maxNameLen, maxTypeLen := getLongestOutputParamStruct(tq.Inputs)
+	maxNameLen, maxTypeLen := getLongestInput(tq.Inputs)
 	for _, out := range tq.Inputs {
 		// Name
 		sb.WriteString("\t")
@@ -444,28 +456,6 @@ func (tq TemplatedQuery) EmitResultExpr(name string) (string, error) {
 // getLongestOutput returns the length of the longest name and type name in all
 // columns. Useful for struct definition alignment.
 func getLongestOutput(outs []TemplatedColumn) (int, int) {
-	nameLen := 0
-	for _, out := range outs {
-		if len(out.UpperName) > nameLen {
-			nameLen = len(out.UpperName)
-		}
-	}
-	nameLen++ // 1 space to separate name from type
-
-	typeLen := 0
-	for _, out := range outs {
-		if len(out.QualType) > typeLen {
-			typeLen = len(out.QualType)
-		}
-	}
-	typeLen++ // 1 space to separate type from struct tags.
-
-	return nameLen, typeLen
-}
-
-// getLongestOutputParamStruct returns the length of the longest name and type name in all
-// columns. Useful for struct definition alignment.
-func getLongestOutputParamStruct(outs []TemplatedParam) (int, int) {
 	nameLen := 0
 	for _, out := range outs {
 		if len(out.UpperName) > nameLen {
