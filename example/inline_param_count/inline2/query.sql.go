@@ -274,9 +274,9 @@ WHERE first_name = $1
   AND CASE WHEN $3 = '' THEN suffix IS NULL ELSE suffix = $3 END;`
 
 type DeleteAuthorsByFullNameParams struct {
-	FirstName string `json:"firstName"`
-	LastName  string `json:"lastName"`
-	Suffix    string `json:"suffix"`
+	FirstName string `json:"FirstName"`
+	LastName  string `json:"LastName"`
+	Suffix    string `json:"Suffix"`
 }
 
 // DeleteAuthorsByFullName implements Querier.DeleteAuthorsByFullName.

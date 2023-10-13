@@ -205,7 +205,7 @@ func (q *DBQuerier) CountAuthorsScan(results pgx.BatchResults) (*int, error) {
 const findAuthorByIDSQL = `SELECT * FROM author WHERE author_id = $1;`
 
 type FindAuthorByIDParams struct {
-	AuthorID int32 `json:"authorID"`
+	AuthorID int32 `json:"AuthorID"`
 }
 
 type FindAuthorByIDRow struct {
@@ -246,8 +246,8 @@ VALUES ($1, $2)
 RETURNING author_id;`
 
 type InsertAuthorParams struct {
-	FirstName string `json:"firstName"`
-	LastName  string `json:"lastName"`
+	FirstName string `json:"FirstName"`
+	LastName  string `json:"LastName"`
 }
 
 // InsertAuthor implements Querier.InsertAuthor.
@@ -283,9 +283,9 @@ WHERE first_name = $1
   AND CASE WHEN $3 = '' THEN suffix IS NULL ELSE suffix = $3 END;`
 
 type DeleteAuthorsByFullNameParams struct {
-	FirstName string `json:"firstName"`
-	LastName  string `json:"lastName"`
-	Suffix    string `json:"suffix"`
+	FirstName string `json:"FirstName"`
+	LastName  string `json:"LastName"`
+	Suffix    string `json:"Suffix"`
 }
 
 // DeleteAuthorsByFullName implements Querier.DeleteAuthorsByFullName.

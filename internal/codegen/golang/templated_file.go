@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/jschaf/pggen/internal/ast"
 	"github.com/jschaf/pggen/internal/codegen/golang/gotype"
+	"github.com/jschaf/pggen/internal/pginfer"
 	"strconv"
 	"strings"
 )
@@ -48,6 +49,7 @@ type TemplatedParam struct {
 	LowerName string // name of the param in lowerCamelCase, like 'firstName' from pggen.arg('first_name')
 	QualType  string // package-qualified Go type to use for this param
 	Type      gotype.Type
+	RawName   pginfer.InputParam
 }
 
 type TemplatedColumn struct {
@@ -126,7 +128,7 @@ func (tq TemplatedQuery) EmitParamStruct() string {
 		// JSON struct tag
 		sb.WriteString(strings.Repeat(" ", maxTypeLen-len(out.QualType)))
 		sb.WriteString("`json:")
-		sb.WriteString(strconv.Quote(out.LowerName))
+		sb.WriteString(strconv.Quote(out.RawName.PgName))
 		sb.WriteString("`")
 		sb.WriteRune('\n')
 	}
