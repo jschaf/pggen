@@ -103,8 +103,8 @@ func (tq TemplatedQuery) EmitParams() string {
 func getLongestInput(inputs []TemplatedParam) (int, int) {
 	nameLen := 0
 	for _, out := range inputs {
-		if len(out.UpperName) > nameLen {
-			nameLen = len(out.UpperName)
+		if len(out.RawName.PgName) > nameLen {
+			nameLen = len(out.RawName.PgName)
 		}
 	}
 	nameLen++ // 1 space to separate name from type
