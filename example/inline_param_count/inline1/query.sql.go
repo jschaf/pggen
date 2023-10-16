@@ -242,8 +242,8 @@ VALUES ($1, $2)
 RETURNING author_id;`
 
 type InsertAuthorParams struct {
-	FirstName string
-	LastName  string
+	FirstName string `json:"FirstName"`
+	LastName  string `json:"LastName"`
 }
 
 // InsertAuthor implements Querier.InsertAuthor.
@@ -279,9 +279,9 @@ WHERE first_name = $1
   AND CASE WHEN $3 = '' THEN suffix IS NULL ELSE suffix = $3 END;`
 
 type DeleteAuthorsByFullNameParams struct {
-	FirstName string
-	LastName  string
-	Suffix    string
+	FirstName string `json:"FirstName"`
+	LastName  string `json:"LastName"`
+	Suffix    string `json:"Suffix"`
 }
 
 // DeleteAuthorsByFullName implements Querier.DeleteAuthorsByFullName.

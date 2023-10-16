@@ -329,9 +329,9 @@ ORDER BY ss.id
 LIMIT $2 OFFSET $3;`
 
 type SearchScreenshotsParams struct {
-	Body   string
-	Limit  int
-	Offset int
+	Body   string `json:"Body"`
+	Limit  int    `json:"Limit"`
+	Offset int    `json:"Offset"`
 }
 
 type SearchScreenshotsRow struct {
@@ -405,9 +405,9 @@ ORDER BY ss.id
 LIMIT $2 OFFSET $3;`
 
 type SearchScreenshotsOneColParams struct {
-	Body   string
-	Limit  int
-	Offset int
+	Body   string `json:"Body"`
+	Limit  int    `json:"Limit"`
+	Offset int    `json:"Offset"`
 }
 
 // SearchScreenshotsOneCol implements Querier.SearchScreenshotsOneCol.

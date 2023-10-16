@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/jschaf/pggen/internal/ast"
 	"github.com/jschaf/pggen/internal/codegen/golang/gotype"
+	"github.com/jschaf/pggen/internal/pginfer"
 	"strconv"
 	"strings"
 )
@@ -48,6 +49,7 @@ type TemplatedParam struct {
 	LowerName string // name of the param in lowerCamelCase, like 'firstName' from pggen.arg('first_name')
 	QualType  string // package-qualified Go type to use for this param
 	Type      gotype.Type
+	RawName   pginfer.InputParam
 }
 
 type TemplatedColumn struct {
@@ -96,14 +98,26 @@ func (tq TemplatedQuery) EmitParams() string {
 	return sb.String()
 }
 
-func getLongestInput(inputs []TemplatedParam) int {
-	max := 0
-	for _, in := range inputs {
-		if len(in.UpperName) > max {
-			max = len(in.UpperName)
+// getLongestInput returns the length of the longest name and type name in all
+// columns. Useful for struct definition alignment.
+func getLongestInput(inputs []TemplatedParam) (int, int) {
+	nameLen := 0
+	for _, out := range inputs {
+		if len(out.RawName.PgName) > nameLen {
+			nameLen = len(out.RawName.PgName)
 		}
 	}
-	return max
+	nameLen++ // 1 space to separate name from type
+
+	typeLen := 0
+	for _, out := range inputs {
+		if len(out.QualType) > typeLen {
+			typeLen = len(out.QualType)
+		}
+	}
+	typeLen++ // 1 space to separate type from struct tags.
+
+	return nameLen, typeLen
 }
 
 // EmitParamStruct emits the struct definition for query params if needed.
@@ -115,12 +129,19 @@ func (tq TemplatedQuery) EmitParamStruct() string {
 	sb.WriteString("\n\ntype ")
 	sb.WriteString(tq.Name)
 	sb.WriteString("Params struct {\n")
-	typeCol := getLongestInput(tq.Inputs) + 1 // 1 space
+	maxNameLen, maxTypeLen := getLongestInput(tq.Inputs)
 	for _, out := range tq.Inputs {
+		// Name
 		sb.WriteString("\t")
 		sb.WriteString(out.UpperName)
-		sb.WriteString(strings.Repeat(" ", typeCol-len(out.UpperName)))
+		// Type
+		sb.WriteString(strings.Repeat(" ", maxNameLen-len(out.UpperName)))
 		sb.WriteString(out.QualType)
+		// JSON struct tag
+		sb.WriteString(strings.Repeat(" ", maxTypeLen-len(out.QualType)))
+		sb.WriteString("`json:")
+		sb.WriteString(strconv.Quote(out.RawName.PgName))
+		sb.WriteString("`")
 		sb.WriteRune('\n')
 	}
 	sb.WriteString("}")
