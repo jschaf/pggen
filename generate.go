@@ -13,9 +13,8 @@ import (
 	"github.com/jschaf/pggen/internal/pgdocker"
 	"github.com/jschaf/pggen/internal/pginfer"
 	"go.uber.org/multierr"
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
 	gotok "go/token"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"time"
@@ -60,7 +59,7 @@ type GenerateOptions struct {
 	// A map from a Postgres type name to a fully qualified Go type.
 	TypeOverrides map[string]string
 	// What log level to log at.
-	LogLevel zapcore.Level
+	LogLevel slog.Level
 	// How many params to inline when calling querier methods.
 	// Set to 0 to always create a struct for params.
 	InlineParamCount int
@@ -82,20 +81,10 @@ func Generate(opts GenerateOptions) (mErr error) {
 		return fmt.Errorf("output dir must be set")
 	}
 
-	// Logger.
-	logCfg := zap.NewDevelopmentConfig()
-	logCfg.Level = zap.NewAtomicLevelAt(opts.LogLevel)
-	logger, err := logCfg.Build()
-	if err != nil {
-		return fmt.Errorf("create zap logger: %w", err)
-	}
-	defer func(logger *zap.Logger) { _ = logger.Sync() }(logger)
-	l := logger.Sugar()
-
 	// Postgres connection.
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
-	pgConn, errEnricher, cleanup, err := connectPostgres(ctx, opts, l)
+	pgConn, errEnricher, cleanup, err := connectPostgres(ctx, opts)
 	if err != nil {
 		return fmt.Errorf("connect postgres: %w", err)
 	}
@@ -135,14 +124,10 @@ func Generate(opts GenerateOptions) (mErr error) {
 
 // connectPostgres connects to postgres using connString if given or by
 // running a Docker postgres container and connecting to that.
-func connectPostgres(
-	ctx context.Context,
-	opts GenerateOptions,
-	l *zap.SugaredLogger,
-) (*pgx.Conn, func(error) error, func() error, error) {
+func connectPostgres(ctx context.Context, opts GenerateOptions) (*pgx.Conn, func(error) error, func() error, error) {
 	// Create connection by starting dockerized Postgres.
 	if opts.ConnString == "" {
-		client, err := pgdocker.Start(ctx, opts.SchemaFiles, l)
+		client, err := pgdocker.Start(ctx, opts.SchemaFiles)
 		if err != nil {
 			return nil, nil, nil, fmt.Errorf("start dockerized postgres: %w", err)
 		}

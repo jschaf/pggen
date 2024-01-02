@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"sort"
@@ -14,7 +15,6 @@ import (
 	"github.com/jschaf/pggen/internal/flags"
 	"github.com/jschaf/pggen/internal/texts"
 	"github.com/peterbourgon/ff/v3/ffcli"
-	"go.uber.org/zap"
 )
 
 // Set via ldflags for release binaries.
@@ -96,8 +96,6 @@ func newGenCmd() *ffcli.Command {
 			"like 'device_type=github.com/jschaf/pggen.DeviceType'")
 	inlineParamCount := fset.Int("inline-param-count", 2,
 		"number of params (inclusive) to inline when calling querier methods; 0 always generates a struct")
-	logLvl := zap.InfoLevel
-	fset.Var(&logLvl, "log", "log level: debug, info, or error")
 	goSubCmd := &ffcli.Command{
 		Name:       "go",
 		ShortUsage: "pggen gen go --query-glob glob [--schema-glob <glob>]... [flags]",
@@ -168,7 +166,7 @@ func newGenCmd() *ffcli.Command {
 				OutputDir:        outDir,
 				Acronyms:         acros,
 				TypeOverrides:    typeOverrides,
-				LogLevel:         logLvl,
+				LogLevel:         slog.LevelInfo,
 				InlineParamCount: *inlineParamCount,
 			})
 			if err != nil {
