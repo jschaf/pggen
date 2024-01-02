@@ -11,24 +11,10 @@ import (
 )
 
 // Querier is a typesafe Go interface backed by SQL queries.
-//
-// Methods ending with Batch enqueue a query to run later in a pgx.Batch. After
-// calling SendBatch on pgx.Conn, pgxpool.Pool, or pgx.Tx, use the Scan methods
-// to parse the results.
 type Querier interface {
 	CreateUser(ctx context.Context, email string, password string) (pgconn.CommandTag, error)
-	// CreateUserBatch enqueues a CreateUser query into batch to be executed
-	// later by the batch.
-	CreateUserBatch(batch genericBatch, email string, password string)
-	// CreateUserScan scans the result of an executed CreateUserBatch query.
-	CreateUserScan(results pgx.BatchResults) (pgconn.CommandTag, error)
 
 	FindUser(ctx context.Context, email string) (FindUserRow, error)
-	// FindUserBatch enqueues a FindUser query into batch to be executed
-	// later by the batch.
-	FindUserBatch(batch genericBatch, email string)
-	// FindUserScan scans the result of an executed FindUserBatch query.
-	FindUserScan(results pgx.BatchResults) (FindUserRow, error)
 }
 
 type DBQuerier struct {
@@ -55,14 +41,6 @@ type genericConn interface {
 	// string. arguments should be referenced positionally from the sql string
 	// as $1, $2, etc.
 	Exec(ctx context.Context, sql string, arguments ...interface{}) (pgconn.CommandTag, error)
-}
-
-// genericBatch batches queries to send in a single network request to a
-// Postgres server. This is usually backed by *pgx.Batch.
-type genericBatch interface {
-	// Queue queues a query to batch b. query can be an SQL query or the name of a
-	// prepared statement. See Queue on *pgx.Batch.
-	Queue(query string, arguments ...interface{})
 }
 
 // NewQuerier creates a DBQuerier that implements Querier. conn is typically
@@ -163,20 +141,6 @@ func (q *DBQuerier) CreateUser(ctx context.Context, email string, password strin
 	return cmdTag, err
 }
 
-// CreateUserBatch implements Querier.CreateUserBatch.
-func (q *DBQuerier) CreateUserBatch(batch genericBatch, email string, password string) {
-	batch.Queue(createUserSQL, email, password)
-}
-
-// CreateUserScan implements Querier.CreateUserScan.
-func (q *DBQuerier) CreateUserScan(results pgx.BatchResults) (pgconn.CommandTag, error) {
-	cmdTag, err := results.Exec()
-	if err != nil {
-		return cmdTag, fmt.Errorf("exec CreateUserBatch: %w", err)
-	}
-	return cmdTag, err
-}
-
 const findUserSQL = `SELECT email, pass from "user"
 where email = $1;`
 
@@ -192,21 +156,6 @@ func (q *DBQuerier) FindUser(ctx context.Context, email string) (FindUserRow, er
 	var item FindUserRow
 	if err := row.Scan(&item.Email, &item.Pass); err != nil {
 		return item, fmt.Errorf("query FindUser: %w", err)
-	}
-	return item, nil
-}
-
-// FindUserBatch implements Querier.FindUserBatch.
-func (q *DBQuerier) FindUserBatch(batch genericBatch, email string) {
-	batch.Queue(findUserSQL, email)
-}
-
-// FindUserScan implements Querier.FindUserScan.
-func (q *DBQuerier) FindUserScan(results pgx.BatchResults) (FindUserRow, error) {
-	row := results.QueryRow()
-	var item FindUserRow
-	if err := row.Scan(&item.Email, &item.Pass); err != nil {
-		return item, fmt.Errorf("scan FindUserBatch row: %w", err)
 	}
 	return item, nil
 }

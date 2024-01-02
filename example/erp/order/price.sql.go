@@ -6,7 +6,6 @@ import (
 	"context"
 	"fmt"
 	"github.com/jackc/pgtype"
-	"github.com/jackc/pgx/v4"
 )
 
 const findOrdersByPriceSQL = `SELECT * FROM orders WHERE order_total > $1;`
@@ -40,32 +39,6 @@ func (q *DBQuerier) FindOrdersByPrice(ctx context.Context, minTotal pgtype.Numer
 	return items, err
 }
 
-// FindOrdersByPriceBatch implements Querier.FindOrdersByPriceBatch.
-func (q *DBQuerier) FindOrdersByPriceBatch(batch genericBatch, minTotal pgtype.Numeric) {
-	batch.Queue(findOrdersByPriceSQL, minTotal)
-}
-
-// FindOrdersByPriceScan implements Querier.FindOrdersByPriceScan.
-func (q *DBQuerier) FindOrdersByPriceScan(results pgx.BatchResults) ([]FindOrdersByPriceRow, error) {
-	rows, err := results.Query()
-	if err != nil {
-		return nil, fmt.Errorf("query FindOrdersByPriceBatch: %w", err)
-	}
-	defer rows.Close()
-	items := []FindOrdersByPriceRow{}
-	for rows.Next() {
-		var item FindOrdersByPriceRow
-		if err := rows.Scan(&item.OrderID, &item.OrderDate, &item.OrderTotal, &item.CustomerID); err != nil {
-			return nil, fmt.Errorf("scan FindOrdersByPriceBatch row: %w", err)
-		}
-		items = append(items, item)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("close FindOrdersByPriceBatch rows: %w", err)
-	}
-	return items, err
-}
-
 const findOrdersMRRSQL = `SELECT date_trunc('month', order_date) AS month, sum(order_total) AS order_mrr
 FROM orders
 GROUP BY date_trunc('month', order_date);`
@@ -93,32 +66,6 @@ func (q *DBQuerier) FindOrdersMRR(ctx context.Context) ([]FindOrdersMRRRow, erro
 	}
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("close FindOrdersMRR rows: %w", err)
-	}
-	return items, err
-}
-
-// FindOrdersMRRBatch implements Querier.FindOrdersMRRBatch.
-func (q *DBQuerier) FindOrdersMRRBatch(batch genericBatch) {
-	batch.Queue(findOrdersMRRSQL)
-}
-
-// FindOrdersMRRScan implements Querier.FindOrdersMRRScan.
-func (q *DBQuerier) FindOrdersMRRScan(results pgx.BatchResults) ([]FindOrdersMRRRow, error) {
-	rows, err := results.Query()
-	if err != nil {
-		return nil, fmt.Errorf("query FindOrdersMRRBatch: %w", err)
-	}
-	defer rows.Close()
-	items := []FindOrdersMRRRow{}
-	for rows.Next() {
-		var item FindOrdersMRRRow
-		if err := rows.Scan(&item.Month, &item.OrderMRR); err != nil {
-			return nil, fmt.Errorf("scan FindOrdersMRRBatch row: %w", err)
-		}
-		items = append(items, item)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("close FindOrdersMRRBatch rows: %w", err)
 	}
 	return items, err
 }

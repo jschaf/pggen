@@ -3,7 +3,6 @@ package inline0
 import (
 	"context"
 	"errors"
-	"github.com/jschaf/pggen/internal/errs"
 	"github.com/stretchr/testify/require"
 	"testing"
 
@@ -44,21 +43,6 @@ func TestNewQuerier_FindAuthorByID(t *testing.T) {
 		if !errors.Is(err, pgx.ErrNoRows) {
 			t.Fatalf("expected no rows error to wrap pgx.ErrNoRows; got %s", err)
 		}
-	})
-
-	t.Run("FindAuthorByIDBatch", func(t *testing.T) {
-		batch := &pgx.Batch{}
-		q.FindAuthorByIDBatch(batch, FindAuthorByIDParams{AuthorID: adamsID})
-		results := conn.SendBatch(context.Background(), batch)
-		defer errs.CaptureT(t, results.Close, "close batch results")
-		authors, err := q.FindAuthorByIDScan(results)
-		require.NoError(t, err)
-		assert.Equal(t, FindAuthorByIDRow{
-			AuthorID:  adamsID,
-			FirstName: "john",
-			LastName:  "adams",
-			Suffix:    nil,
-		}, authors)
 	})
 }
 

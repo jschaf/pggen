@@ -11,17 +11,8 @@ import (
 )
 
 // Querier is a typesafe Go interface backed by SQL queries.
-//
-// Methods ending with Batch enqueue a query to run later in a pgx.Batch. After
-// calling SendBatch on pgx.Conn, pgxpool.Pool, or pgx.Tx, use the Scan methods
-// to parse the results.
 type Querier interface {
 	DomainOne(ctx context.Context) (string, error)
-	// DomainOneBatch enqueues a DomainOne query into batch to be executed
-	// later by the batch.
-	DomainOneBatch(batch genericBatch)
-	// DomainOneScan scans the result of an executed DomainOneBatch query.
-	DomainOneScan(results pgx.BatchResults) (string, error)
 }
 
 type DBQuerier struct {
@@ -48,14 +39,6 @@ type genericConn interface {
 	// string. arguments should be referenced positionally from the sql string
 	// as $1, $2, etc.
 	Exec(ctx context.Context, sql string, arguments ...interface{}) (pgconn.CommandTag, error)
-}
-
-// genericBatch batches queries to send in a single network request to a
-// Postgres server. This is usually backed by *pgx.Batch.
-type genericBatch interface {
-	// Queue queues a query to batch b. query can be an SQL query or the name of a
-	// prepared statement. See Queue on *pgx.Batch.
-	Queue(query string, arguments ...interface{})
 }
 
 // NewQuerier creates a DBQuerier that implements Querier. conn is typically
@@ -149,21 +132,6 @@ func (q *DBQuerier) DomainOne(ctx context.Context) (string, error) {
 	var item string
 	if err := row.Scan(&item); err != nil {
 		return item, fmt.Errorf("query DomainOne: %w", err)
-	}
-	return item, nil
-}
-
-// DomainOneBatch implements Querier.DomainOneBatch.
-func (q *DBQuerier) DomainOneBatch(batch genericBatch) {
-	batch.Queue(domainOneSQL)
-}
-
-// DomainOneScan implements Querier.DomainOneScan.
-func (q *DBQuerier) DomainOneScan(results pgx.BatchResults) (string, error) {
-	row := results.QueryRow()
-	var item string
-	if err := row.Scan(&item); err != nil {
-		return item, fmt.Errorf("scan DomainOneBatch row: %w", err)
 	}
 	return item, nil
 }

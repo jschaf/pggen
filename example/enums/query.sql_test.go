@@ -3,8 +3,6 @@ package enums
 import (
 	"context"
 	"github.com/jackc/pgtype"
-	"github.com/jackc/pgx/v4"
-	"github.com/jschaf/pggen/internal/errs"
 	"github.com/jschaf/pggen/internal/pgtest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -26,21 +24,6 @@ func TestNewQuerier_FindAllDevices(t *testing.T) {
 
 	t.Run("FindAllDevices", func(t *testing.T) {
 		devices, err := q.FindAllDevices(ctx)
-		require.NoError(t, err)
-		assert.Equal(t,
-			[]FindAllDevicesRow{
-				{Mac: pgtype.Macaddr{Addr: mac, Status: pgtype.Present}, Type: DeviceTypeIot},
-			},
-			devices,
-		)
-	})
-
-	t.Run("FindAllDevicesScan", func(t *testing.T) {
-		batch := &pgx.Batch{}
-		q.FindAllDevicesBatch(batch)
-		results := conn.SendBatch(context.Background(), batch)
-		defer errs.CaptureT(t, results.Close, "close batch results")
-		devices, err := q.FindAllDevicesScan(results)
 		require.NoError(t, err)
 		assert.Equal(t,
 			[]FindAllDevicesRow{
@@ -73,16 +56,6 @@ func TestNewQuerier_FindOneDeviceArray(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, allDeviceTypes, devices)
 	})
-
-	t.Run("FindOneDeviceArrayBatch", func(t *testing.T) {
-		batch := &pgx.Batch{}
-		q.FindOneDeviceArrayBatch(batch)
-		results := conn.SendBatch(context.Background(), batch)
-		defer errs.CaptureT(t, results.Close, "close batch results")
-		devices, err := q.FindOneDeviceArrayScan(results)
-		require.NoError(t, err)
-		assert.Equal(t, allDeviceTypes, devices)
-	})
 }
 
 func TestNewQuerier_FindManyDeviceArray(t *testing.T) {
@@ -95,16 +68,6 @@ func TestNewQuerier_FindManyDeviceArray(t *testing.T) {
 
 	t.Run("FindManyDeviceArray", func(t *testing.T) {
 		devices, err := q.FindManyDeviceArray(ctx)
-		require.NoError(t, err)
-		assert.Equal(t, [][]DeviceType{allDeviceTypes[3:], allDeviceTypes}, devices)
-	})
-
-	t.Run("FindManyDeviceArrayBatch", func(t *testing.T) {
-		batch := &pgx.Batch{}
-		q.FindManyDeviceArrayBatch(batch)
-		results := conn.SendBatch(context.Background(), batch)
-		defer errs.CaptureT(t, results.Close, "close batch results")
-		devices, err := q.FindManyDeviceArrayScan(results)
 		require.NoError(t, err)
 		assert.Equal(t, [][]DeviceType{allDeviceTypes[3:], allDeviceTypes}, devices)
 	})
@@ -127,19 +90,6 @@ func TestNewQuerier_FindManyDeviceArrayWithNum(t *testing.T) {
 			{Num: &two, DeviceTypes: allDeviceTypes},
 		}, devices)
 	})
-
-	t.Run("FindManyDeviceArrayWithNumBatch", func(t *testing.T) {
-		batch := &pgx.Batch{}
-		q.FindManyDeviceArrayWithNumBatch(batch)
-		results := conn.SendBatch(context.Background(), batch)
-		defer errs.CaptureT(t, results.Close, "close batch results")
-		devices, err := q.FindManyDeviceArrayWithNumScan(results)
-		require.NoError(t, err)
-		assert.Equal(t, []FindManyDeviceArrayWithNumRow{
-			{Num: &one, DeviceTypes: allDeviceTypes[3:]},
-			{Num: &two, DeviceTypes: allDeviceTypes},
-		}, devices)
-	})
 }
 
 func TestNewQuerier_EnumInsideComposite(t *testing.T) {
@@ -153,19 +103,6 @@ func TestNewQuerier_EnumInsideComposite(t *testing.T) {
 
 	t.Run("EnumInsideComposite", func(t *testing.T) {
 		device, err := q.EnumInsideComposite(ctx)
-		require.NoError(t, err)
-		assert.Equal(t,
-			Device{Mac: pgtype.Macaddr{Addr: mac, Status: pgtype.Present}, Type: DeviceTypePhone},
-			device,
-		)
-	})
-
-	t.Run("EnumInsideCompositeBatch", func(t *testing.T) {
-		batch := &pgx.Batch{}
-		q.EnumInsideCompositeBatch(batch)
-		results := conn.SendBatch(context.Background(), batch)
-		defer errs.CaptureT(t, results.Close, "close batch results")
-		device, err := q.EnumInsideCompositeScan(results)
 		require.NoError(t, err)
 		assert.Equal(t,
 			Device{Mac: pgtype.Macaddr{Addr: mac, Status: pgtype.Present}, Type: DeviceTypePhone},

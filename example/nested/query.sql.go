@@ -11,24 +11,10 @@ import (
 )
 
 // Querier is a typesafe Go interface backed by SQL queries.
-//
-// Methods ending with Batch enqueue a query to run later in a pgx.Batch. After
-// calling SendBatch on pgx.Conn, pgxpool.Pool, or pgx.Tx, use the Scan methods
-// to parse the results.
 type Querier interface {
 	ArrayNested2(ctx context.Context) ([]ProductImageType, error)
-	// ArrayNested2Batch enqueues a ArrayNested2 query into batch to be executed
-	// later by the batch.
-	ArrayNested2Batch(batch genericBatch)
-	// ArrayNested2Scan scans the result of an executed ArrayNested2Batch query.
-	ArrayNested2Scan(results pgx.BatchResults) ([]ProductImageType, error)
 
 	Nested3(ctx context.Context) ([]ProductImageSetType, error)
-	// Nested3Batch enqueues a Nested3 query into batch to be executed
-	// later by the batch.
-	Nested3Batch(batch genericBatch)
-	// Nested3Scan scans the result of an executed Nested3Batch query.
-	Nested3Scan(results pgx.BatchResults) ([]ProductImageSetType, error)
 }
 
 type DBQuerier struct {
@@ -55,14 +41,6 @@ type genericConn interface {
 	// string. arguments should be referenced positionally from the sql string
 	// as $1, $2, etc.
 	Exec(ctx context.Context, sql string, arguments ...interface{}) (pgconn.CommandTag, error)
-}
-
-// genericBatch batches queries to send in a single network request to a
-// Postgres server. This is usually backed by *pgx.Batch.
-type genericBatch interface {
-	// Queue queues a query to batch b. query can be an SQL query or the name of a
-	// prepared statement. See Queue on *pgx.Batch.
-	Queue(query string, arguments ...interface{})
 }
 
 // NewQuerier creates a DBQuerier that implements Querier. conn is typically
@@ -278,25 +256,6 @@ func (q *DBQuerier) ArrayNested2(ctx context.Context) ([]ProductImageType, error
 	return item, nil
 }
 
-// ArrayNested2Batch implements Querier.ArrayNested2Batch.
-func (q *DBQuerier) ArrayNested2Batch(batch genericBatch) {
-	batch.Queue(arrayNested2SQL)
-}
-
-// ArrayNested2Scan implements Querier.ArrayNested2Scan.
-func (q *DBQuerier) ArrayNested2Scan(results pgx.BatchResults) ([]ProductImageType, error) {
-	row := results.QueryRow()
-	item := []ProductImageType{}
-	imagesArray := q.types.newProductImageTypeArray()
-	if err := row.Scan(imagesArray); err != nil {
-		return item, fmt.Errorf("scan ArrayNested2Batch row: %w", err)
-	}
-	if err := imagesArray.AssignTo(&item); err != nil {
-		return item, fmt.Errorf("assign ArrayNested2 row: %w", err)
-	}
-	return item, nil
-}
-
 const nested3SQL = `SELECT
   ROW (
     'name', -- name
@@ -329,36 +288,6 @@ func (q *DBQuerier) Nested3(ctx context.Context) ([]ProductImageSetType, error) 
 	}
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("close Nested3 rows: %w", err)
-	}
-	return items, err
-}
-
-// Nested3Batch implements Querier.Nested3Batch.
-func (q *DBQuerier) Nested3Batch(batch genericBatch) {
-	batch.Queue(nested3SQL)
-}
-
-// Nested3Scan implements Querier.Nested3Scan.
-func (q *DBQuerier) Nested3Scan(results pgx.BatchResults) ([]ProductImageSetType, error) {
-	rows, err := results.Query()
-	if err != nil {
-		return nil, fmt.Errorf("query Nested3Batch: %w", err)
-	}
-	defer rows.Close()
-	items := []ProductImageSetType{}
-	rowRow := q.types.newProductImageSetType()
-	for rows.Next() {
-		var item ProductImageSetType
-		if err := rows.Scan(rowRow); err != nil {
-			return nil, fmt.Errorf("scan Nested3Batch row: %w", err)
-		}
-		if err := rowRow.AssignTo(&item); err != nil {
-			return nil, fmt.Errorf("assign Nested3 row: %w", err)
-		}
-		items = append(items, item)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("close Nested3Batch rows: %w", err)
 	}
 	return items, err
 }

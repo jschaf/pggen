@@ -3,7 +3,6 @@ package custom_types
 import (
 	"context"
 	"github.com/jackc/pgtype"
-	"github.com/jackc/pgx/v4"
 	"github.com/jschaf/pggen/internal/pgtest"
 	"github.com/jschaf/pggen/internal/texts"
 	"github.com/stretchr/testify/assert"
@@ -19,19 +18,6 @@ func TestQuerier_CustomTypes(t *testing.T) {
 
 	t.Run("CustomTypes", func(t *testing.T) {
 		val, err := q.CustomTypes(ctx)
-		require.NoError(t, err)
-		want := CustomTypesRow{
-			Column: "some_text",
-			Int8:   1,
-		}
-		assert.Equal(t, want, val)
-	})
-
-	t.Run("CustomTypesBatch", func(t *testing.T) {
-		batch := &pgx.Batch{}
-		q.CustomTypesBatch(batch)
-		results := conn.SendBatch(context.Background(), batch)
-		val, err := q.CustomTypesScan(results)
 		require.NoError(t, err)
 		want := CustomTypesRow{
 			Column: "some_text",
@@ -71,15 +57,6 @@ func TestQuerier_CustomMyInt(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, 5, val)
 	})
-
-	t.Run("CustomMyIntBatch", func(t *testing.T) {
-		batch := &pgx.Batch{}
-		q.CustomMyIntBatch(batch)
-		results := conn.SendBatch(context.Background(), batch)
-		val, err := q.CustomMyIntScan(results)
-		require.NoError(t, err)
-		assert.Equal(t, 5, val)
-	})
 }
 
 func TestQuerier_IntArray(t *testing.T) {
@@ -92,14 +69,5 @@ func TestQuerier_IntArray(t *testing.T) {
 		array, err := q.IntArray(ctx)
 		require.NoError(t, err)
 		assert.Equal(t, [][]int32{{5, 6, 7}}, array)
-	})
-
-	t.Run("IntArrayBatch", func(t *testing.T) {
-		batch := &pgx.Batch{}
-		q.IntArrayBatch(batch)
-		results := conn.SendBatch(context.Background(), batch)
-		val, err := q.IntArrayScan(results)
-		assert.NoError(t, err)
-		assert.Equal(t, [][]int32{{5, 6, 7}}, val)
 	})
 }

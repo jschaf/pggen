@@ -14,20 +14,11 @@ import (
 {{- if .IsLeader -}}
 {{- "\n\n" -}}
 // Querier is a typesafe Go interface backed by SQL queries.
-//
-// Methods ending with Batch enqueue a query to run later in a pgx.Batch. After
-// calling SendBatch on pgx.Conn, pgxpool.Pool, or pgx.Tx, use the Scan methods
-// to parse the results.
 type Querier interface {
 {{- range $pkgFile := .Pkg.Files -}}
 {{- range $i, $q := $pkgFile.Queries }} {{- "\n\t" -}}
 	{{- if $q.Doc }}{{ $q.Doc }}	{{ end -}}
 	{{.Name}}(ctx context.Context {{- $q.EmitParams }}) ({{ $q.EmitResultType }}, error)
-	// {{.Name}}Batch enqueues a {{.Name}} query into batch to be executed
-	// later by the batch.
-	{{.Name}}Batch(batch genericBatch {{- $q.EmitParams }})
-	// {{.Name}}Scan scans the result of an executed {{.Name}}Batch query.
-	{{.Name}}Scan(results pgx.BatchResults) ({{ $q.EmitResultType }}, error)
 	{{- "\n" -}}
 {{end -}}
 {{- end -}}
@@ -57,14 +48,6 @@ type genericConn interface {
 	// string. arguments should be referenced positionally from the sql string
 	// as $1, $2, etc.
 	Exec(ctx context.Context, sql string, arguments ...interface{}) (pgconn.CommandTag, error)
-}
-
-// genericBatch batches queries to send in a single network request to a
-// Postgres server. This is usually backed by *pgx.Batch.
-type genericBatch interface {
-	// Queue queues a query to batch b. query can be an SQL query or the name of a
-	// prepared statement. See Queue on *pgx.Batch.
-	Queue(query string, arguments ...interface{})
 }
 
 // NewQuerier creates a DBQuerier that implements Querier. conn is typically
@@ -162,51 +145,6 @@ func (q *DBQuerier) {{ $q.Name }}(ctx context.Context {{- $q.EmitParams }}) ({{ 
 	cmdTag, err := q.conn.Exec(ctx, {{ $q.SQLVarName }} {{- $q.EmitParamNames }})
 	if err != nil {
 		return cmdTag, fmt.Errorf("exec query {{ $q.Name }}: %w", err)
-	}
-	return cmdTag, err
-{{- end }}
-}
-
-// {{$q.Name}}Batch implements Querier.{{$q.Name}}Batch.
-func (q *DBQuerier) {{.Name}}Batch(batch genericBatch {{- $q.EmitParams }}) {
-	batch.Queue({{ $q.SQLVarName }} {{- $q.EmitParamNames }})
-}
-
-// {{.Name}}Scan implements Querier.{{$q.Name}}Scan.
-func (q *DBQuerier) {{.Name}}Scan(results pgx.BatchResults) ({{ $q.EmitResultType }}, error) {
-{{- if eq $q.ResultKind ":one" }}
-	row := results.QueryRow()
-	{{ $q.EmitResultTypeInit "item" }}
-	{{- $q.EmitResultDecoders }}
-	if err := row.Scan({{ $q.EmitRowScanArgs }}); err != nil {
-		return {{ $q.EmitResultExpr "item" }}, fmt.Errorf("scan {{ $q.Name }}Batch row: %w", err)
-	}
-	{{- $q.EmitResultAssigns "item" }}
-	return {{ $q.EmitResultExpr "item" }}, nil
-{{- else if eq $q.ResultKind ":many" }}
-	rows, err := results.Query()
-	if err != nil {
-		return nil, fmt.Errorf("query {{ $q.Name }}Batch: %w", err)
-	}
-	defer rows.Close()
-	{{ $q.EmitResultTypeInit "items" }}
-	{{- $q.EmitResultDecoders }}
-	for rows.Next() {
-		var item {{ $q.EmitResultElem }}
-		if err := rows.Scan({{- $q.EmitRowScanArgs -}}); err != nil {
-			return nil, fmt.Errorf("scan {{ $q.Name }}Batch row: %w", err)
-		}
-		{{- $q.EmitResultAssigns "nil" }}
-		items = append(items, {{ $q.EmitResultExpr "item" }})
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("close {{ $q.Name }}Batch rows: %w", err)
-	}
-	return items, err
-{{- else if eq $q.ResultKind ":exec" }}
-	cmdTag, err := results.Exec()
-	if err != nil {
-		return cmdTag, fmt.Errorf("exec {{ $q.Name }}Batch: %w", err)
 	}
 	return cmdTag, err
 {{- end }}

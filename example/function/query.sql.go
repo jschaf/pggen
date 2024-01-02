@@ -11,17 +11,8 @@ import (
 )
 
 // Querier is a typesafe Go interface backed by SQL queries.
-//
-// Methods ending with Batch enqueue a query to run later in a pgx.Batch. After
-// calling SendBatch on pgx.Conn, pgxpool.Pool, or pgx.Tx, use the Scan methods
-// to parse the results.
 type Querier interface {
 	OutParams(ctx context.Context) ([]OutParamsRow, error)
-	// OutParamsBatch enqueues a OutParams query into batch to be executed
-	// later by the batch.
-	OutParamsBatch(batch genericBatch)
-	// OutParamsScan scans the result of an executed OutParamsBatch query.
-	OutParamsScan(results pgx.BatchResults) ([]OutParamsRow, error)
 }
 
 type DBQuerier struct {
@@ -48,14 +39,6 @@ type genericConn interface {
 	// string. arguments should be referenced positionally from the sql string
 	// as $1, $2, etc.
 	Exec(ctx context.Context, sql string, arguments ...interface{}) (pgconn.CommandTag, error)
-}
-
-// genericBatch batches queries to send in a single network request to a
-// Postgres server. This is usually backed by *pgx.Batch.
-type genericBatch interface {
-	// Queue queues a query to batch b. query can be an SQL query or the name of a
-	// prepared statement. See Queue on *pgx.Batch.
-	Queue(query string, arguments ...interface{})
 }
 
 // NewQuerier creates a DBQuerier that implements Querier. conn is typically
@@ -262,40 +245,6 @@ func (q *DBQuerier) OutParams(ctx context.Context) ([]OutParamsRow, error) {
 	}
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("close OutParams rows: %w", err)
-	}
-	return items, err
-}
-
-// OutParamsBatch implements Querier.OutParamsBatch.
-func (q *DBQuerier) OutParamsBatch(batch genericBatch) {
-	batch.Queue(outParamsSQL)
-}
-
-// OutParamsScan implements Querier.OutParamsScan.
-func (q *DBQuerier) OutParamsScan(results pgx.BatchResults) ([]OutParamsRow, error) {
-	rows, err := results.Query()
-	if err != nil {
-		return nil, fmt.Errorf("query OutParamsBatch: %w", err)
-	}
-	defer rows.Close()
-	items := []OutParamsRow{}
-	itemsArray := q.types.newListItemArray()
-	statsRow := q.types.newListStats()
-	for rows.Next() {
-		var item OutParamsRow
-		if err := rows.Scan(itemsArray, statsRow); err != nil {
-			return nil, fmt.Errorf("scan OutParamsBatch row: %w", err)
-		}
-		if err := itemsArray.AssignTo(&item.Items); err != nil {
-			return nil, fmt.Errorf("assign OutParams row: %w", err)
-		}
-		if err := statsRow.AssignTo(&item.Stats); err != nil {
-			return nil, fmt.Errorf("assign OutParams row: %w", err)
-		}
-		items = append(items, item)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("close OutParamsBatch rows: %w", err)
 	}
 	return items, err
 }

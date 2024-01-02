@@ -11,45 +11,16 @@ import (
 )
 
 // Querier is a typesafe Go interface backed by SQL queries.
-//
-// Methods ending with Batch enqueue a query to run later in a pgx.Batch. After
-// calling SendBatch on pgx.Conn, pgxpool.Pool, or pgx.Tx, use the Scan methods
-// to parse the results.
 type Querier interface {
 	ParamArrayInt(ctx context.Context, ints []int) ([]int, error)
-	// ParamArrayIntBatch enqueues a ParamArrayInt query into batch to be executed
-	// later by the batch.
-	ParamArrayIntBatch(batch genericBatch, ints []int)
-	// ParamArrayIntScan scans the result of an executed ParamArrayIntBatch query.
-	ParamArrayIntScan(results pgx.BatchResults) ([]int, error)
 
 	ParamNested1(ctx context.Context, dimensions Dimensions) (Dimensions, error)
-	// ParamNested1Batch enqueues a ParamNested1 query into batch to be executed
-	// later by the batch.
-	ParamNested1Batch(batch genericBatch, dimensions Dimensions)
-	// ParamNested1Scan scans the result of an executed ParamNested1Batch query.
-	ParamNested1Scan(results pgx.BatchResults) (Dimensions, error)
 
 	ParamNested2(ctx context.Context, image ProductImageType) (ProductImageType, error)
-	// ParamNested2Batch enqueues a ParamNested2 query into batch to be executed
-	// later by the batch.
-	ParamNested2Batch(batch genericBatch, image ProductImageType)
-	// ParamNested2Scan scans the result of an executed ParamNested2Batch query.
-	ParamNested2Scan(results pgx.BatchResults) (ProductImageType, error)
 
 	ParamNested2Array(ctx context.Context, images []ProductImageType) ([]ProductImageType, error)
-	// ParamNested2ArrayBatch enqueues a ParamNested2Array query into batch to be executed
-	// later by the batch.
-	ParamNested2ArrayBatch(batch genericBatch, images []ProductImageType)
-	// ParamNested2ArrayScan scans the result of an executed ParamNested2ArrayBatch query.
-	ParamNested2ArrayScan(results pgx.BatchResults) ([]ProductImageType, error)
 
 	ParamNested3(ctx context.Context, imageSet ProductImageSetType) (ProductImageSetType, error)
-	// ParamNested3Batch enqueues a ParamNested3 query into batch to be executed
-	// later by the batch.
-	ParamNested3Batch(batch genericBatch, imageSet ProductImageSetType)
-	// ParamNested3Scan scans the result of an executed ParamNested3Batch query.
-	ParamNested3Scan(results pgx.BatchResults) (ProductImageSetType, error)
 }
 
 type DBQuerier struct {
@@ -76,14 +47,6 @@ type genericConn interface {
 	// string. arguments should be referenced positionally from the sql string
 	// as $1, $2, etc.
 	Exec(ctx context.Context, sql string, arguments ...interface{}) (pgconn.CommandTag, error)
-}
-
-// genericBatch batches queries to send in a single network request to a
-// Postgres server. This is usually backed by *pgx.Batch.
-type genericBatch interface {
-	// Queue queues a query to batch b. query can be an SQL query or the name of a
-	// prepared statement. See Queue on *pgx.Batch.
-	Queue(query string, arguments ...interface{})
 }
 
 // NewQuerier creates a DBQuerier that implements Querier. conn is typically
@@ -366,21 +329,6 @@ func (q *DBQuerier) ParamArrayInt(ctx context.Context, ints []int) ([]int, error
 	return item, nil
 }
 
-// ParamArrayIntBatch implements Querier.ParamArrayIntBatch.
-func (q *DBQuerier) ParamArrayIntBatch(batch genericBatch, ints []int) {
-	batch.Queue(paramArrayIntSQL, ints)
-}
-
-// ParamArrayIntScan implements Querier.ParamArrayIntScan.
-func (q *DBQuerier) ParamArrayIntScan(results pgx.BatchResults) ([]int, error) {
-	row := results.QueryRow()
-	item := []int{}
-	if err := row.Scan(&item); err != nil {
-		return item, fmt.Errorf("scan ParamArrayIntBatch row: %w", err)
-	}
-	return item, nil
-}
-
 const paramNested1SQL = `SELECT $1::dimensions;`
 
 // ParamNested1 implements Querier.ParamNested1.
@@ -391,25 +339,6 @@ func (q *DBQuerier) ParamNested1(ctx context.Context, dimensions Dimensions) (Di
 	dimensionsRow := q.types.newDimensions()
 	if err := row.Scan(dimensionsRow); err != nil {
 		return item, fmt.Errorf("query ParamNested1: %w", err)
-	}
-	if err := dimensionsRow.AssignTo(&item); err != nil {
-		return item, fmt.Errorf("assign ParamNested1 row: %w", err)
-	}
-	return item, nil
-}
-
-// ParamNested1Batch implements Querier.ParamNested1Batch.
-func (q *DBQuerier) ParamNested1Batch(batch genericBatch, dimensions Dimensions) {
-	batch.Queue(paramNested1SQL, q.types.newDimensionsInit(dimensions))
-}
-
-// ParamNested1Scan implements Querier.ParamNested1Scan.
-func (q *DBQuerier) ParamNested1Scan(results pgx.BatchResults) (Dimensions, error) {
-	row := results.QueryRow()
-	var item Dimensions
-	dimensionsRow := q.types.newDimensions()
-	if err := row.Scan(dimensionsRow); err != nil {
-		return item, fmt.Errorf("scan ParamNested1Batch row: %w", err)
 	}
 	if err := dimensionsRow.AssignTo(&item); err != nil {
 		return item, fmt.Errorf("assign ParamNested1 row: %w", err)
@@ -434,25 +363,6 @@ func (q *DBQuerier) ParamNested2(ctx context.Context, image ProductImageType) (P
 	return item, nil
 }
 
-// ParamNested2Batch implements Querier.ParamNested2Batch.
-func (q *DBQuerier) ParamNested2Batch(batch genericBatch, image ProductImageType) {
-	batch.Queue(paramNested2SQL, q.types.newProductImageTypeInit(image))
-}
-
-// ParamNested2Scan implements Querier.ParamNested2Scan.
-func (q *DBQuerier) ParamNested2Scan(results pgx.BatchResults) (ProductImageType, error) {
-	row := results.QueryRow()
-	var item ProductImageType
-	productImageTypeRow := q.types.newProductImageType()
-	if err := row.Scan(productImageTypeRow); err != nil {
-		return item, fmt.Errorf("scan ParamNested2Batch row: %w", err)
-	}
-	if err := productImageTypeRow.AssignTo(&item); err != nil {
-		return item, fmt.Errorf("assign ParamNested2 row: %w", err)
-	}
-	return item, nil
-}
-
 const paramNested2ArraySQL = `SELECT $1::product_image_type[];`
 
 // ParamNested2Array implements Querier.ParamNested2Array.
@@ -470,25 +380,6 @@ func (q *DBQuerier) ParamNested2Array(ctx context.Context, images []ProductImage
 	return item, nil
 }
 
-// ParamNested2ArrayBatch implements Querier.ParamNested2ArrayBatch.
-func (q *DBQuerier) ParamNested2ArrayBatch(batch genericBatch, images []ProductImageType) {
-	batch.Queue(paramNested2ArraySQL, q.types.newProductImageTypeArrayInit(images))
-}
-
-// ParamNested2ArrayScan implements Querier.ParamNested2ArrayScan.
-func (q *DBQuerier) ParamNested2ArrayScan(results pgx.BatchResults) ([]ProductImageType, error) {
-	row := results.QueryRow()
-	item := []ProductImageType{}
-	productImageTypeArray := q.types.newProductImageTypeArray()
-	if err := row.Scan(productImageTypeArray); err != nil {
-		return item, fmt.Errorf("scan ParamNested2ArrayBatch row: %w", err)
-	}
-	if err := productImageTypeArray.AssignTo(&item); err != nil {
-		return item, fmt.Errorf("assign ParamNested2Array row: %w", err)
-	}
-	return item, nil
-}
-
 const paramNested3SQL = `SELECT $1::product_image_set_type;`
 
 // ParamNested3 implements Querier.ParamNested3.
@@ -499,25 +390,6 @@ func (q *DBQuerier) ParamNested3(ctx context.Context, imageSet ProductImageSetTy
 	productImageSetTypeRow := q.types.newProductImageSetType()
 	if err := row.Scan(productImageSetTypeRow); err != nil {
 		return item, fmt.Errorf("query ParamNested3: %w", err)
-	}
-	if err := productImageSetTypeRow.AssignTo(&item); err != nil {
-		return item, fmt.Errorf("assign ParamNested3 row: %w", err)
-	}
-	return item, nil
-}
-
-// ParamNested3Batch implements Querier.ParamNested3Batch.
-func (q *DBQuerier) ParamNested3Batch(batch genericBatch, imageSet ProductImageSetType) {
-	batch.Queue(paramNested3SQL, q.types.newProductImageSetTypeInit(imageSet))
-}
-
-// ParamNested3Scan implements Querier.ParamNested3Scan.
-func (q *DBQuerier) ParamNested3Scan(results pgx.BatchResults) (ProductImageSetType, error) {
-	row := results.QueryRow()
-	var item ProductImageSetType
-	productImageSetTypeRow := q.types.newProductImageSetType()
-	if err := row.Scan(productImageSetTypeRow); err != nil {
-		return item, fmt.Errorf("scan ParamNested3Batch row: %w", err)
 	}
 	if err := productImageSetTypeRow.AssignTo(&item); err != nil {
 		return item, fmt.Errorf("assign ParamNested3 row: %w", err)

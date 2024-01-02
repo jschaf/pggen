@@ -11,52 +11,18 @@ import (
 )
 
 // Querier is a typesafe Go interface backed by SQL queries.
-//
-// Methods ending with Batch enqueue a query to run later in a pgx.Batch. After
-// calling SendBatch on pgx.Conn, pgxpool.Pool, or pgx.Tx, use the Scan methods
-// to parse the results.
 type Querier interface {
 	GenSeries1(ctx context.Context) (*int, error)
-	// GenSeries1Batch enqueues a GenSeries1 query into batch to be executed
-	// later by the batch.
-	GenSeries1Batch(batch genericBatch)
-	// GenSeries1Scan scans the result of an executed GenSeries1Batch query.
-	GenSeries1Scan(results pgx.BatchResults) (*int, error)
 
 	GenSeries(ctx context.Context) ([]*int, error)
-	// GenSeriesBatch enqueues a GenSeries query into batch to be executed
-	// later by the batch.
-	GenSeriesBatch(batch genericBatch)
-	// GenSeriesScan scans the result of an executed GenSeriesBatch query.
-	GenSeriesScan(results pgx.BatchResults) ([]*int, error)
 
 	GenSeriesArr1(ctx context.Context) ([]int, error)
-	// GenSeriesArr1Batch enqueues a GenSeriesArr1 query into batch to be executed
-	// later by the batch.
-	GenSeriesArr1Batch(batch genericBatch)
-	// GenSeriesArr1Scan scans the result of an executed GenSeriesArr1Batch query.
-	GenSeriesArr1Scan(results pgx.BatchResults) ([]int, error)
 
 	GenSeriesArr(ctx context.Context) ([][]int, error)
-	// GenSeriesArrBatch enqueues a GenSeriesArr query into batch to be executed
-	// later by the batch.
-	GenSeriesArrBatch(batch genericBatch)
-	// GenSeriesArrScan scans the result of an executed GenSeriesArrBatch query.
-	GenSeriesArrScan(results pgx.BatchResults) ([][]int, error)
 
 	GenSeriesStr1(ctx context.Context) (*string, error)
-	// GenSeriesStr1Batch enqueues a GenSeriesStr1 query into batch to be executed
-	// later by the batch.
-	GenSeriesStr1Batch(batch genericBatch)
-	// GenSeriesStr1Scan scans the result of an executed GenSeriesStr1Batch query.
-	GenSeriesStr1Scan(results pgx.BatchResults) (*string, error)
 
 	GenSeriesStr(ctx context.Context) ([]*string, error)
-	// GenSeriesStrBatch enqueues a GenSeriesStr query into batch to be executed
-	// later by the batch.
-	GenSeriesStrBatch(batch genericBatch)
-	// GenSeriesStrScan scans the result of an executed GenSeriesStrBatch query.
-	GenSeriesStrScan(results pgx.BatchResults) ([]*string, error)
 }
 
 type DBQuerier struct {
@@ -83,14 +49,6 @@ type genericConn interface {
 	// string. arguments should be referenced positionally from the sql string
 	// as $1, $2, etc.
 	Exec(ctx context.Context, sql string, arguments ...interface{}) (pgconn.CommandTag, error)
-}
-
-// genericBatch batches queries to send in a single network request to a
-// Postgres server. This is usually backed by *pgx.Batch.
-type genericBatch interface {
-	// Queue queues a query to batch b. query can be an SQL query or the name of a
-	// prepared statement. See Queue on *pgx.Batch.
-	Queue(query string, arguments ...interface{})
 }
 
 // NewQuerier creates a DBQuerier that implements Querier. conn is typically
@@ -205,21 +163,6 @@ func (q *DBQuerier) GenSeries1(ctx context.Context) (*int, error) {
 	return item, nil
 }
 
-// GenSeries1Batch implements Querier.GenSeries1Batch.
-func (q *DBQuerier) GenSeries1Batch(batch genericBatch) {
-	batch.Queue(genSeries1SQL)
-}
-
-// GenSeries1Scan implements Querier.GenSeries1Scan.
-func (q *DBQuerier) GenSeries1Scan(results pgx.BatchResults) (*int, error) {
-	row := results.QueryRow()
-	var item *int
-	if err := row.Scan(&item); err != nil {
-		return item, fmt.Errorf("scan GenSeries1Batch row: %w", err)
-	}
-	return item, nil
-}
-
 const genSeriesSQL = `SELECT n
 FROM generate_series(0, 2) n;`
 
@@ -245,32 +188,6 @@ func (q *DBQuerier) GenSeries(ctx context.Context) ([]*int, error) {
 	return items, err
 }
 
-// GenSeriesBatch implements Querier.GenSeriesBatch.
-func (q *DBQuerier) GenSeriesBatch(batch genericBatch) {
-	batch.Queue(genSeriesSQL)
-}
-
-// GenSeriesScan implements Querier.GenSeriesScan.
-func (q *DBQuerier) GenSeriesScan(results pgx.BatchResults) ([]*int, error) {
-	rows, err := results.Query()
-	if err != nil {
-		return nil, fmt.Errorf("query GenSeriesBatch: %w", err)
-	}
-	defer rows.Close()
-	items := []*int{}
-	for rows.Next() {
-		var item int
-		if err := rows.Scan(&item); err != nil {
-			return nil, fmt.Errorf("scan GenSeriesBatch row: %w", err)
-		}
-		items = append(items, &item)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("close GenSeriesBatch rows: %w", err)
-	}
-	return items, err
-}
-
 const genSeriesArr1SQL = `SELECT array_agg(n)
 FROM generate_series(0, 2) n;`
 
@@ -281,21 +198,6 @@ func (q *DBQuerier) GenSeriesArr1(ctx context.Context) ([]int, error) {
 	item := []int{}
 	if err := row.Scan(&item); err != nil {
 		return item, fmt.Errorf("query GenSeriesArr1: %w", err)
-	}
-	return item, nil
-}
-
-// GenSeriesArr1Batch implements Querier.GenSeriesArr1Batch.
-func (q *DBQuerier) GenSeriesArr1Batch(batch genericBatch) {
-	batch.Queue(genSeriesArr1SQL)
-}
-
-// GenSeriesArr1Scan implements Querier.GenSeriesArr1Scan.
-func (q *DBQuerier) GenSeriesArr1Scan(results pgx.BatchResults) ([]int, error) {
-	row := results.QueryRow()
-	item := []int{}
-	if err := row.Scan(&item); err != nil {
-		return item, fmt.Errorf("scan GenSeriesArr1Batch row: %w", err)
 	}
 	return item, nil
 }
@@ -325,32 +227,6 @@ func (q *DBQuerier) GenSeriesArr(ctx context.Context) ([][]int, error) {
 	return items, err
 }
 
-// GenSeriesArrBatch implements Querier.GenSeriesArrBatch.
-func (q *DBQuerier) GenSeriesArrBatch(batch genericBatch) {
-	batch.Queue(genSeriesArrSQL)
-}
-
-// GenSeriesArrScan implements Querier.GenSeriesArrScan.
-func (q *DBQuerier) GenSeriesArrScan(results pgx.BatchResults) ([][]int, error) {
-	rows, err := results.Query()
-	if err != nil {
-		return nil, fmt.Errorf("query GenSeriesArrBatch: %w", err)
-	}
-	defer rows.Close()
-	items := [][]int{}
-	for rows.Next() {
-		var item []int
-		if err := rows.Scan(&item); err != nil {
-			return nil, fmt.Errorf("scan GenSeriesArrBatch row: %w", err)
-		}
-		items = append(items, item)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("close GenSeriesArrBatch rows: %w", err)
-	}
-	return items, err
-}
-
 const genSeriesStr1SQL = `SELECT n::text
 FROM generate_series(0, 2) n
 LIMIT 1;`
@@ -362,21 +238,6 @@ func (q *DBQuerier) GenSeriesStr1(ctx context.Context) (*string, error) {
 	var item *string
 	if err := row.Scan(&item); err != nil {
 		return item, fmt.Errorf("query GenSeriesStr1: %w", err)
-	}
-	return item, nil
-}
-
-// GenSeriesStr1Batch implements Querier.GenSeriesStr1Batch.
-func (q *DBQuerier) GenSeriesStr1Batch(batch genericBatch) {
-	batch.Queue(genSeriesStr1SQL)
-}
-
-// GenSeriesStr1Scan implements Querier.GenSeriesStr1Scan.
-func (q *DBQuerier) GenSeriesStr1Scan(results pgx.BatchResults) (*string, error) {
-	row := results.QueryRow()
-	var item *string
-	if err := row.Scan(&item); err != nil {
-		return item, fmt.Errorf("scan GenSeriesStr1Batch row: %w", err)
 	}
 	return item, nil
 }
@@ -402,32 +263,6 @@ func (q *DBQuerier) GenSeriesStr(ctx context.Context) ([]*string, error) {
 	}
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("close GenSeriesStr rows: %w", err)
-	}
-	return items, err
-}
-
-// GenSeriesStrBatch implements Querier.GenSeriesStrBatch.
-func (q *DBQuerier) GenSeriesStrBatch(batch genericBatch) {
-	batch.Queue(genSeriesStrSQL)
-}
-
-// GenSeriesStrScan implements Querier.GenSeriesStrScan.
-func (q *DBQuerier) GenSeriesStrScan(results pgx.BatchResults) ([]*string, error) {
-	rows, err := results.Query()
-	if err != nil {
-		return nil, fmt.Errorf("query GenSeriesStrBatch: %w", err)
-	}
-	defer rows.Close()
-	items := []*string{}
-	for rows.Next() {
-		var item string
-		if err := rows.Scan(&item); err != nil {
-			return nil, fmt.Errorf("scan GenSeriesStrBatch row: %w", err)
-		}
-		items = append(items, &item)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("close GenSeriesStrBatch rows: %w", err)
 	}
 	return items, err
 }
