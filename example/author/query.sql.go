@@ -5,9 +5,8 @@ package author
 import (
 	"context"
 	"fmt"
-	"github.com/jackc/pgconn"
-	"github.com/jackc/pgtype"
-	"github.com/jackc/pgx/v4"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 // Querier is a typesafe Go interface backed by SQL queries.
@@ -48,8 +47,7 @@ type Querier interface {
 var _ Querier = &DBQuerier{}
 
 type DBQuerier struct {
-	conn  genericConn   // underlying Postgres transport to use
-	types *typeResolver // resolve types by name
+	conn genericConn // underlying Postgres transport to use
 }
 
 // genericConn is a connection like *pgx.Conn, pgx.Tx, or *pgxpool.Pool.
@@ -61,36 +59,7 @@ type genericConn interface {
 
 // NewQuerier creates a DBQuerier that implements Querier.
 func NewQuerier(conn genericConn) *DBQuerier {
-	return &DBQuerier{conn: conn, types: newTypeResolver()}
-}
-
-// typeResolver looks up the pgtype.ValueTranscoder by Postgres type name.
-type typeResolver struct {
-	connInfo *pgtype.ConnInfo // types by Postgres type name
-}
-
-func newTypeResolver() *typeResolver {
-	ci := pgtype.NewConnInfo()
-	return &typeResolver{connInfo: ci}
-}
-
-// findValue find the OID, and pgtype.ValueTranscoder for a Postgres type name.
-func (tr *typeResolver) findValue(name string) (uint32, pgtype.ValueTranscoder, bool) {
-	typ, ok := tr.connInfo.DataTypeForName(name)
-	if !ok {
-		return 0, nil, false
-	}
-	v := pgtype.NewValue(typ.Value)
-	return typ.OID, v.(pgtype.ValueTranscoder), true
-}
-
-// setValue sets the value of a ValueTranscoder to a value that should always
-// work and panics if it fails.
-func (tr *typeResolver) setValue(vt pgtype.ValueTranscoder, val interface{}) pgtype.ValueTranscoder {
-	if err := vt.Set(val); err != nil {
-		panic(fmt.Sprintf("set ValueTranscoder %T to %+v: %s", vt, val, err))
-	}
-	return vt
+	return &DBQuerier{conn: conn}
 }
 
 const findAuthorByIDSQL = `SELECT * FROM author WHERE author_id = $1;`
@@ -102,12 +71,17 @@ type FindAuthorByIDRow struct {
 	Suffix    *string `json:"suffix"`
 }
 
+func (r *FindAuthorByIDRow) scanRow(rows pgx.Rows) error {
+	return rows.Scan(&r.AuthorID, &r.FirstName, &r.LastName, &r.Suffix)
+}
+
 // FindAuthorByID implements Querier.FindAuthorByID.
 func (q *DBQuerier) FindAuthorByID(ctx context.Context, authorID int32) (FindAuthorByIDRow, error) {
 	ctx = context.WithValue(ctx, "pggen_query_name", "FindAuthorByID")
 	row := q.conn.QueryRow(ctx, findAuthorByIDSQL, authorID)
 	var item FindAuthorByIDRow
-	if err := row.Scan(&item.AuthorID, &item.FirstName, &item.LastName, &item.Suffix); err != nil {
+	s := scanner[*FindAuthorByIDRow]{&item}
+	if err := row.Scan(s); err != nil {
 		return item, fmt.Errorf("query FindAuthorByID: %w", err)
 	}
 	return item, nil
@@ -122,6 +96,10 @@ type FindAuthorsRow struct {
 	Suffix    *string `json:"suffix"`
 }
 
+func (r *FindAuthorsRow) scanRow(rows pgx.Rows) error {
+	return rows.Scan(&r.AuthorID, &r.FirstName, &r.LastName, &r.Suffix)
+}
+
 // FindAuthors implements Querier.FindAuthors.
 func (q *DBQuerier) FindAuthors(ctx context.Context, firstName string) ([]FindAuthorsRow, error) {
 	ctx = context.WithValue(ctx, "pggen_query_name", "FindAuthors")
@@ -131,9 +109,11 @@ func (q *DBQuerier) FindAuthors(ctx context.Context, firstName string) ([]FindAu
 	}
 	defer rows.Close()
 	items := []FindAuthorsRow{}
+	s := scanner[*FindAuthorsRow]{}
 	for rows.Next() {
 		var item FindAuthorsRow
-		if err := rows.Scan(&item.AuthorID, &item.FirstName, &item.LastName, &item.Suffix); err != nil {
+		s.item = &item
+		if err := rows.Scan(s); err != nil {
 			return nil, fmt.Errorf("scan FindAuthors row: %w", err)
 		}
 		items = append(items, item)
@@ -151,6 +131,10 @@ type FindAuthorNamesRow struct {
 	LastName  *string `json:"last_name"`
 }
 
+func (r *FindAuthorNamesRow) scanRow(rows pgx.Rows) error {
+	return rows.Scan(&r.FirstName, &r.LastName)
+}
+
 // FindAuthorNames implements Querier.FindAuthorNames.
 func (q *DBQuerier) FindAuthorNames(ctx context.Context, authorID int32) ([]FindAuthorNamesRow, error) {
 	ctx = context.WithValue(ctx, "pggen_query_name", "FindAuthorNames")
@@ -160,9 +144,11 @@ func (q *DBQuerier) FindAuthorNames(ctx context.Context, authorID int32) ([]Find
 	}
 	defer rows.Close()
 	items := []FindAuthorNamesRow{}
+	s := scanner[*FindAuthorNamesRow]{}
 	for rows.Next() {
 		var item FindAuthorNamesRow
-		if err := rows.Scan(&item.FirstName, &item.LastName); err != nil {
+		s.item = &item
+		if err := rows.Scan(s); err != nil {
 			return nil, fmt.Errorf("scan FindAuthorNames row: %w", err)
 		}
 		items = append(items, item)
@@ -275,12 +261,17 @@ type InsertAuthorSuffixRow struct {
 	Suffix    *string `json:"suffix"`
 }
 
+func (r *InsertAuthorSuffixRow) scanRow(rows pgx.Rows) error {
+	return rows.Scan(&r.AuthorID, &r.FirstName, &r.LastName, &r.Suffix)
+}
+
 // InsertAuthorSuffix implements Querier.InsertAuthorSuffix.
 func (q *DBQuerier) InsertAuthorSuffix(ctx context.Context, params InsertAuthorSuffixParams) (InsertAuthorSuffixRow, error) {
 	ctx = context.WithValue(ctx, "pggen_query_name", "InsertAuthorSuffix")
 	row := q.conn.QueryRow(ctx, insertAuthorSuffixSQL, params.FirstName, params.LastName, params.Suffix)
 	var item InsertAuthorSuffixRow
-	if err := row.Scan(&item.AuthorID, &item.FirstName, &item.LastName, &item.Suffix); err != nil {
+	s := scanner[*InsertAuthorSuffixRow]{&item}
+	if err := row.Scan(s); err != nil {
 		return item, fmt.Errorf("query InsertAuthorSuffix: %w", err)
 	}
 	return item, nil
@@ -312,27 +303,8 @@ func (q *DBQuerier) ArrayAggFirstName(ctx context.Context, authorID int32) ([]st
 	return item, nil
 }
 
-// textPreferrer wraps a pgtype.ValueTranscoder and sets the preferred encoding
-// format to text instead binary (the default). pggen uses the text format
-// when the OID is unknownOID because the binary format requires the OID.
-// Typically occurs for unregistered types.
-type textPreferrer struct {
-	pgtype.ValueTranscoder
-	typeName string
-}
+type rowScanner interface{ scanRow(rows pgx.Rows) error }
 
-// PreferredParamFormat implements pgtype.ParamFormatPreferrer.
-func (t textPreferrer) PreferredParamFormat() int16 { return pgtype.TextFormatCode }
+type scanner[T rowScanner] struct{ item T }
 
-func (t textPreferrer) NewTypeValue() pgtype.Value {
-	return textPreferrer{ValueTranscoder: pgtype.NewValue(t.ValueTranscoder).(pgtype.ValueTranscoder), typeName: t.typeName}
-}
-
-func (t textPreferrer) TypeName() string {
-	return t.typeName
-}
-
-// unknownOID means we don't know the OID for a type. This is okay for decoding
-// because pgx call DecodeText or DecodeBinary without requiring the OID. For
-// encoding parameters, pggen uses textPreferrer if the OID is unknown.
-const unknownOID = 0
+func (s scanner[T]) ScanRow(rows pgx.Rows) error { return s.item.scanRow(rows) }

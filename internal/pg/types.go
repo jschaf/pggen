@@ -1,15 +1,14 @@
 package pg
 
 import (
-	"github.com/jackc/pgtype"
 	"github.com/jschaf/pggen/internal/pg/pgoid"
 	"strconv"
 )
 
 // Type is a Postgres type.
 type Type interface {
-	OID() pgtype.OID // pg_type.oid: row identifier
-	String() string  // pg_type.typname: data type name
+	OID() uint32    // pg_type.oid: row identifier
+	String() string // pg_type.typname: data type name
 	Kind() TypeKind
 }
 
@@ -49,8 +48,8 @@ type (
 	// BaseType is a fundamental Postgres type like text and bool.
 	// https://www.postgresql.org/docs/13/catalog-pg-type.html
 	BaseType struct {
-		ID   pgtype.OID // pg_type.oid: row identifier
-		Name string     // pg_type.typname: data type name
+		ID   uint32 // pg_type.oid: row identifier
+		Name string // pg_type.typname: data type name
 	}
 
 	// VoidType is an empty type. A void type doesn't appear in output, but it's
@@ -60,7 +59,7 @@ type (
 	// ArrayType is an array type where pg_type.typelem != 0 and the name begins
 	// with an underscore.
 	ArrayType struct {
-		ID pgtype.OID // pg_type.oid: row identifier
+		ID uint32 // pg_type.oid: row identifier
 		// The name of the type, like _int4. Array types in Postgres typically
 		// begin with an underscore. From pg_type.typname.
 		Name string
@@ -69,7 +68,7 @@ type (
 	}
 
 	EnumType struct {
-		ID pgtype.OID // pg_type.oid: row identifier
+		ID uint32 // pg_type.oid: row identifier
 		// The name of the enum, like 'device_type' in:
 		//     CREATE TYPE device_type AS ENUM ('foo');
 		// From pg_type.typname.
@@ -82,26 +81,26 @@ type (
 		// values is that they be correctly ordered and unique within each enum
 		// type.
 		Orders    []float32
-		ChildOIDs []pgtype.OID
+		ChildOIDs []uint32
 	}
 
 	// DomainType is a user-create domain type.
 	DomainType struct {
-		ID         pgtype.OID // pg_type.oid: row identifier
-		Name       string     // pg_type.typname: data type name
-		IsNotNull  bool       // pg_type.typnotnull: domains only, not null constraint for domains
-		HasDefault bool       // pg_type.typdefault: domains only, if there's a default value
-		BaseType   BaseType   // pg_type.typbasetype: domains only, the base type
-		Dimensions int        // pg_type.typndims: domains on array type only, 0 otherwise, number of array dimensions
+		ID         uint32   // pg_type.oid: row identifier
+		Name       string   // pg_type.typname: data type name
+		IsNotNull  bool     // pg_type.typnotnull: domains only, not null constraint for domains
+		HasDefault bool     // pg_type.typdefault: domains only, if there's a default value
+		BaseType   BaseType // pg_type.typbasetype: domains only, the base type
+		Dimensions int      // pg_type.typndims: domains on array type only, 0 otherwise, number of array dimensions
 	}
 
 	// CompositeType is a type containing multiple columns and is represented as
 	// a class. https://www.postgresql.org/docs/13/catalog-pg-class.html
 	CompositeType struct {
-		ID          pgtype.OID // pg_class.oid: row identifier
-		Name        string     // pg_class.relname: name of the composite type
-		ColumnNames []string   // pg_attribute.attname: names of the column, in order
-		ColumnTypes []Type     // pg_attribute JOIN pg_type: information about columns of the composite type
+		ID          uint32   // pg_class.oid: row identifier
+		Name        string   // pg_class.relname: name of the composite type
+		ColumnNames []string // pg_attribute.attname: names of the column, in order
+		ColumnTypes []Type   // pg_attribute JOIN pg_type: information about columns of the composite type
 	}
 
 	// UnknownType is a Postgres type that's not a well-known type in
@@ -109,8 +108,8 @@ type (
 	// generator might be able to resolve this type from a user-provided mapping
 	// like --go-type my_int=int.
 	UnknownType struct {
-		ID     pgtype.OID // pg_type.oid: row identifier
-		Name   string     // pg_type.typname: data type name
+		ID     uint32 // pg_type.oid: row identifier
+		Name   string // pg_type.typname: data type name
 		PgKind TypeKind
 	}
 
@@ -120,38 +119,38 @@ type (
 	// requires two passes for cases like when a composite type has a child type
 	// that's an array.
 	placeholderType struct {
-		ID pgtype.OID // pg_type.oid: row identifier
+		ID uint32 // pg_type.oid: row identifier
 	}
 )
 
-func (b BaseType) OID() pgtype.OID { return b.ID }
-func (b BaseType) String() string  { return b.Name }
-func (b BaseType) Kind() TypeKind  { return KindBaseType }
+func (b BaseType) OID() uint32    { return b.ID }
+func (b BaseType) String() string { return b.Name }
+func (b BaseType) Kind() TypeKind { return KindBaseType }
 
-func (b VoidType) OID() pgtype.OID { return pgoid.Void }
-func (b VoidType) String() string  { return "void" }
-func (b VoidType) Kind() TypeKind  { return KindPseudoType }
+func (b VoidType) OID() uint32    { return pgoid.Void }
+func (b VoidType) String() string { return "void" }
+func (b VoidType) Kind() TypeKind { return KindPseudoType }
 
-func (b ArrayType) OID() pgtype.OID { return b.ID }
-func (b ArrayType) String() string  { return b.Name }
-func (b ArrayType) Kind() TypeKind  { return KindBaseType }
+func (b ArrayType) OID() uint32    { return b.ID }
+func (b ArrayType) String() string { return b.Name }
+func (b ArrayType) Kind() TypeKind { return KindBaseType }
 
-func (e EnumType) OID() pgtype.OID { return e.ID }
-func (e EnumType) String() string  { return e.Name }
-func (e EnumType) Kind() TypeKind  { return KindEnumType }
+func (e EnumType) OID() uint32    { return e.ID }
+func (e EnumType) String() string { return e.Name }
+func (e EnumType) Kind() TypeKind { return KindEnumType }
 
-func (e DomainType) OID() pgtype.OID { return e.ID }
-func (e DomainType) String() string  { return e.Name }
-func (e DomainType) Kind() TypeKind  { return KindDomainType }
+func (e DomainType) OID() uint32    { return e.ID }
+func (e DomainType) String() string { return e.Name }
+func (e DomainType) Kind() TypeKind { return KindDomainType }
 
-func (e CompositeType) OID() pgtype.OID { return e.ID }
-func (e CompositeType) String() string  { return e.Name }
-func (e CompositeType) Kind() TypeKind  { return KindCompositeType }
+func (e CompositeType) OID() uint32    { return e.ID }
+func (e CompositeType) String() string { return e.Name }
+func (e CompositeType) Kind() TypeKind { return KindCompositeType }
 
-func (e UnknownType) OID() pgtype.OID { return e.ID }
-func (e UnknownType) String() string  { return e.Name }
-func (e UnknownType) Kind() TypeKind  { return e.PgKind }
+func (e UnknownType) OID() uint32    { return e.ID }
+func (e UnknownType) String() string { return e.Name }
+func (e UnknownType) Kind() TypeKind { return e.PgKind }
 
-func (p placeholderType) OID() pgtype.OID { return p.ID }
-func (p placeholderType) String() string  { return "placeholder-" + strconv.Itoa(int(p.ID)) }
-func (p placeholderType) Kind() TypeKind  { return kindPlaceholderType }
+func (p placeholderType) OID() uint32    { return p.ID }
+func (p placeholderType) String() string { return "placeholder-" + strconv.Itoa(int(p.ID)) }
+func (p placeholderType) Kind() TypeKind { return kindPlaceholderType }

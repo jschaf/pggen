@@ -3,8 +3,7 @@ package pg
 import (
 	"context"
 	"fmt"
-	"github.com/jackc/pgtype"
-	"github.com/jackc/pgx/v4"
+	"github.com/jackc/pgx/v5"
 	"github.com/jschaf/pggen/internal/texts"
 	"strconv"
 	"strings"
@@ -15,18 +14,18 @@ import (
 // Column stores information about a column in a TableOID.
 // https://www.postgresql.org/docs/13/catalog-pg-attribute.html
 type Column struct {
-	Name      string     // pg_attribute.attname: column name
-	TableOID  pgtype.OID // pg_attribute:attrelid: table the column belongs to
-	TableName string     // pg_class.relname: name of table that owns the column
-	Number    uint16     // pg_attribute.attnum: the number of column starting from 1
-	Type      Type       // pg_attribute.atttypid: data type of the column
-	Null      bool       // pg_attribute.attnotnull: represents a not-null constraint
+	Name      string // pg_attribute.attname: column name
+	TableOID  uint32 // pg_attribute:attrelid: table the column belongs to
+	TableName string // pg_class.relname: name of table that owns the column
+	Number    uint16 // pg_attribute.attnum: the number of column starting from 1
+	Type      Type   // pg_attribute.atttypid: data type of the column
+	Null      bool   // pg_attribute.attnotnull: represents a not-null constraint
 }
 
 // ColumnKey is a composite key of a table OID and the number of the column
 // within the table.
 type ColumnKey struct {
-	TableOID pgtype.OID
+	TableOID uint32
 	Number   uint16 // the number of column starting from 1
 }
 

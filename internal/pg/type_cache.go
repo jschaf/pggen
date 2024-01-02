@@ -1,18 +1,17 @@
 package pg
 
 import (
-	"github.com/jackc/pgtype"
 	"sync"
 )
 
 // typeCache caches a map from a Postgres pg_type.oid to a Type.
 type typeCache struct {
-	types map[pgtype.OID]Type
+	types map[uint32]Type
 	mu    *sync.Mutex
 }
 
 func newTypeCache() *typeCache {
-	m := make(map[pgtype.OID]Type, len(defaultKnownTypes))
+	m := make(map[uint32]Type, len(defaultKnownTypes))
 	for oid, typ := range defaultKnownTypes {
 		m[oid] = typ
 	}
@@ -23,16 +22,16 @@ func newTypeCache() *typeCache {
 }
 
 // getOIDs returns the cached OIDS (with the type) and uncached OIDs.
-func (tc *typeCache) getOIDs(oids ...uint32) (map[pgtype.OID]Type, map[pgtype.OID]struct{}) {
-	cachedTypes := make(map[pgtype.OID]Type, len(oids))
-	uncachedTypes := make(map[pgtype.OID]struct{}, len(oids))
+func (tc *typeCache) getOIDs(oids ...uint32) (map[uint32]Type, map[uint32]struct{}) {
+	cachedTypes := make(map[uint32]Type, len(oids))
+	uncachedTypes := make(map[uint32]struct{}, len(oids))
 	tc.mu.Lock()
 	defer tc.mu.Unlock()
 	for _, oid := range oids {
-		if t, ok := tc.types[pgtype.OID(oid)]; ok {
-			cachedTypes[pgtype.OID(oid)] = t
+		if t, ok := tc.types[uint32(oid)]; ok {
+			cachedTypes[uint32(oid)] = t
 		} else {
-			uncachedTypes[pgtype.OID(oid)] = struct{}{}
+			uncachedTypes[uint32(oid)] = struct{}{}
 		}
 	}
 	return cachedTypes, uncachedTypes
@@ -40,7 +39,7 @@ func (tc *typeCache) getOIDs(oids ...uint32) (map[pgtype.OID]Type, map[pgtype.OI
 
 func (tc *typeCache) getOID(oid uint32) (Type, bool) {
 	tc.mu.Lock()
-	typ, ok := tc.types[pgtype.OID(oid)]
+	typ, ok := tc.types[uint32(oid)]
 	tc.mu.Unlock()
 	return typ, ok
 }

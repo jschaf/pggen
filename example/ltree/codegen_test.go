@@ -23,8 +23,8 @@ func TestGenerate_Go_Example_ltree(t *testing.T) {
 			Language:         pggen.LangGo,
 			InlineParamCount: 2,
 			TypeOverrides: map[string]string{
-				"ltree":  "github.com/jackc/pgtype.Text",
-				"_ltree": "github.com/jackc/pgtype.TextArray",
+				"ltree":  "github.com/jackc/pgx/v5/pgtype.Text",
+				"_ltree": "github.com/jackc/pgx/v5/pgtype.TextArray",
 			},
 		})
 	if err != nil {

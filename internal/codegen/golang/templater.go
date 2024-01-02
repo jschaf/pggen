@@ -73,7 +73,7 @@ func (tm Templater) TemplateAll(files []codegen.QueryFile) ([]TemplatedFile, err
 		pgconnIdx := -1
 		imports := file.Imports
 		for i, pkg := range imports {
-			if pkg == "github.com/jackc/pgconn" {
+			if pkg == "github.com/jackc/pgx/v5/pgconn" {
 				pgconnIdx = i
 				break
 			}
@@ -113,10 +113,10 @@ func (tm Templater) templateFile(file codegen.QueryFile, isLeader bool) (Templat
 	imports := NewImportSet()
 	imports.AddPackage("context")
 	imports.AddPackage("fmt")
-	imports.AddPackage("github.com/jackc/pgconn")
+	imports.AddPackage("github.com/jackc/pgx/v5/pgconn")
 	if isLeader {
-		imports.AddPackage("github.com/jackc/pgtype")
-		imports.AddPackage("github.com/jackc/pgx/v4")
+		imports.AddPackage("github.com/jackc/pgx/v5/pgtype")
+		imports.AddPackage("github.com/jackc/pgx/v5")
 	}
 
 	pkgPath := ""

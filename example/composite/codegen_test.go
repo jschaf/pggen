@@ -28,7 +28,7 @@ func TestGenerate_Go_Example_Composite(t *testing.T) {
 				"int8":   "int",
 				"int4":   "int",
 				"text":   "string",
-				"citext": "github.com/jackc/pgtype.Text",
+				"citext": "github.com/jackc/pgx/v5/pgtype.Text",
 			},
 		})
 	if err != nil {

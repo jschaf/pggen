@@ -7,7 +7,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"github.com/jackc/pgx/v4"
+	"github.com/jackc/pgx/v5"
 	"github.com/jschaf/pggen/internal/errs"
 	"github.com/jschaf/pggen/internal/pgdocker"
 	"math/rand"
@@ -57,7 +57,7 @@ func TestExamples(t *testing.T) {
 				"--go-type", "int8=int",
 				"--go-type", "int4=int",
 				"--go-type", "text=string",
-				"--go-type", "citext=github.com/jackc/pgtype.Text",
+				"--go-type", "citext=github.com/jackc/pgx/v5/pgtype.Text",
 			},
 		},
 		{
@@ -179,8 +179,8 @@ func TestExamples(t *testing.T) {
 			args: []string{
 				"--schema-glob", "example/ltree/schema.sql",
 				"--query-glob", "example/ltree/query.sql",
-				"--go-type", "ltree=github.com/jackc/pgtype.Text",
-				"--go-type", "_ltree=github.com/jackc/pgtype.TextArray",
+				"--go-type", "ltree=github.com/jackc/pgx/v5/pgtype.Text",
+				"--go-type", "_ltree=github.com/jackc/pgx/v5/pgtype.TextArray",
 			},
 		},
 		{
