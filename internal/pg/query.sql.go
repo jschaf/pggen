@@ -11,64 +11,25 @@ import (
 )
 
 // Querier is a typesafe Go interface backed by SQL queries.
-//
-// Methods ending with Batch enqueue a query to run later in a pgx.Batch. After
-// calling SendBatch on pgx.Conn, pgxpool.Pool, or pgx.Tx, use the Scan methods
-// to parse the results.
 type Querier interface {
 	FindEnumTypes(ctx context.Context, oids []uint32) ([]FindEnumTypesRow, error)
-	// FindEnumTypesBatch enqueues a FindEnumTypes query into batch to be executed
-	// later by the batch.
-	FindEnumTypesBatch(batch genericBatch, oids []uint32)
-	// FindEnumTypesScan scans the result of an executed FindEnumTypesBatch query.
-	FindEnumTypesScan(results pgx.BatchResults) ([]FindEnumTypesRow, error)
 
 	FindArrayTypes(ctx context.Context, oids []uint32) ([]FindArrayTypesRow, error)
-	// FindArrayTypesBatch enqueues a FindArrayTypes query into batch to be executed
-	// later by the batch.
-	FindArrayTypesBatch(batch genericBatch, oids []uint32)
-	// FindArrayTypesScan scans the result of an executed FindArrayTypesBatch query.
-	FindArrayTypesScan(results pgx.BatchResults) ([]FindArrayTypesRow, error)
 
 	// A composite type represents a row or record, defined implicitly for each
 	// table, or explicitly with CREATE TYPE.
 	// https://www.postgresql.org/docs/13/rowtypes.html
 	FindCompositeTypes(ctx context.Context, oids []uint32) ([]FindCompositeTypesRow, error)
-	// FindCompositeTypesBatch enqueues a FindCompositeTypes query into batch to be executed
-	// later by the batch.
-	FindCompositeTypesBatch(batch genericBatch, oids []uint32)
-	// FindCompositeTypesScan scans the result of an executed FindCompositeTypesBatch query.
-	FindCompositeTypesScan(results pgx.BatchResults) ([]FindCompositeTypesRow, error)
 
 	// Recursively expands all given OIDs to all descendants through composite
 	// types.
 	FindDescendantOIDs(ctx context.Context, oids []uint32) ([]pgtype.OID, error)
-	// FindDescendantOIDsBatch enqueues a FindDescendantOIDs query into batch to be executed
-	// later by the batch.
-	FindDescendantOIDsBatch(batch genericBatch, oids []uint32)
-	// FindDescendantOIDsScan scans the result of an executed FindDescendantOIDsBatch query.
-	FindDescendantOIDsScan(results pgx.BatchResults) ([]pgtype.OID, error)
 
 	FindOIDByName(ctx context.Context, name string) (pgtype.OID, error)
-	// FindOIDByNameBatch enqueues a FindOIDByName query into batch to be executed
-	// later by the batch.
-	FindOIDByNameBatch(batch genericBatch, name string)
-	// FindOIDByNameScan scans the result of an executed FindOIDByNameBatch query.
-	FindOIDByNameScan(results pgx.BatchResults) (pgtype.OID, error)
 
 	FindOIDName(ctx context.Context, oid pgtype.OID) (pgtype.Name, error)
-	// FindOIDNameBatch enqueues a FindOIDName query into batch to be executed
-	// later by the batch.
-	FindOIDNameBatch(batch genericBatch, oid pgtype.OID)
-	// FindOIDNameScan scans the result of an executed FindOIDNameBatch query.
-	FindOIDNameScan(results pgx.BatchResults) (pgtype.Name, error)
 
 	FindOIDNames(ctx context.Context, oid []uint32) ([]FindOIDNamesRow, error)
-	// FindOIDNamesBatch enqueues a FindOIDNames query into batch to be executed
-	// later by the batch.
-	FindOIDNamesBatch(batch genericBatch, oid []uint32)
-	// FindOIDNamesScan scans the result of an executed FindOIDNamesBatch query.
-	FindOIDNamesScan(results pgx.BatchResults) ([]FindOIDNamesRow, error)
 }
 
 type DBQuerier struct {
@@ -95,14 +56,6 @@ type genericConn interface {
 	// string. arguments should be referenced positionally from the sql string
 	// as $1, $2, etc.
 	Exec(ctx context.Context, sql string, arguments ...interface{}) (pgconn.CommandTag, error)
-}
-
-// genericBatch batches queries to send in a single network request to a
-// Postgres server. This is usually backed by *pgx.Batch.
-type genericBatch interface {
-	// Queue queues a query to batch b. query can be an SQL query or the name of a
-	// prepared statement. See Queue on *pgx.Batch.
-	Queue(query string, arguments ...interface{})
 }
 
 // NewQuerier creates a DBQuerier that implements Querier. conn is typically
@@ -281,32 +234,6 @@ func (q *DBQuerier) FindEnumTypes(ctx context.Context, oids []uint32) ([]FindEnu
 	return items, err
 }
 
-// FindEnumTypesBatch implements Querier.FindEnumTypesBatch.
-func (q *DBQuerier) FindEnumTypesBatch(batch genericBatch, oids []uint32) {
-	batch.Queue(findEnumTypesSQL, oids)
-}
-
-// FindEnumTypesScan implements Querier.FindEnumTypesScan.
-func (q *DBQuerier) FindEnumTypesScan(results pgx.BatchResults) ([]FindEnumTypesRow, error) {
-	rows, err := results.Query()
-	if err != nil {
-		return nil, fmt.Errorf("query FindEnumTypesBatch: %w", err)
-	}
-	defer rows.Close()
-	items := []FindEnumTypesRow{}
-	for rows.Next() {
-		var item FindEnumTypesRow
-		if err := rows.Scan(&item.OID, &item.TypeName, &item.ChildOIDs, &item.Orders, &item.Labels, &item.TypeKind, &item.DefaultExpr); err != nil {
-			return nil, fmt.Errorf("scan FindEnumTypesBatch row: %w", err)
-		}
-		items = append(items, item)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("close FindEnumTypesBatch rows: %w", err)
-	}
-	return items, err
-}
-
 const findArrayTypesSQL = `SELECT
   arr_typ.oid           AS oid,
   -- typename: Data type name.
@@ -361,32 +288,6 @@ func (q *DBQuerier) FindArrayTypes(ctx context.Context, oids []uint32) ([]FindAr
 	}
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("close FindArrayTypes rows: %w", err)
-	}
-	return items, err
-}
-
-// FindArrayTypesBatch implements Querier.FindArrayTypesBatch.
-func (q *DBQuerier) FindArrayTypesBatch(batch genericBatch, oids []uint32) {
-	batch.Queue(findArrayTypesSQL, oids)
-}
-
-// FindArrayTypesScan implements Querier.FindArrayTypesScan.
-func (q *DBQuerier) FindArrayTypesScan(results pgx.BatchResults) ([]FindArrayTypesRow, error) {
-	rows, err := results.Query()
-	if err != nil {
-		return nil, fmt.Errorf("query FindArrayTypesBatch: %w", err)
-	}
-	defer rows.Close()
-	items := []FindArrayTypesRow{}
-	for rows.Next() {
-		var item FindArrayTypesRow
-		if err := rows.Scan(&item.OID, &item.TypeName, &item.ElemOID, &item.TypeKind); err != nil {
-			return nil, fmt.Errorf("scan FindArrayTypesBatch row: %w", err)
-		}
-		items = append(items, item)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("close FindArrayTypesBatch rows: %w", err)
 	}
 	return items, err
 }
@@ -454,32 +355,6 @@ func (q *DBQuerier) FindCompositeTypes(ctx context.Context, oids []uint32) ([]Fi
 	return items, err
 }
 
-// FindCompositeTypesBatch implements Querier.FindCompositeTypesBatch.
-func (q *DBQuerier) FindCompositeTypesBatch(batch genericBatch, oids []uint32) {
-	batch.Queue(findCompositeTypesSQL, oids)
-}
-
-// FindCompositeTypesScan implements Querier.FindCompositeTypesScan.
-func (q *DBQuerier) FindCompositeTypesScan(results pgx.BatchResults) ([]FindCompositeTypesRow, error) {
-	rows, err := results.Query()
-	if err != nil {
-		return nil, fmt.Errorf("query FindCompositeTypesBatch: %w", err)
-	}
-	defer rows.Close()
-	items := []FindCompositeTypesRow{}
-	for rows.Next() {
-		var item FindCompositeTypesRow
-		if err := rows.Scan(&item.TableTypeName, &item.TableTypeOID, &item.TableName, &item.ColNames, &item.ColOIDs, &item.ColOrders, &item.ColNotNulls, &item.ColTypeNames); err != nil {
-			return nil, fmt.Errorf("scan FindCompositeTypesBatch row: %w", err)
-		}
-		items = append(items, item)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("close FindCompositeTypesBatch rows: %w", err)
-	}
-	return items, err
-}
-
 const findDescendantOIDsSQL = `WITH RECURSIVE oid_descs(oid) AS (
   -- Base case.
   SELECT oid
@@ -530,32 +405,6 @@ func (q *DBQuerier) FindDescendantOIDs(ctx context.Context, oids []uint32) ([]pg
 	return items, err
 }
 
-// FindDescendantOIDsBatch implements Querier.FindDescendantOIDsBatch.
-func (q *DBQuerier) FindDescendantOIDsBatch(batch genericBatch, oids []uint32) {
-	batch.Queue(findDescendantOIDsSQL, oids)
-}
-
-// FindDescendantOIDsScan implements Querier.FindDescendantOIDsScan.
-func (q *DBQuerier) FindDescendantOIDsScan(results pgx.BatchResults) ([]pgtype.OID, error) {
-	rows, err := results.Query()
-	if err != nil {
-		return nil, fmt.Errorf("query FindDescendantOIDsBatch: %w", err)
-	}
-	defer rows.Close()
-	items := []pgtype.OID{}
-	for rows.Next() {
-		var item pgtype.OID
-		if err := rows.Scan(&item); err != nil {
-			return nil, fmt.Errorf("scan FindDescendantOIDsBatch row: %w", err)
-		}
-		items = append(items, item)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("close FindDescendantOIDsBatch rows: %w", err)
-	}
-	return items, err
-}
-
 const findOIDByNameSQL = `SELECT oid
 FROM pg_type
 WHERE typname::text = $1
@@ -573,21 +422,6 @@ func (q *DBQuerier) FindOIDByName(ctx context.Context, name string) (pgtype.OID,
 	return item, nil
 }
 
-// FindOIDByNameBatch implements Querier.FindOIDByNameBatch.
-func (q *DBQuerier) FindOIDByNameBatch(batch genericBatch, name string) {
-	batch.Queue(findOIDByNameSQL, name)
-}
-
-// FindOIDByNameScan implements Querier.FindOIDByNameScan.
-func (q *DBQuerier) FindOIDByNameScan(results pgx.BatchResults) (pgtype.OID, error) {
-	row := results.QueryRow()
-	var item pgtype.OID
-	if err := row.Scan(&item); err != nil {
-		return item, fmt.Errorf("scan FindOIDByNameBatch row: %w", err)
-	}
-	return item, nil
-}
-
 const findOIDNameSQL = `SELECT typname AS name
 FROM pg_type
 WHERE oid = $1;`
@@ -599,21 +433,6 @@ func (q *DBQuerier) FindOIDName(ctx context.Context, oid pgtype.OID) (pgtype.Nam
 	var item pgtype.Name
 	if err := row.Scan(&item); err != nil {
 		return item, fmt.Errorf("query FindOIDName: %w", err)
-	}
-	return item, nil
-}
-
-// FindOIDNameBatch implements Querier.FindOIDNameBatch.
-func (q *DBQuerier) FindOIDNameBatch(batch genericBatch, oid pgtype.OID) {
-	batch.Queue(findOIDNameSQL, oid)
-}
-
-// FindOIDNameScan implements Querier.FindOIDNameScan.
-func (q *DBQuerier) FindOIDNameScan(results pgx.BatchResults) (pgtype.Name, error) {
-	row := results.QueryRow()
-	var item pgtype.Name
-	if err := row.Scan(&item); err != nil {
-		return item, fmt.Errorf("scan FindOIDNameBatch row: %w", err)
 	}
 	return item, nil
 }
@@ -646,32 +465,6 @@ func (q *DBQuerier) FindOIDNames(ctx context.Context, oid []uint32) ([]FindOIDNa
 	}
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("close FindOIDNames rows: %w", err)
-	}
-	return items, err
-}
-
-// FindOIDNamesBatch implements Querier.FindOIDNamesBatch.
-func (q *DBQuerier) FindOIDNamesBatch(batch genericBatch, oid []uint32) {
-	batch.Queue(findOIDNamesSQL, oid)
-}
-
-// FindOIDNamesScan implements Querier.FindOIDNamesScan.
-func (q *DBQuerier) FindOIDNamesScan(results pgx.BatchResults) ([]FindOIDNamesRow, error) {
-	rows, err := results.Query()
-	if err != nil {
-		return nil, fmt.Errorf("query FindOIDNamesBatch: %w", err)
-	}
-	defer rows.Close()
-	items := []FindOIDNamesRow{}
-	for rows.Next() {
-		var item FindOIDNamesRow
-		if err := rows.Scan(&item.OID, &item.Name, &item.Kind); err != nil {
-			return nil, fmt.Errorf("scan FindOIDNamesBatch row: %w", err)
-		}
-		items = append(items, item)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("close FindOIDNamesBatch rows: %w", err)
 	}
 	return items, err
 }

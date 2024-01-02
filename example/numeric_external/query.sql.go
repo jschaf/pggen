@@ -12,24 +12,10 @@ import (
 )
 
 // Querier is a typesafe Go interface backed by SQL queries.
-//
-// Methods ending with Batch enqueue a query to run later in a pgx.Batch. After
-// calling SendBatch on pgx.Conn, pgxpool.Pool, or pgx.Tx, use the Scan methods
-// to parse the results.
 type Querier interface {
 	InsertNumeric(ctx context.Context, num decimal.Decimal, numArr []NumericExternalType) (pgconn.CommandTag, error)
-	// InsertNumericBatch enqueues a InsertNumeric query into batch to be executed
-	// later by the batch.
-	InsertNumericBatch(batch genericBatch, num decimal.Decimal, numArr []NumericExternalType)
-	// InsertNumericScan scans the result of an executed InsertNumericBatch query.
-	InsertNumericScan(results pgx.BatchResults) (pgconn.CommandTag, error)
 
 	FindNumerics(ctx context.Context) ([]FindNumericsRow, error)
-	// FindNumericsBatch enqueues a FindNumerics query into batch to be executed
-	// later by the batch.
-	FindNumericsBatch(batch genericBatch)
-	// FindNumericsScan scans the result of an executed FindNumericsBatch query.
-	FindNumericsScan(results pgx.BatchResults) ([]FindNumericsRow, error)
 }
 
 type DBQuerier struct {
@@ -56,14 +42,6 @@ type genericConn interface {
 	// string. arguments should be referenced positionally from the sql string
 	// as $1, $2, etc.
 	Exec(ctx context.Context, sql string, arguments ...interface{}) (pgconn.CommandTag, error)
-}
-
-// genericBatch batches queries to send in a single network request to a
-// Postgres server. This is usually backed by *pgx.Batch.
-type genericBatch interface {
-	// Queue queues a query to batch b. query can be an SQL query or the name of a
-	// prepared statement. See Queue on *pgx.Batch.
-	Queue(query string, arguments ...interface{})
 }
 
 // NewQuerier creates a DBQuerier that implements Querier. conn is typically
@@ -263,20 +241,6 @@ func (q *DBQuerier) InsertNumeric(ctx context.Context, num decimal.Decimal, numA
 	return cmdTag, err
 }
 
-// InsertNumericBatch implements Querier.InsertNumericBatch.
-func (q *DBQuerier) InsertNumericBatch(batch genericBatch, num decimal.Decimal, numArr []NumericExternalType) {
-	batch.Queue(insertNumericSQL, num, q.types.newNumericExternalTypeArrayInit(numArr))
-}
-
-// InsertNumericScan implements Querier.InsertNumericScan.
-func (q *DBQuerier) InsertNumericScan(results pgx.BatchResults) (pgconn.CommandTag, error) {
-	cmdTag, err := results.Exec()
-	if err != nil {
-		return cmdTag, fmt.Errorf("exec InsertNumericBatch: %w", err)
-	}
-	return cmdTag, err
-}
-
 const findNumericsSQL = `SELECT num, num_arr
 FROM numeric_external;`
 
@@ -307,36 +271,6 @@ func (q *DBQuerier) FindNumerics(ctx context.Context) ([]FindNumericsRow, error)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("close FindNumerics rows: %w", err)
-	}
-	return items, err
-}
-
-// FindNumericsBatch implements Querier.FindNumericsBatch.
-func (q *DBQuerier) FindNumericsBatch(batch genericBatch) {
-	batch.Queue(findNumericsSQL)
-}
-
-// FindNumericsScan implements Querier.FindNumericsScan.
-func (q *DBQuerier) FindNumericsScan(results pgx.BatchResults) ([]FindNumericsRow, error) {
-	rows, err := results.Query()
-	if err != nil {
-		return nil, fmt.Errorf("query FindNumericsBatch: %w", err)
-	}
-	defer rows.Close()
-	items := []FindNumericsRow{}
-	numArrArray := q.types.newNumericExternalTypeArray()
-	for rows.Next() {
-		var item FindNumericsRow
-		if err := rows.Scan(&item.Num, numArrArray); err != nil {
-			return nil, fmt.Errorf("scan FindNumericsBatch row: %w", err)
-		}
-		if err := numArrArray.AssignTo(&item.NumArr); err != nil {
-			return nil, fmt.Errorf("assign FindNumerics row: %w", err)
-		}
-		items = append(items, item)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("close FindNumericsBatch rows: %w", err)
 	}
 	return items, err
 }

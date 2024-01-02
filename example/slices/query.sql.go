@@ -12,38 +12,14 @@ import (
 )
 
 // Querier is a typesafe Go interface backed by SQL queries.
-//
-// Methods ending with Batch enqueue a query to run later in a pgx.Batch. After
-// calling SendBatch on pgx.Conn, pgxpool.Pool, or pgx.Tx, use the Scan methods
-// to parse the results.
 type Querier interface {
 	GetBools(ctx context.Context, data []bool) ([]bool, error)
-	// GetBoolsBatch enqueues a GetBools query into batch to be executed
-	// later by the batch.
-	GetBoolsBatch(batch genericBatch, data []bool)
-	// GetBoolsScan scans the result of an executed GetBoolsBatch query.
-	GetBoolsScan(results pgx.BatchResults) ([]bool, error)
 
 	GetOneTimestamp(ctx context.Context, data *time.Time) (*time.Time, error)
-	// GetOneTimestampBatch enqueues a GetOneTimestamp query into batch to be executed
-	// later by the batch.
-	GetOneTimestampBatch(batch genericBatch, data *time.Time)
-	// GetOneTimestampScan scans the result of an executed GetOneTimestampBatch query.
-	GetOneTimestampScan(results pgx.BatchResults) (*time.Time, error)
 
 	GetManyTimestamptzs(ctx context.Context, data []time.Time) ([]*time.Time, error)
-	// GetManyTimestamptzsBatch enqueues a GetManyTimestamptzs query into batch to be executed
-	// later by the batch.
-	GetManyTimestamptzsBatch(batch genericBatch, data []time.Time)
-	// GetManyTimestamptzsScan scans the result of an executed GetManyTimestamptzsBatch query.
-	GetManyTimestamptzsScan(results pgx.BatchResults) ([]*time.Time, error)
 
 	GetManyTimestamps(ctx context.Context, data []*time.Time) ([]*time.Time, error)
-	// GetManyTimestampsBatch enqueues a GetManyTimestamps query into batch to be executed
-	// later by the batch.
-	GetManyTimestampsBatch(batch genericBatch, data []*time.Time)
-	// GetManyTimestampsScan scans the result of an executed GetManyTimestampsBatch query.
-	GetManyTimestampsScan(results pgx.BatchResults) ([]*time.Time, error)
 }
 
 type DBQuerier struct {
@@ -70,14 +46,6 @@ type genericConn interface {
 	// string. arguments should be referenced positionally from the sql string
 	// as $1, $2, etc.
 	Exec(ctx context.Context, sql string, arguments ...interface{}) (pgconn.CommandTag, error)
-}
-
-// genericBatch batches queries to send in a single network request to a
-// Postgres server. This is usually backed by *pgx.Batch.
-type genericBatch interface {
-	// Queue queues a query to batch b. query can be an SQL query or the name of a
-	// prepared statement. See Queue on *pgx.Batch.
-	Queue(query string, arguments ...interface{})
 }
 
 // NewQuerier creates a DBQuerier that implements Querier. conn is typically
@@ -245,21 +213,6 @@ func (q *DBQuerier) GetBools(ctx context.Context, data []bool) ([]bool, error) {
 	return item, nil
 }
 
-// GetBoolsBatch implements Querier.GetBoolsBatch.
-func (q *DBQuerier) GetBoolsBatch(batch genericBatch, data []bool) {
-	batch.Queue(getBoolsSQL, data)
-}
-
-// GetBoolsScan implements Querier.GetBoolsScan.
-func (q *DBQuerier) GetBoolsScan(results pgx.BatchResults) ([]bool, error) {
-	row := results.QueryRow()
-	item := []bool{}
-	if err := row.Scan(&item); err != nil {
-		return item, fmt.Errorf("scan GetBoolsBatch row: %w", err)
-	}
-	return item, nil
-}
-
 const getOneTimestampSQL = `SELECT $1::timestamp;`
 
 // GetOneTimestamp implements Querier.GetOneTimestamp.
@@ -269,21 +222,6 @@ func (q *DBQuerier) GetOneTimestamp(ctx context.Context, data *time.Time) (*time
 	var item *time.Time
 	if err := row.Scan(&item); err != nil {
 		return item, fmt.Errorf("query GetOneTimestamp: %w", err)
-	}
-	return item, nil
-}
-
-// GetOneTimestampBatch implements Querier.GetOneTimestampBatch.
-func (q *DBQuerier) GetOneTimestampBatch(batch genericBatch, data *time.Time) {
-	batch.Queue(getOneTimestampSQL, data)
-}
-
-// GetOneTimestampScan implements Querier.GetOneTimestampScan.
-func (q *DBQuerier) GetOneTimestampScan(results pgx.BatchResults) (*time.Time, error) {
-	row := results.QueryRow()
-	var item *time.Time
-	if err := row.Scan(&item); err != nil {
-		return item, fmt.Errorf("scan GetOneTimestampBatch row: %w", err)
 	}
 	return item, nil
 }
@@ -313,32 +251,6 @@ func (q *DBQuerier) GetManyTimestamptzs(ctx context.Context, data []time.Time) (
 	return items, err
 }
 
-// GetManyTimestamptzsBatch implements Querier.GetManyTimestamptzsBatch.
-func (q *DBQuerier) GetManyTimestamptzsBatch(batch genericBatch, data []time.Time) {
-	batch.Queue(getManyTimestamptzsSQL, data)
-}
-
-// GetManyTimestamptzsScan implements Querier.GetManyTimestamptzsScan.
-func (q *DBQuerier) GetManyTimestamptzsScan(results pgx.BatchResults) ([]*time.Time, error) {
-	rows, err := results.Query()
-	if err != nil {
-		return nil, fmt.Errorf("query GetManyTimestamptzsBatch: %w", err)
-	}
-	defer rows.Close()
-	items := []*time.Time{}
-	for rows.Next() {
-		var item time.Time
-		if err := rows.Scan(&item); err != nil {
-			return nil, fmt.Errorf("scan GetManyTimestamptzsBatch row: %w", err)
-		}
-		items = append(items, &item)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("close GetManyTimestamptzsBatch rows: %w", err)
-	}
-	return items, err
-}
-
 const getManyTimestampsSQL = `SELECT *
 FROM unnest($1::timestamp[]);`
 
@@ -360,32 +272,6 @@ func (q *DBQuerier) GetManyTimestamps(ctx context.Context, data []*time.Time) ([
 	}
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("close GetManyTimestamps rows: %w", err)
-	}
-	return items, err
-}
-
-// GetManyTimestampsBatch implements Querier.GetManyTimestampsBatch.
-func (q *DBQuerier) GetManyTimestampsBatch(batch genericBatch, data []*time.Time) {
-	batch.Queue(getManyTimestampsSQL, data)
-}
-
-// GetManyTimestampsScan implements Querier.GetManyTimestampsScan.
-func (q *DBQuerier) GetManyTimestampsScan(results pgx.BatchResults) ([]*time.Time, error) {
-	rows, err := results.Query()
-	if err != nil {
-		return nil, fmt.Errorf("query GetManyTimestampsBatch: %w", err)
-	}
-	defer rows.Close()
-	items := []*time.Time{}
-	for rows.Next() {
-		var item time.Time
-		if err := rows.Scan(&item); err != nil {
-			return nil, fmt.Errorf("scan GetManyTimestampsBatch row: %w", err)
-		}
-		items = append(items, &item)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("close GetManyTimestampsBatch rows: %w", err)
 	}
 	return items, err
 }

@@ -3,7 +3,6 @@ package device
 import (
 	"context"
 	"github.com/jackc/pgtype"
-	"github.com/jackc/pgx/v4"
 	"github.com/jschaf/pggen/internal/pgtest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -42,29 +41,6 @@ func TestQuerier_FindDevicesByUser(t *testing.T) {
 		}
 		assert.Equal(t, want, val)
 	})
-
-	t.Run("FindDevicesByUserBatch", func(t *testing.T) {
-		batch := &pgx.Batch{}
-		q.FindDevicesByUserBatch(batch, userID)
-		results := conn.SendBatch(ctx, batch)
-		got, err := q.FindDevicesByUserScan(results)
-		require.NoError(t, err)
-		want := []FindDevicesByUserRow{
-			{
-				ID:   userID,
-				Name: "foo",
-				MacAddrs: pgtype.MacaddrArray{
-					Elements: []pgtype.Macaddr{{Addr: mac1, Status: pgtype.Present}},
-					Dimensions: []pgtype.ArrayDimension{{
-						Length:     1,
-						LowerBound: 1,
-					}},
-					Status: pgtype.Present,
-				},
-			},
-		}
-		assert.Equal(t, want, got)
-	})
 }
 
 func TestQuerier_CompositeUser(t *testing.T) {
@@ -102,28 +78,6 @@ func TestQuerier_CompositeUser(t *testing.T) {
 		}
 		assert.Equal(t, want, users)
 	})
-
-	t.Run("CompositeUserBatch", func(t *testing.T) {
-		batch := &pgx.Batch{}
-		q.CompositeUserBatch(batch)
-		results := conn.SendBatch(ctx, batch)
-		got, err := q.CompositeUserScan(results)
-		want := []CompositeUserRow{
-			{
-				Mac:  pgtype.Macaddr{Addr: mac1, Status: pgtype.Present},
-				Type: DeviceTypeUndefined,
-				User: User{ID: &userID, Name: &name},
-			},
-			{
-				Mac:  pgtype.Macaddr{Addr: mac2, Status: pgtype.Present},
-				Type: DeviceTypeUndefined,
-				User: User{ID: &userID, Name: &name},
-			},
-		}
-		require.NoError(t, err)
-		assert.Equal(t, want, got)
-	})
-
 }
 
 func TestQuerier_CompositeUserOne(t *testing.T) {
@@ -139,30 +93,5 @@ func TestQuerier_CompositeUserOne(t *testing.T) {
 		got, err := q.CompositeUserOne(ctx)
 		require.NoError(t, err)
 		assert.Equal(t, wantUser, got)
-	})
-
-	t.Run("CompositeUserOneBatch", func(t *testing.T) {
-		gotUserTwoCols, err := q.CompositeUserOneTwoCols(ctx)
-		require.NoError(t, err)
-		assert.Equal(t, CompositeUserOneTwoColsRow{
-			Num:  1,
-			User: wantUser,
-		}, gotUserTwoCols)
-
-		batch := &pgx.Batch{}
-		q.CompositeUserOneBatch(batch)
-		q.CompositeUserOneTwoColsBatch(batch)
-		results := conn.SendBatch(ctx, batch)
-
-		gotOneScan, err := q.CompositeUserOneScan(results)
-		require.NoError(t, err)
-		assert.Equal(t, wantUser, gotOneScan)
-
-		gotTwoScan, err := q.CompositeUserOneTwoColsScan(results)
-		require.NoError(t, err)
-		assert.Equal(t, CompositeUserOneTwoColsRow{
-			Num:  1,
-			User: wantUser,
-		}, gotTwoScan)
 	})
 }

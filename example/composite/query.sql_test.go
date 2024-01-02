@@ -3,9 +3,7 @@ package composite
 import (
 	"context"
 	"github.com/jackc/pgtype"
-	"github.com/jackc/pgx/v4"
 	"github.com/jschaf/pggen/internal/difftest"
-	"github.com/jschaf/pggen/internal/errs"
 	"github.com/jschaf/pggen/internal/pgtest"
 	"github.com/jschaf/pggen/internal/ptrs"
 	"github.com/stretchr/testify/assert"
@@ -49,40 +47,12 @@ func TestNewQuerier_SearchScreenshots(t *testing.T) {
 		assert.Equal(t, want, rows)
 	})
 
-	t.Run("SearchScreenshotsBatch", func(t *testing.T) {
-		batch := &pgx.Batch{}
-		q.SearchScreenshotsBatch(batch, SearchScreenshotsParams{
-			Body:   "body",
-			Limit:  5,
-			Offset: 0,
-		})
-		results := conn.SendBatch(context.Background(), batch)
-		defer errs.CaptureT(t, results.Close, "close batch results")
-		rows, err := q.SearchScreenshotsScan(results)
-		require.NoError(t, err)
-		assert.Equal(t, want, rows)
-	})
-
 	t.Run("SearchScreenshotsOneCol", func(t *testing.T) {
 		rows, err := q.SearchScreenshotsOneCol(context.Background(), SearchScreenshotsOneColParams{
 			Body:   "body",
 			Limit:  5,
 			Offset: 0,
 		})
-		require.NoError(t, err)
-		assert.Equal(t, [][]Blocks{want[0].Blocks}, rows)
-	})
-
-	t.Run("SearchScreenshotsOneColBatch", func(t *testing.T) {
-		batch := &pgx.Batch{}
-		q.SearchScreenshotsOneColBatch(batch, SearchScreenshotsOneColParams{
-			Body:   "body",
-			Limit:  5,
-			Offset: 0,
-		})
-		results := conn.SendBatch(context.Background(), batch)
-		defer errs.CaptureT(t, results.Close, "close batch results")
-		rows, err := q.SearchScreenshotsOneColScan(results)
 		require.NoError(t, err)
 		assert.Equal(t, [][]Blocks{want[0].Blocks}, rows)
 	})

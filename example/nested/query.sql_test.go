@@ -2,7 +2,6 @@ package nested
 
 import (
 	"context"
-	"github.com/jackc/pgx/v4"
 	"github.com/jschaf/pggen/internal/pgtest"
 	"github.com/stretchr/testify/assert"
 	"testing"
@@ -21,17 +20,6 @@ func TestNewQuerier_ArrayNested2(t *testing.T) {
 	}
 	t.Run("ArrayNested2", func(t *testing.T) {
 		rows, err := q.ArrayNested2(ctx)
-		if err != nil {
-			t.Fatal(err)
-		}
-		assert.Equal(t, want, rows)
-	})
-
-	t.Run("ArrayNested2Batch", func(t *testing.T) {
-		batch := &pgx.Batch{}
-		q.ArrayNested2Batch(batch)
-		results := conn.SendBatch(ctx, batch)
-		rows, err := q.ArrayNested2Scan(results)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -62,18 +50,6 @@ func TestNewQuerier_Nested3(t *testing.T) {
 	t.Run("Nested3", func(t *testing.T) {
 		t.Skipf("https://github.com/jackc/pgx/issues/874")
 		rows, err := q.Nested3(ctx)
-		if err != nil {
-			t.Fatal(err)
-		}
-		assert.Equal(t, want, rows)
-	})
-
-	t.Run("Nested3Batch", func(t *testing.T) {
-		t.Skipf("https://github.com/jackc/pgx/issues/874")
-		batch := &pgx.Batch{}
-		q.Nested3Batch(batch)
-		results := conn.SendBatch(ctx, batch)
-		rows, err := q.Nested3Scan(results)
 		if err != nil {
 			t.Fatal(err)
 		}

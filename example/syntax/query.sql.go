@@ -11,81 +11,32 @@ import (
 )
 
 // Querier is a typesafe Go interface backed by SQL queries.
-//
-// Methods ending with Batch enqueue a query to run later in a pgx.Batch. After
-// calling SendBatch on pgx.Conn, pgxpool.Pool, or pgx.Tx, use the Scan methods
-// to parse the results.
 type Querier interface {
 	// Query to test escaping in generated Go.
 	Backtick(ctx context.Context) (string, error)
-	// BacktickBatch enqueues a Backtick query into batch to be executed
-	// later by the batch.
-	BacktickBatch(batch genericBatch)
-	// BacktickScan scans the result of an executed BacktickBatch query.
-	BacktickScan(results pgx.BatchResults) (string, error)
 
 	// Query to test escaping in generated Go.
 	BacktickQuoteBacktick(ctx context.Context) (string, error)
-	// BacktickQuoteBacktickBatch enqueues a BacktickQuoteBacktick query into batch to be executed
-	// later by the batch.
-	BacktickQuoteBacktickBatch(batch genericBatch)
-	// BacktickQuoteBacktickScan scans the result of an executed BacktickQuoteBacktickBatch query.
-	BacktickQuoteBacktickScan(results pgx.BatchResults) (string, error)
 
 	// Query to test escaping in generated Go.
 	BacktickNewline(ctx context.Context) (string, error)
-	// BacktickNewlineBatch enqueues a BacktickNewline query into batch to be executed
-	// later by the batch.
-	BacktickNewlineBatch(batch genericBatch)
-	// BacktickNewlineScan scans the result of an executed BacktickNewlineBatch query.
-	BacktickNewlineScan(results pgx.BatchResults) (string, error)
 
 	// Query to test escaping in generated Go.
 	BacktickDoubleQuote(ctx context.Context) (string, error)
-	// BacktickDoubleQuoteBatch enqueues a BacktickDoubleQuote query into batch to be executed
-	// later by the batch.
-	BacktickDoubleQuoteBatch(batch genericBatch)
-	// BacktickDoubleQuoteScan scans the result of an executed BacktickDoubleQuoteBatch query.
-	BacktickDoubleQuoteScan(results pgx.BatchResults) (string, error)
 
 	// Query to test escaping in generated Go.
 	BacktickBackslashN(ctx context.Context) (string, error)
-	// BacktickBackslashNBatch enqueues a BacktickBackslashN query into batch to be executed
-	// later by the batch.
-	BacktickBackslashNBatch(batch genericBatch)
-	// BacktickBackslashNScan scans the result of an executed BacktickBackslashNBatch query.
-	BacktickBackslashNScan(results pgx.BatchResults) (string, error)
 
 	// Illegal names.
 	IllegalNameSymbols(ctx context.Context, helloWorld string) (IllegalNameSymbolsRow, error)
-	// IllegalNameSymbolsBatch enqueues a IllegalNameSymbols query into batch to be executed
-	// later by the batch.
-	IllegalNameSymbolsBatch(batch genericBatch, helloWorld string)
-	// IllegalNameSymbolsScan scans the result of an executed IllegalNameSymbolsBatch query.
-	IllegalNameSymbolsScan(results pgx.BatchResults) (IllegalNameSymbolsRow, error)
 
 	// Space after pggen.arg
 	SpaceAfter(ctx context.Context, space string) (string, error)
-	// SpaceAfterBatch enqueues a SpaceAfter query into batch to be executed
-	// later by the batch.
-	SpaceAfterBatch(batch genericBatch, space string)
-	// SpaceAfterScan scans the result of an executed SpaceAfterBatch query.
-	SpaceAfterScan(results pgx.BatchResults) (string, error)
 
 	// Enum named 123.
 	BadEnumName(ctx context.Context) (UnnamedEnum123, error)
-	// BadEnumNameBatch enqueues a BadEnumName query into batch to be executed
-	// later by the batch.
-	BadEnumNameBatch(batch genericBatch)
-	// BadEnumNameScan scans the result of an executed BadEnumNameBatch query.
-	BadEnumNameScan(results pgx.BatchResults) (UnnamedEnum123, error)
 
 	GoKeyword(ctx context.Context, go_ string) (string, error)
-	// GoKeywordBatch enqueues a GoKeyword query into batch to be executed
-	// later by the batch.
-	GoKeywordBatch(batch genericBatch, go_ string)
-	// GoKeywordScan scans the result of an executed GoKeywordBatch query.
-	GoKeywordScan(results pgx.BatchResults) (string, error)
 }
 
 type DBQuerier struct {
@@ -112,14 +63,6 @@ type genericConn interface {
 	// string. arguments should be referenced positionally from the sql string
 	// as $1, $2, etc.
 	Exec(ctx context.Context, sql string, arguments ...interface{}) (pgconn.CommandTag, error)
-}
-
-// genericBatch batches queries to send in a single network request to a
-// Postgres server. This is usually backed by *pgx.Batch.
-type genericBatch interface {
-	// Queue queues a query to batch b. query can be an SQL query or the name of a
-	// prepared statement. See Queue on *pgx.Batch.
-	Queue(query string, arguments ...interface{})
 }
 
 // NewQuerier creates a DBQuerier that implements Querier. conn is typically
@@ -253,21 +196,6 @@ func (q *DBQuerier) Backtick(ctx context.Context) (string, error) {
 	return item, nil
 }
 
-// BacktickBatch implements Querier.BacktickBatch.
-func (q *DBQuerier) BacktickBatch(batch genericBatch) {
-	batch.Queue(backtickSQL)
-}
-
-// BacktickScan implements Querier.BacktickScan.
-func (q *DBQuerier) BacktickScan(results pgx.BatchResults) (string, error) {
-	row := results.QueryRow()
-	var item string
-	if err := row.Scan(&item); err != nil {
-		return item, fmt.Errorf("scan BacktickBatch row: %w", err)
-	}
-	return item, nil
-}
-
 const backtickQuoteBacktickSQL = "SELECT '`\"`';"
 
 // BacktickQuoteBacktick implements Querier.BacktickQuoteBacktick.
@@ -277,21 +205,6 @@ func (q *DBQuerier) BacktickQuoteBacktick(ctx context.Context) (string, error) {
 	var item string
 	if err := row.Scan(&item); err != nil {
 		return item, fmt.Errorf("query BacktickQuoteBacktick: %w", err)
-	}
-	return item, nil
-}
-
-// BacktickQuoteBacktickBatch implements Querier.BacktickQuoteBacktickBatch.
-func (q *DBQuerier) BacktickQuoteBacktickBatch(batch genericBatch) {
-	batch.Queue(backtickQuoteBacktickSQL)
-}
-
-// BacktickQuoteBacktickScan implements Querier.BacktickQuoteBacktickScan.
-func (q *DBQuerier) BacktickQuoteBacktickScan(results pgx.BatchResults) (string, error) {
-	row := results.QueryRow()
-	var item string
-	if err := row.Scan(&item); err != nil {
-		return item, fmt.Errorf("scan BacktickQuoteBacktickBatch row: %w", err)
 	}
 	return item, nil
 }
@@ -309,21 +222,6 @@ func (q *DBQuerier) BacktickNewline(ctx context.Context) (string, error) {
 	return item, nil
 }
 
-// BacktickNewlineBatch implements Querier.BacktickNewlineBatch.
-func (q *DBQuerier) BacktickNewlineBatch(batch genericBatch) {
-	batch.Queue(backtickNewlineSQL)
-}
-
-// BacktickNewlineScan implements Querier.BacktickNewlineScan.
-func (q *DBQuerier) BacktickNewlineScan(results pgx.BatchResults) (string, error) {
-	row := results.QueryRow()
-	var item string
-	if err := row.Scan(&item); err != nil {
-		return item, fmt.Errorf("scan BacktickNewlineBatch row: %w", err)
-	}
-	return item, nil
-}
-
 const backtickDoubleQuoteSQL = "SELECT '`\"';"
 
 // BacktickDoubleQuote implements Querier.BacktickDoubleQuote.
@@ -337,21 +235,6 @@ func (q *DBQuerier) BacktickDoubleQuote(ctx context.Context) (string, error) {
 	return item, nil
 }
 
-// BacktickDoubleQuoteBatch implements Querier.BacktickDoubleQuoteBatch.
-func (q *DBQuerier) BacktickDoubleQuoteBatch(batch genericBatch) {
-	batch.Queue(backtickDoubleQuoteSQL)
-}
-
-// BacktickDoubleQuoteScan implements Querier.BacktickDoubleQuoteScan.
-func (q *DBQuerier) BacktickDoubleQuoteScan(results pgx.BatchResults) (string, error) {
-	row := results.QueryRow()
-	var item string
-	if err := row.Scan(&item); err != nil {
-		return item, fmt.Errorf("scan BacktickDoubleQuoteBatch row: %w", err)
-	}
-	return item, nil
-}
-
 const backtickBackslashNSQL = "SELECT '`\\n';"
 
 // BacktickBackslashN implements Querier.BacktickBackslashN.
@@ -361,21 +244,6 @@ func (q *DBQuerier) BacktickBackslashN(ctx context.Context) (string, error) {
 	var item string
 	if err := row.Scan(&item); err != nil {
 		return item, fmt.Errorf("query BacktickBackslashN: %w", err)
-	}
-	return item, nil
-}
-
-// BacktickBackslashNBatch implements Querier.BacktickBackslashNBatch.
-func (q *DBQuerier) BacktickBackslashNBatch(batch genericBatch) {
-	batch.Queue(backtickBackslashNSQL)
-}
-
-// BacktickBackslashNScan implements Querier.BacktickBackslashNScan.
-func (q *DBQuerier) BacktickBackslashNScan(results pgx.BatchResults) (string, error) {
-	row := results.QueryRow()
-	var item string
-	if err := row.Scan(&item); err != nil {
-		return item, fmt.Errorf("scan BacktickBackslashNBatch row: %w", err)
 	}
 	return item, nil
 }
@@ -398,21 +266,6 @@ func (q *DBQuerier) IllegalNameSymbols(ctx context.Context, helloWorld string) (
 	return item, nil
 }
 
-// IllegalNameSymbolsBatch implements Querier.IllegalNameSymbolsBatch.
-func (q *DBQuerier) IllegalNameSymbolsBatch(batch genericBatch, helloWorld string) {
-	batch.Queue(illegalNameSymbolsSQL, helloWorld)
-}
-
-// IllegalNameSymbolsScan implements Querier.IllegalNameSymbolsScan.
-func (q *DBQuerier) IllegalNameSymbolsScan(results pgx.BatchResults) (IllegalNameSymbolsRow, error) {
-	row := results.QueryRow()
-	var item IllegalNameSymbolsRow
-	if err := row.Scan(&item.UnnamedColumn0, &item.FooBar); err != nil {
-		return item, fmt.Errorf("scan IllegalNameSymbolsBatch row: %w", err)
-	}
-	return item, nil
-}
-
 const spaceAfterSQL = `SELECT $1;`
 
 // SpaceAfter implements Querier.SpaceAfter.
@@ -422,21 +275,6 @@ func (q *DBQuerier) SpaceAfter(ctx context.Context, space string) (string, error
 	var item string
 	if err := row.Scan(&item); err != nil {
 		return item, fmt.Errorf("query SpaceAfter: %w", err)
-	}
-	return item, nil
-}
-
-// SpaceAfterBatch implements Querier.SpaceAfterBatch.
-func (q *DBQuerier) SpaceAfterBatch(batch genericBatch, space string) {
-	batch.Queue(spaceAfterSQL, space)
-}
-
-// SpaceAfterScan implements Querier.SpaceAfterScan.
-func (q *DBQuerier) SpaceAfterScan(results pgx.BatchResults) (string, error) {
-	row := results.QueryRow()
-	var item string
-	if err := row.Scan(&item); err != nil {
-		return item, fmt.Errorf("scan SpaceAfterBatch row: %w", err)
 	}
 	return item, nil
 }
@@ -454,21 +292,6 @@ func (q *DBQuerier) BadEnumName(ctx context.Context) (UnnamedEnum123, error) {
 	return item, nil
 }
 
-// BadEnumNameBatch implements Querier.BadEnumNameBatch.
-func (q *DBQuerier) BadEnumNameBatch(batch genericBatch) {
-	batch.Queue(badEnumNameSQL)
-}
-
-// BadEnumNameScan implements Querier.BadEnumNameScan.
-func (q *DBQuerier) BadEnumNameScan(results pgx.BatchResults) (UnnamedEnum123, error) {
-	row := results.QueryRow()
-	var item UnnamedEnum123
-	if err := row.Scan(&item); err != nil {
-		return item, fmt.Errorf("scan BadEnumNameBatch row: %w", err)
-	}
-	return item, nil
-}
-
 const goKeywordSQL = `SELECT $1::text;`
 
 // GoKeyword implements Querier.GoKeyword.
@@ -478,21 +301,6 @@ func (q *DBQuerier) GoKeyword(ctx context.Context, go_ string) (string, error) {
 	var item string
 	if err := row.Scan(&item); err != nil {
 		return item, fmt.Errorf("query GoKeyword: %w", err)
-	}
-	return item, nil
-}
-
-// GoKeywordBatch implements Querier.GoKeywordBatch.
-func (q *DBQuerier) GoKeywordBatch(batch genericBatch, go_ string) {
-	batch.Queue(goKeywordSQL, go_)
-}
-
-// GoKeywordScan implements Querier.GoKeywordScan.
-func (q *DBQuerier) GoKeywordScan(results pgx.BatchResults) (string, error) {
-	row := results.QueryRow()
-	var item string
-	if err := row.Scan(&item); err != nil {
-		return item, fmt.Errorf("scan GoKeywordBatch row: %w", err)
 	}
 	return item, nil
 }

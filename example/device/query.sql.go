@@ -11,59 +11,20 @@ import (
 )
 
 // Querier is a typesafe Go interface backed by SQL queries.
-//
-// Methods ending with Batch enqueue a query to run later in a pgx.Batch. After
-// calling SendBatch on pgx.Conn, pgxpool.Pool, or pgx.Tx, use the Scan methods
-// to parse the results.
 type Querier interface {
 	FindDevicesByUser(ctx context.Context, id int) ([]FindDevicesByUserRow, error)
-	// FindDevicesByUserBatch enqueues a FindDevicesByUser query into batch to be executed
-	// later by the batch.
-	FindDevicesByUserBatch(batch genericBatch, id int)
-	// FindDevicesByUserScan scans the result of an executed FindDevicesByUserBatch query.
-	FindDevicesByUserScan(results pgx.BatchResults) ([]FindDevicesByUserRow, error)
 
 	CompositeUser(ctx context.Context) ([]CompositeUserRow, error)
-	// CompositeUserBatch enqueues a CompositeUser query into batch to be executed
-	// later by the batch.
-	CompositeUserBatch(batch genericBatch)
-	// CompositeUserScan scans the result of an executed CompositeUserBatch query.
-	CompositeUserScan(results pgx.BatchResults) ([]CompositeUserRow, error)
 
 	CompositeUserOne(ctx context.Context) (User, error)
-	// CompositeUserOneBatch enqueues a CompositeUserOne query into batch to be executed
-	// later by the batch.
-	CompositeUserOneBatch(batch genericBatch)
-	// CompositeUserOneScan scans the result of an executed CompositeUserOneBatch query.
-	CompositeUserOneScan(results pgx.BatchResults) (User, error)
 
 	CompositeUserOneTwoCols(ctx context.Context) (CompositeUserOneTwoColsRow, error)
-	// CompositeUserOneTwoColsBatch enqueues a CompositeUserOneTwoCols query into batch to be executed
-	// later by the batch.
-	CompositeUserOneTwoColsBatch(batch genericBatch)
-	// CompositeUserOneTwoColsScan scans the result of an executed CompositeUserOneTwoColsBatch query.
-	CompositeUserOneTwoColsScan(results pgx.BatchResults) (CompositeUserOneTwoColsRow, error)
 
 	CompositeUserMany(ctx context.Context) ([]User, error)
-	// CompositeUserManyBatch enqueues a CompositeUserMany query into batch to be executed
-	// later by the batch.
-	CompositeUserManyBatch(batch genericBatch)
-	// CompositeUserManyScan scans the result of an executed CompositeUserManyBatch query.
-	CompositeUserManyScan(results pgx.BatchResults) ([]User, error)
 
 	InsertUser(ctx context.Context, userID int, name string) (pgconn.CommandTag, error)
-	// InsertUserBatch enqueues a InsertUser query into batch to be executed
-	// later by the batch.
-	InsertUserBatch(batch genericBatch, userID int, name string)
-	// InsertUserScan scans the result of an executed InsertUserBatch query.
-	InsertUserScan(results pgx.BatchResults) (pgconn.CommandTag, error)
 
 	InsertDevice(ctx context.Context, mac pgtype.Macaddr, owner int) (pgconn.CommandTag, error)
-	// InsertDeviceBatch enqueues a InsertDevice query into batch to be executed
-	// later by the batch.
-	InsertDeviceBatch(batch genericBatch, mac pgtype.Macaddr, owner int)
-	// InsertDeviceScan scans the result of an executed InsertDeviceBatch query.
-	InsertDeviceScan(results pgx.BatchResults) (pgconn.CommandTag, error)
 }
 
 type DBQuerier struct {
@@ -90,14 +51,6 @@ type genericConn interface {
 	// string. arguments should be referenced positionally from the sql string
 	// as $1, $2, etc.
 	Exec(ctx context.Context, sql string, arguments ...interface{}) (pgconn.CommandTag, error)
-}
-
-// genericBatch batches queries to send in a single network request to a
-// Postgres server. This is usually backed by *pgx.Batch.
-type genericBatch interface {
-	// Queue queues a query to batch b. query can be an SQL query or the name of a
-	// prepared statement. See Queue on *pgx.Batch.
-	Queue(query string, arguments ...interface{})
 }
 
 // NewQuerier creates a DBQuerier that implements Querier. conn is typically
@@ -316,32 +269,6 @@ func (q *DBQuerier) FindDevicesByUser(ctx context.Context, id int) ([]FindDevice
 	return items, err
 }
 
-// FindDevicesByUserBatch implements Querier.FindDevicesByUserBatch.
-func (q *DBQuerier) FindDevicesByUserBatch(batch genericBatch, id int) {
-	batch.Queue(findDevicesByUserSQL, id)
-}
-
-// FindDevicesByUserScan implements Querier.FindDevicesByUserScan.
-func (q *DBQuerier) FindDevicesByUserScan(results pgx.BatchResults) ([]FindDevicesByUserRow, error) {
-	rows, err := results.Query()
-	if err != nil {
-		return nil, fmt.Errorf("query FindDevicesByUserBatch: %w", err)
-	}
-	defer rows.Close()
-	items := []FindDevicesByUserRow{}
-	for rows.Next() {
-		var item FindDevicesByUserRow
-		if err := rows.Scan(&item.ID, &item.Name, &item.MacAddrs); err != nil {
-			return nil, fmt.Errorf("scan FindDevicesByUserBatch row: %w", err)
-		}
-		items = append(items, item)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("close FindDevicesByUserBatch rows: %w", err)
-	}
-	return items, err
-}
-
 const compositeUserSQL = `SELECT
   d.mac,
   d.type,
@@ -381,36 +308,6 @@ func (q *DBQuerier) CompositeUser(ctx context.Context) ([]CompositeUserRow, erro
 	return items, err
 }
 
-// CompositeUserBatch implements Querier.CompositeUserBatch.
-func (q *DBQuerier) CompositeUserBatch(batch genericBatch) {
-	batch.Queue(compositeUserSQL)
-}
-
-// CompositeUserScan implements Querier.CompositeUserScan.
-func (q *DBQuerier) CompositeUserScan(results pgx.BatchResults) ([]CompositeUserRow, error) {
-	rows, err := results.Query()
-	if err != nil {
-		return nil, fmt.Errorf("query CompositeUserBatch: %w", err)
-	}
-	defer rows.Close()
-	items := []CompositeUserRow{}
-	userRow := q.types.newUser()
-	for rows.Next() {
-		var item CompositeUserRow
-		if err := rows.Scan(&item.Mac, &item.Type, userRow); err != nil {
-			return nil, fmt.Errorf("scan CompositeUserBatch row: %w", err)
-		}
-		if err := userRow.AssignTo(&item.User); err != nil {
-			return nil, fmt.Errorf("assign CompositeUser row: %w", err)
-		}
-		items = append(items, item)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("close CompositeUserBatch rows: %w", err)
-	}
-	return items, err
-}
-
 const compositeUserOneSQL = `SELECT ROW (15, 'qux')::"user" AS "user";`
 
 // CompositeUserOne implements Querier.CompositeUserOne.
@@ -421,25 +318,6 @@ func (q *DBQuerier) CompositeUserOne(ctx context.Context) (User, error) {
 	userRow := q.types.newUser()
 	if err := row.Scan(userRow); err != nil {
 		return item, fmt.Errorf("query CompositeUserOne: %w", err)
-	}
-	if err := userRow.AssignTo(&item); err != nil {
-		return item, fmt.Errorf("assign CompositeUserOne row: %w", err)
-	}
-	return item, nil
-}
-
-// CompositeUserOneBatch implements Querier.CompositeUserOneBatch.
-func (q *DBQuerier) CompositeUserOneBatch(batch genericBatch) {
-	batch.Queue(compositeUserOneSQL)
-}
-
-// CompositeUserOneScan implements Querier.CompositeUserOneScan.
-func (q *DBQuerier) CompositeUserOneScan(results pgx.BatchResults) (User, error) {
-	row := results.QueryRow()
-	var item User
-	userRow := q.types.newUser()
-	if err := row.Scan(userRow); err != nil {
-		return item, fmt.Errorf("scan CompositeUserOneBatch row: %w", err)
 	}
 	if err := userRow.AssignTo(&item); err != nil {
 		return item, fmt.Errorf("assign CompositeUserOne row: %w", err)
@@ -462,25 +340,6 @@ func (q *DBQuerier) CompositeUserOneTwoCols(ctx context.Context) (CompositeUserO
 	userRow := q.types.newUser()
 	if err := row.Scan(&item.Num, userRow); err != nil {
 		return item, fmt.Errorf("query CompositeUserOneTwoCols: %w", err)
-	}
-	if err := userRow.AssignTo(&item.User); err != nil {
-		return item, fmt.Errorf("assign CompositeUserOneTwoCols row: %w", err)
-	}
-	return item, nil
-}
-
-// CompositeUserOneTwoColsBatch implements Querier.CompositeUserOneTwoColsBatch.
-func (q *DBQuerier) CompositeUserOneTwoColsBatch(batch genericBatch) {
-	batch.Queue(compositeUserOneTwoColsSQL)
-}
-
-// CompositeUserOneTwoColsScan implements Querier.CompositeUserOneTwoColsScan.
-func (q *DBQuerier) CompositeUserOneTwoColsScan(results pgx.BatchResults) (CompositeUserOneTwoColsRow, error) {
-	row := results.QueryRow()
-	var item CompositeUserOneTwoColsRow
-	userRow := q.types.newUser()
-	if err := row.Scan(&item.Num, userRow); err != nil {
-		return item, fmt.Errorf("scan CompositeUserOneTwoColsBatch row: %w", err)
 	}
 	if err := userRow.AssignTo(&item.User); err != nil {
 		return item, fmt.Errorf("assign CompositeUserOneTwoCols row: %w", err)
@@ -516,36 +375,6 @@ func (q *DBQuerier) CompositeUserMany(ctx context.Context) ([]User, error) {
 	return items, err
 }
 
-// CompositeUserManyBatch implements Querier.CompositeUserManyBatch.
-func (q *DBQuerier) CompositeUserManyBatch(batch genericBatch) {
-	batch.Queue(compositeUserManySQL)
-}
-
-// CompositeUserManyScan implements Querier.CompositeUserManyScan.
-func (q *DBQuerier) CompositeUserManyScan(results pgx.BatchResults) ([]User, error) {
-	rows, err := results.Query()
-	if err != nil {
-		return nil, fmt.Errorf("query CompositeUserManyBatch: %w", err)
-	}
-	defer rows.Close()
-	items := []User{}
-	userRow := q.types.newUser()
-	for rows.Next() {
-		var item User
-		if err := rows.Scan(userRow); err != nil {
-			return nil, fmt.Errorf("scan CompositeUserManyBatch row: %w", err)
-		}
-		if err := userRow.AssignTo(&item); err != nil {
-			return nil, fmt.Errorf("assign CompositeUserMany row: %w", err)
-		}
-		items = append(items, item)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("close CompositeUserManyBatch rows: %w", err)
-	}
-	return items, err
-}
-
 const insertUserSQL = `INSERT INTO "user" (id, name)
 VALUES ($1, $2);`
 
@@ -559,20 +388,6 @@ func (q *DBQuerier) InsertUser(ctx context.Context, userID int, name string) (pg
 	return cmdTag, err
 }
 
-// InsertUserBatch implements Querier.InsertUserBatch.
-func (q *DBQuerier) InsertUserBatch(batch genericBatch, userID int, name string) {
-	batch.Queue(insertUserSQL, userID, name)
-}
-
-// InsertUserScan implements Querier.InsertUserScan.
-func (q *DBQuerier) InsertUserScan(results pgx.BatchResults) (pgconn.CommandTag, error) {
-	cmdTag, err := results.Exec()
-	if err != nil {
-		return cmdTag, fmt.Errorf("exec InsertUserBatch: %w", err)
-	}
-	return cmdTag, err
-}
-
 const insertDeviceSQL = `INSERT INTO device (mac, owner)
 VALUES ($1, $2);`
 
@@ -582,20 +397,6 @@ func (q *DBQuerier) InsertDevice(ctx context.Context, mac pgtype.Macaddr, owner 
 	cmdTag, err := q.conn.Exec(ctx, insertDeviceSQL, mac, owner)
 	if err != nil {
 		return cmdTag, fmt.Errorf("exec query InsertDevice: %w", err)
-	}
-	return cmdTag, err
-}
-
-// InsertDeviceBatch implements Querier.InsertDeviceBatch.
-func (q *DBQuerier) InsertDeviceBatch(batch genericBatch, mac pgtype.Macaddr, owner int) {
-	batch.Queue(insertDeviceSQL, mac, owner)
-}
-
-// InsertDeviceScan implements Querier.InsertDeviceScan.
-func (q *DBQuerier) InsertDeviceScan(results pgx.BatchResults) (pgconn.CommandTag, error) {
-	cmdTag, err := results.Exec()
-	if err != nil {
-		return cmdTag, fmt.Errorf("exec InsertDeviceBatch: %w", err)
 	}
 	return cmdTag, err
 }
