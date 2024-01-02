@@ -1,9 +1,9 @@
 name: Test
-on: [push, pull_request]
+on: push
 jobs:
   test:
     name: go test
-    runs-on: ubuntu-latest
+    runs-on: buildjet-4vcpu-ubuntu-2204
     services:
       postgres:
         image: postgres
@@ -19,10 +19,10 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-go@v2
+      - uses: actions/checkout@v4
+      - uses: buildjet/setup-go@v4
         with:
-          go-version: '^1.16'
+          go-version: '1.21.5'
       - run: go test ./...
       - run: go test --tags=acceptance_test ./...
         env:
