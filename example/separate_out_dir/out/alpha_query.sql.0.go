@@ -74,35 +74,6 @@ func (q *DBQuerier) WithTx(tx pgx.Tx) (*DBQuerier, error) {
 	return &DBQuerier{conn: tx}, nil
 }
 
-// preparer is any Postgres connection transport that provides a way to prepare
-// a statement, most commonly *pgx.Conn.
-type preparer interface {
-	Prepare(ctx context.Context, name, sql string) (sd *pgconn.StatementDescription, err error)
-}
-
-// PrepareAllQueries executes a PREPARE statement for all pggen generated SQL
-// queries in querier files. Typical usage is as the AfterConnect callback
-// for pgxpool.Config
-//
-// pgx will use the prepared statement if available. Calling PrepareAllQueries
-// is an optional optimization to avoid a network round-trip the first time pgx
-// runs a query if pgx statement caching is enabled.
-func PrepareAllQueries(ctx context.Context, p preparer) error {
-	if _, err := p.Prepare(ctx, alphaNestedSQL, alphaNestedSQL); err != nil {
-		return fmt.Errorf("prepare query 'AlphaNested': %w", err)
-	}
-	if _, err := p.Prepare(ctx, alphaCompositeArraySQL, alphaCompositeArraySQL); err != nil {
-		return fmt.Errorf("prepare query 'AlphaCompositeArray': %w", err)
-	}
-	if _, err := p.Prepare(ctx, alphaSQL, alphaSQL); err != nil {
-		return fmt.Errorf("prepare query 'Alpha': %w", err)
-	}
-	if _, err := p.Prepare(ctx, bravoSQL, bravoSQL); err != nil {
-		return fmt.Errorf("prepare query 'Bravo': %w", err)
-	}
-	return nil
-}
-
 // Alpha represents the Postgres composite type "alpha".
 type Alpha struct {
 	Key *string `json:"key"`

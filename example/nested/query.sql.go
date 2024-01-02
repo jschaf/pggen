@@ -70,29 +70,6 @@ func (q *DBQuerier) WithTx(tx pgx.Tx) (*DBQuerier, error) {
 	return &DBQuerier{conn: tx}, nil
 }
 
-// preparer is any Postgres connection transport that provides a way to prepare
-// a statement, most commonly *pgx.Conn.
-type preparer interface {
-	Prepare(ctx context.Context, name, sql string) (sd *pgconn.StatementDescription, err error)
-}
-
-// PrepareAllQueries executes a PREPARE statement for all pggen generated SQL
-// queries in querier files. Typical usage is as the AfterConnect callback
-// for pgxpool.Config
-//
-// pgx will use the prepared statement if available. Calling PrepareAllQueries
-// is an optional optimization to avoid a network round-trip the first time pgx
-// runs a query if pgx statement caching is enabled.
-func PrepareAllQueries(ctx context.Context, p preparer) error {
-	if _, err := p.Prepare(ctx, arrayNested2SQL, arrayNested2SQL); err != nil {
-		return fmt.Errorf("prepare query 'ArrayNested2': %w", err)
-	}
-	if _, err := p.Prepare(ctx, nested3SQL, nested3SQL); err != nil {
-		return fmt.Errorf("prepare query 'Nested3': %w", err)
-	}
-	return nil
-}
-
 // Dimensions represents the Postgres composite type "dimensions".
 type Dimensions struct {
 	Width  int `json:"width"`
