@@ -1,8 +1,8 @@
 package errs
 
 import (
+	"errors"
 	"fmt"
-	"go.uber.org/multierr"
 	"testing"
 )
 
@@ -25,12 +25,12 @@ func Capture(err *error, errF func() error, msg string) {
 		wErr = fmt.Errorf(msg+": %w", fErr)
 	}
 	if *err == nil {
-		// Only 1 error so replace the err pointer.
+		// Only 1 error so return it directly
 		*err = wErr
 		return
 	}
 
-	multierr.AppendInto(err, wErr)
+	*err = errors.Join(*err, wErr)
 }
 
 // CaptureT call t.Error if errF returns an error with an optional message.
