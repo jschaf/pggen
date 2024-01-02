@@ -80,33 +80,6 @@ func TestNewQuerier_FindAuthors(t *testing.T) {
 	})
 }
 
-func TestNewQuerier_FindAuthors_PrepareAllQueries(t *testing.T) {
-	conn, cleanup := pgtest.NewPostgresSchema(t, []string{"schema.sql"},
-		pgtest.WithGuardedStmtCache(findAuthorsSQL))
-	defer cleanup()
-	q := NewQuerier(conn)
-	adamsID := insertAuthor(t, q, "john", "adams")
-
-	t.Run("PrepareAllQueries", func(t *testing.T) {
-		err := PrepareAllQueries(context.Background(), conn)
-		require.NoError(t, err)
-	})
-
-	t.Run("FindAuthors - 1 row - john", func(t *testing.T) {
-		authors, err := q.FindAuthors(context.Background(), "john")
-		require.NoError(t, err)
-		want := []FindAuthorsRow{
-			{
-				AuthorID:  adamsID,
-				FirstName: "john",
-				LastName:  "adams",
-				Suffix:    nil,
-			},
-		}
-		assert.Equal(t, want, authors)
-	})
-}
-
 func TestNewQuerier_FindFirstNames(t *testing.T) {
 	conn, cleanup := pgtest.NewPostgresSchema(t, []string{"schema.sql"})
 	defer cleanup()

@@ -80,44 +80,6 @@ func (q *DBQuerier) WithTx(tx pgx.Tx) (*DBQuerier, error) {
 	return &DBQuerier{conn: tx}, nil
 }
 
-// preparer is any Postgres connection transport that provides a way to prepare
-// a statement, most commonly *pgx.Conn.
-type preparer interface {
-	Prepare(ctx context.Context, name, sql string) (sd *pgconn.StatementDescription, err error)
-}
-
-// PrepareAllQueries executes a PREPARE statement for all pggen generated SQL
-// queries in querier files. Typical usage is as the AfterConnect callback
-// for pgxpool.Config
-//
-// pgx will use the prepared statement if available. Calling PrepareAllQueries
-// is an optional optimization to avoid a network round-trip the first time pgx
-// runs a query if pgx statement caching is enabled.
-func PrepareAllQueries(ctx context.Context, p preparer) error {
-	if _, err := p.Prepare(ctx, findDevicesByUserSQL, findDevicesByUserSQL); err != nil {
-		return fmt.Errorf("prepare query 'FindDevicesByUser': %w", err)
-	}
-	if _, err := p.Prepare(ctx, compositeUserSQL, compositeUserSQL); err != nil {
-		return fmt.Errorf("prepare query 'CompositeUser': %w", err)
-	}
-	if _, err := p.Prepare(ctx, compositeUserOneSQL, compositeUserOneSQL); err != nil {
-		return fmt.Errorf("prepare query 'CompositeUserOne': %w", err)
-	}
-	if _, err := p.Prepare(ctx, compositeUserOneTwoColsSQL, compositeUserOneTwoColsSQL); err != nil {
-		return fmt.Errorf("prepare query 'CompositeUserOneTwoCols': %w", err)
-	}
-	if _, err := p.Prepare(ctx, compositeUserManySQL, compositeUserManySQL); err != nil {
-		return fmt.Errorf("prepare query 'CompositeUserMany': %w", err)
-	}
-	if _, err := p.Prepare(ctx, insertUserSQL, insertUserSQL); err != nil {
-		return fmt.Errorf("prepare query 'InsertUser': %w", err)
-	}
-	if _, err := p.Prepare(ctx, insertDeviceSQL, insertDeviceSQL); err != nil {
-		return fmt.Errorf("prepare query 'InsertDevice': %w", err)
-	}
-	return nil
-}
-
 // User represents the Postgres composite type "user".
 type User struct {
 	ID   *int    `json:"id"`
