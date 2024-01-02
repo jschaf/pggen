@@ -6,6 +6,7 @@ import (
 	"archive/tar"
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
@@ -14,7 +15,6 @@ import (
 	"github.com/jackc/pgx/v4"
 	"github.com/jschaf/pggen/internal/errs"
 	"github.com/jschaf/pggen/internal/ports"
-	"go.uber.org/multierr"
 	"io"
 	"log/slog"
 	"os"
@@ -54,7 +54,7 @@ func Start(ctx context.Context, initScripts []string) (client *Client, mErr erro
 		if mErr != nil {
 			logs, err := c.GetContainerLogs()
 			if err != nil {
-				mErr = multierr.Append(mErr, err)
+				mErr = errors.Join(mErr, err)
 			} else {
 				mErr = fmt.Errorf("%w\nContainer logs for container ID %s\n\n%s", mErr, containerID, logs)
 			}

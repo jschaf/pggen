@@ -12,7 +12,6 @@ import (
 	"github.com/jschaf/pggen/internal/parser"
 	"github.com/jschaf/pggen/internal/pgdocker"
 	"github.com/jschaf/pggen/internal/pginfer"
-	"go.uber.org/multierr"
 	gotok "go/token"
 	"log/slog"
 	"os"
@@ -146,7 +145,7 @@ func connectPostgres(ctx context.Context, opts GenerateOptions) (*pgx.Conn, func
 			}
 			logs, err := client.GetContainerLogs()
 			if err != nil {
-				return multierr.Append(e, err)
+				return errors.Join(e, err)
 			}
 			return fmt.Errorf("Container logs for Postgres container:\n\n%s\n\n%w", logs, e)
 		}
