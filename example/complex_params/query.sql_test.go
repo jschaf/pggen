@@ -107,7 +107,7 @@ func TestNewQuerier_ParamNested3_QueryAllDataTypes(t *testing.T) {
 	ctx := context.Background()
 	// dataTypes, err := QueryAllDataTypes(ctx, conn)
 	// require.NoError(t, err)
-	q := NewQuerierConfig(conn, QuerierConfig{DataTypes: nil})
+	q := NewQuerier(conn)
 
 	want := ProductImageSetType{
 		Name:      "set1",

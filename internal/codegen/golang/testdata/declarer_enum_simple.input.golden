@@ -13,14 +13,8 @@ type typeResolver struct {
 	connInfo *pgtype.ConnInfo // types by Postgres type name
 }
 
-func newTypeResolver(types []pgtype.DataType) *typeResolver {
+func newTypeResolver() *typeResolver {
 	ci := pgtype.NewConnInfo()
-	for _, typ := range types {
-		if txt, ok := typ.Value.(textPreferrer); ok && typ.OID != unknownOID {
-			typ.Value = txt.ValueTranscoder
-		}
-		ci.RegisterDataType(typ)
-	}
 	return &typeResolver{connInfo: ci}
 }
 

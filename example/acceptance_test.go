@@ -235,14 +235,6 @@ func TestExamples(t *testing.T) {
 			},
 		},
 		{
-			name: "example/numeric_external",
-			args: []string{
-				"--schema-glob", "example/numeric_external/schema.sql",
-				"--query-glob", "example/numeric_external/query.sql",
-				"--go-type", "numeric=github.com/shopspring/decimal.Decimal",
-			},
-		},
-		{
 			name: "example/domain",
 			args: []string{
 				"--schema-glob", "example/domain/schema.sql",
