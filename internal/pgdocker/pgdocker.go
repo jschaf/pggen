@@ -277,7 +277,7 @@ func (c *Client) Stop(ctx context.Context) error {
 	if c.containerID == "" {
 		return nil
 	}
-	if err := c.docker.ContainerStop(ctx, c.containerID, nil); err != nil {
+	if err := c.docker.ContainerStop(ctx, c.containerID, container.StopOptions{}); err != nil {
 		return fmt.Errorf("stop container %s: %w", c.containerID, err)
 	}
 	err := c.docker.ContainerRemove(ctx, c.containerID, types.ContainerRemoveOptions{
