@@ -15,8 +15,8 @@ import (
 	"github.com/jschaf/pggen/internal/errs"
 	"github.com/jschaf/pggen/internal/ports"
 	"go.uber.org/multierr"
-	"go.uber.org/zap"
 	"io"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -29,20 +29,19 @@ import (
 type Client struct {
 	docker      *dockerClient.Client
 	containerID string // container ID if started, empty otherwise
-	l           *zap.SugaredLogger
 	connString  string
 }
 
 // Start builds a Docker image and runs the image in a container.
-func Start(ctx context.Context, initScripts []string, l *zap.SugaredLogger) (client *Client, mErr error) {
+func Start(ctx context.Context, initScripts []string) (client *Client, mErr error) {
 	now := time.Now()
 	dockerCl, err := dockerClient.NewClientWithOpts(dockerClient.FromEnv)
 	if err != nil {
 		return nil, fmt.Errorf("create client: %w", err)
 	}
-	c := &Client{docker: dockerCl, l: l}
+	c := &Client{docker: dockerCl}
 	imageID, err := c.buildImage(ctx, initScripts)
-	l.Debugf("build image ID: %s", imageID)
+	slog.DebugContext(ctx, "build image", slog.String("image_id", imageID))
 	if err != nil {
 		return nil, fmt.Errorf("build image: %w", err)
 	}
@@ -67,7 +66,7 @@ func Start(ctx context.Context, initScripts []string, l *zap.SugaredLogger) (cli
 			ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 			defer cancel()
 			if err := client.Stop(ctx); err != nil {
-				c.l.Errorf("stop pgdocker client: %s", err)
+				slog.ErrorContext(ctx, "stop pgdocker client", slog.String("error", err.Error()))
 			}
 		}
 	}()
@@ -77,7 +76,7 @@ func Start(ctx context.Context, initScripts []string, l *zap.SugaredLogger) (cli
 	if err := c.waitIsReady(ctx); err != nil {
 		return nil, fmt.Errorf("wait for postgres to be ready: %w", err)
 	}
-	c.l.Debugf("started docker postgres in %d ms", time.Since(now).Milliseconds())
+	slog.DebugContext(ctx, "started docker postgres", slog.Duration("start_duration", time.Since(now)))
 	return c, nil
 }
 
@@ -125,7 +124,7 @@ func (c *Client) buildImage(ctx context.Context, initScripts []string) (id strin
 	}); err != nil {
 		return "", fmt.Errorf("execute template: %w", err)
 	}
-	c.l.Debug("wrote template into buffer")
+	slog.DebugContext(ctx, "wrote template into buffer", slog.String("dockerfile", dockerfileBuf.String()))
 
 	// Tar Dockerfile for build context.
 	tarBuf := &bytes.Buffer{}
@@ -147,7 +146,7 @@ func (c *Client) buildImage(ctx context.Context, initScripts []string) (id strin
 	}
 
 	tarR := bytes.NewReader(tarBuf.Bytes())
-	c.l.Debug("wrote tar dockerfile into buffer")
+	slog.DebugContext(ctx, "wrote tar dockerfile into buffer")
 
 	// Send build request.
 	opts := types.ImageBuildOptions{Dockerfile: "Dockerfile"}
@@ -223,12 +222,12 @@ func (c *Client) runContainer(ctx context.Context, imageID string) (string, port
 		return "", 0, fmt.Errorf("create container: %w", err)
 	}
 	containerID := resp.ID
-	c.l.Debugf("created postgres container ID=%s port=%d", containerID, port)
+	slog.DebugContext(ctx, "created postgres container", slog.String("container_id", containerID), slog.Int("port", port))
 	err = c.docker.ContainerStart(ctx, containerID, types.ContainerStartOptions{})
 	if err != nil {
 		return "", 0, fmt.Errorf("start container: %w", err)
 	}
-	c.l.Debugf("started container ID %s", containerID)
+	slog.DebugContext(ctx, "started container", slog.String("container_id", containerID))
 	return containerID, port, nil
 }
 
@@ -254,11 +253,11 @@ func (c *Client) waitIsReady(ctx context.Context) error {
 		conn, err := pgx.ConnectConfig(ctx, cfg)
 		if err == nil {
 			if err := conn.Close(ctx); err != nil {
-				c.l.Errorf("close postgres connection: %s", err)
+				slog.DebugContext(ctx, "close postgres connection", slog.String("error", err.Error()))
 			}
 			return nil
 		}
-		c.l.Debugf("attempted connection: %s", err)
+		slog.DebugContext(ctx, "attempted connection", slog.String("error", err.Error()))
 		<-debounce
 	}
 }

@@ -10,7 +10,6 @@ import (
 	"github.com/jackc/pgx/v4"
 	"github.com/jschaf/pggen/internal/errs"
 	"github.com/jschaf/pggen/internal/pgdocker"
-	"go.uber.org/zap/zaptest"
 	"math/rand"
 	"os"
 	"os/exec"
@@ -261,7 +260,7 @@ func TestExamples(t *testing.T) {
 	// a new database in the Postgres cluster.
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	docker, err := pgdocker.Start(ctx, nil, zaptest.NewLogger(t).Sugar())
+	docker, err := pgdocker.Start(ctx, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
