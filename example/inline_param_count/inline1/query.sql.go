@@ -169,8 +169,7 @@ func (q *DBQuerier) DeleteAuthorsByFullName(ctx context.Context, params DeleteAu
 // textPreferrer wraps a pgtype.ValueTranscoder and sets the preferred encoding
 // format to text instead binary (the default). pggen uses the text format
 // when the OID is unknownOID because the binary format requires the OID.
-// Typically occurs if the results from QueryAllDataTypes aren't passed to
-// NewQuerierConfig.
+// Typically occurs for unregistered types.
 type textPreferrer struct {
 	pgtype.ValueTranscoder
 	typeName string
