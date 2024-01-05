@@ -23,41 +23,23 @@ type Querier interface {
 	ParamNested3(ctx context.Context, imageSet ProductImageSetType) (ProductImageSetType, error)
 }
 
+var _ Querier = &DBQuerier{}
+
 type DBQuerier struct {
 	conn  genericConn   // underlying Postgres transport to use
 	types *typeResolver // resolve types by name
 }
 
-var _ Querier = &DBQuerier{}
-
-// genericConn is a connection to a Postgres database. This is usually backed by
-// *pgx.Conn, pgx.Tx, or *pgxpool.Pool.
+// genericConn is a connection like *pgx.Conn, pgx.Tx, or *pgxpool.Pool.
 type genericConn interface {
-	// Query executes sql with args. If there is an error the returned Rows will
-	// be returned in an error state. So it is allowed to ignore the error
-	// returned from Query and handle it in Rows.
-	Query(ctx context.Context, sql string, args ...interface{}) (pgx.Rows, error)
-
-	// QueryRow is a convenience wrapper over Query. Any error that occurs while
-	// querying is deferred until calling Scan on the returned Row. That Row will
-	// error with pgx.ErrNoRows if no rows are returned.
-	QueryRow(ctx context.Context, sql string, args ...interface{}) pgx.Row
-
-	// Exec executes sql. sql can be either a prepared statement name or an SQL
-	// string. arguments should be referenced positionally from the sql string
-	// as $1, $2, etc.
-	Exec(ctx context.Context, sql string, arguments ...interface{}) (pgconn.CommandTag, error)
+	Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error)
+	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
+	Exec(ctx context.Context, sql string, arguments ...any) (pgconn.CommandTag, error)
 }
 
-// NewQuerier creates a DBQuerier that implements Querier. conn is typically
-// *pgx.Conn, pgx.Tx, or *pgxpool.Pool.
+// NewQuerier creates a DBQuerier that implements Querier.
 func NewQuerier(conn genericConn) *DBQuerier {
 	return &DBQuerier{conn: conn, types: newTypeResolver()}
-}
-
-// WithTx creates a new DBQuerier that uses the transaction to run all queries.
-func (q *DBQuerier) WithTx(tx pgx.Tx) (*DBQuerier, error) {
-	return &DBQuerier{conn: tx}, nil
 }
 
 // Dimensions represents the Postgres composite type "dimensions".
