@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 // Querier is a typesafe Go interface backed by SQL queries.
@@ -80,6 +81,7 @@ func (q *DBQuerier) FindAuthorByID(ctx context.Context, authorID int32) (FindAut
 	ctx = context.WithValue(ctx, "pggen_query_name", "FindAuthorByID")
 	row := q.conn.QueryRow(ctx, findAuthorByIDSQL, authorID)
 	var item FindAuthorByIDRow
+
 	s := scanner[*FindAuthorByIDRow]{&item}
 	if err := row.Scan(s); err != nil {
 		return item, fmt.Errorf("query FindAuthorByID: %w", err)
@@ -108,13 +110,32 @@ func (q *DBQuerier) FindAuthors(ctx context.Context, firstName string) ([]FindAu
 		return nil, fmt.Errorf("query FindAuthors: %w", err)
 	}
 	defer rows.Close()
+
+	fds := rows.FieldDescriptions()
+
+	int4Codec := pgtype.Int4Codec{}
+	textCodec := &pgtype.TextCodec{}
+
+	scan0 := int4Codec.PlanScan(nil, fds[0].DataTypeOID, fds[0].Format, (*int32)(nil))
+	scan1 := textCodec.PlanScan(nil, fds[1].DataTypeOID, fds[1].Format, (*string)(nil))
+	scan2 := textCodec.PlanScan(nil, fds[2].DataTypeOID, fds[2].Format, (*string)(nil))
+	scan3 := textCodec.PlanScan(nil, fds[2].DataTypeOID, fds[3].Format, (*string)(nil))
+
 	items := []FindAuthorsRow{}
-	s := scanner[*FindAuthorsRow]{}
 	for rows.Next() {
+		vals := rows.RawValues()
 		var item FindAuthorsRow
-		s.item = &item
-		if err := rows.Scan(s); err != nil {
-			return nil, fmt.Errorf("scan FindAuthors row: %w", err)
+		if err := scan0.Scan(vals[0], &item.AuthorID); err != nil {
+			return nil, fmt.Errorf("scan FindAuthors row author_id column: %w", err)
+		}
+		if err := scan1.Scan(vals[1], &item.FirstName); err != nil {
+			return nil, fmt.Errorf("scan FindAuthors row first_name column: %w", err)
+		}
+		if err := scan2.Scan(vals[2], &item.LastName); err != nil {
+			return nil, fmt.Errorf("scan FindAuthors row last_name column: %w", err)
+		}
+		if err := scan3.Scan(vals[3], item.Suffix); err != nil {
+			return nil, fmt.Errorf("scan FindAuthors row suffix column: %w", err)
 		}
 		items = append(items, item)
 	}
