@@ -63,6 +63,25 @@ func TestNewQuerier_FindAuthors(t *testing.T) {
 		assert.Equal(t, want, authors)
 	})
 
+	t.Run("FindAuthors - 1 row suffix - bill", func(t *testing.T) {
+		insRow, err := q.InsertAuthorSuffix(context.Background(), InsertAuthorSuffixParams{
+			FirstName: "bill",
+			LastName:  "clinton",
+			Suffix:    "jr",
+		})
+		authors, err := q.FindAuthors(context.Background(), "bill")
+		require.NoError(t, err)
+		want := []FindAuthorsRow{
+			{
+				AuthorID:  insRow.AuthorID,
+				FirstName: "bill",
+				LastName:  "clinton",
+				Suffix:    ptrs.String("jr"),
+			},
+		}
+		assert.Equal(t, want, authors)
+	})
+
 	t.Run("FindAuthors - 2 rows - george", func(t *testing.T) {
 		authors, err := q.FindAuthors(context.Background(), "george")
 		require.NoError(t, err)
