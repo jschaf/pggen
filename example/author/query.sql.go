@@ -8,6 +8,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
+	"sync"
 )
 
 // Querier is a typesafe Go interface backed by SQL queries.
@@ -79,13 +80,14 @@ func (r *FindAuthorByIDRow) scanRow(rows pgx.Rows) error {
 // FindAuthorByID implements Querier.FindAuthorByID.
 func (q *DBQuerier) FindAuthorByID(ctx context.Context, authorID int32) (FindAuthorByIDRow, error) {
 	ctx = context.WithValue(ctx, "pggen_query_name", "FindAuthorByID")
-	row := q.conn.QueryRow(ctx, findAuthorByIDSQL, authorID)
+	//row := q.conn.QueryRow(ctx, findAuthorByIDSQL, authorID)
 	var item FindAuthorByIDRow
 
-	s := scanner[*FindAuthorByIDRow]{&item}
-	if err := row.Scan(s); err != nil {
-		return item, fmt.Errorf("query FindAuthorByID: %w", err)
-	}
+	//s := scanner[*FindAuthorByIDRow]{&item}
+	//if err := row.Scan(s); err != nil {
+	//	return item, fmt.Errorf("query FindAuthorByID: %w", err)
+	//}
+	//return item, nil
 	return item, nil
 }
 
@@ -102,54 +104,6 @@ func (r *FindAuthorsRow) scanRow(rows pgx.Rows) error {
 	return rows.Scan(&r.AuthorID, &r.FirstName, &r.LastName, &r.Suffix)
 }
 
-type scanCacheKey struct {
-	oid      uint32
-	format   int16
-	typeName string
-}
-
-type scanPlan[T any] interface {
-	Scan([]byte, T) error
-}
-
-var scanCache = map[string]scanPlan[any]{}
-
-func planScan[T any](codec pgtype.Codec, fd pgconn.FieldDescription) scanPlan[*T] {
-	var target *T
-	key := scanCacheKey{fd.DataTypeOID, fd.Format, fmt.Sprintf("%T", target)}
-	// TODO: synchronize
-	if plan, ok := scanCache[key.typeName]; ok {
-		return plan.(scanPlan[*T])
-	}
-	plan := codec.PlanScan(nil, fd.DataTypeOID, fd.Format, target)
-	scanCache[key.typeName] = plan
-	return plan.(scanPlan[*T])
-}
-
-type ptrScanner[T any] struct {
-	basePlan scanPlan[T]
-}
-
-func (s ptrScanner[T]) Scan(src []byte, dst **T) error {
-	if src == nil {
-		return nil
-	}
-	*dst = new(T)
-	return s.basePlan.Scan(src, *dst)
-}
-
-func planPtrScan[T any](codec pgtype.Codec, fd pgconn.FieldDescription) scanPlan[**T] {
-	var target *T
-	key := scanCacheKey{fd.DataTypeOID, fd.Format, fmt.Sprintf("*%T", target)}
-	if scan, ok := scanCache[key.typeName]; ok {
-		return scan.(scanPlan[**T])
-	}
-	basePlan := planScan[T](codec, fd)
-	var ptrPlan scanPlan[**T] = ptrScanner[T]{basePlan: basePlan.(scanPlan[T])}
-	scanCache[key.typeName] = ptrPlan.(scanPlan[any])
-	return ptrPlan
-}
-
 // FindAuthors implements Querier.FindAuthors.
 func (q *DBQuerier) FindAuthors(ctx context.Context, firstName string) ([]FindAuthorsRow, error) {
 	ctx = context.WithValue(ctx, "pggen_query_name", "FindAuthors")
@@ -160,10 +114,10 @@ func (q *DBQuerier) FindAuthors(ctx context.Context, firstName string) ([]FindAu
 	defer rows.Close()
 
 	fds := rows.FieldDescriptions()
-	var plan0 = planScan[int32](pgtype.Int4Codec{}, fds[0])
-	var plan1 = planScan[string](pgtype.TextCodec{}, fds[1])
-	var plan2 = plan1
-	var plan3 = planPtrScan[string](pgtype.TextCodec{}, fds[3])
+	plan0 := planScan(pgtype.Int4Codec{}, fds[0], (*int32)(nil))
+	plan1 := planScan(pgtype.TextCodec{}, fds[1], (*string)(nil))
+	plan2 := planScan(pgtype.TextCodec{}, fds[2], (*string)(nil))
+	plan3 := planPtrScan(pgtype.TextCodec{}, fds[3], (*string)(nil))
 
 	items := []FindAuthorsRow{}
 	for rows.Next() {
@@ -208,14 +162,21 @@ func (q *DBQuerier) FindAuthorNames(ctx context.Context, authorID int32) ([]Find
 		return nil, fmt.Errorf("query FindAuthorNames: %w", err)
 	}
 	defer rows.Close()
+
+	//fds := rows.FieldDescriptions()
+	//plan0 := planPtrScan[string](pgtype.TextCodec{}, fds[0])
+	//plan1 := planPtrScan[string](pgtype.TextCodec{}, fds[1])
+
 	items := []FindAuthorNamesRow{}
-	s := scanner[*FindAuthorNamesRow]{}
 	for rows.Next() {
+		//vals := rows.RawValues()
 		var item FindAuthorNamesRow
-		s.item = &item
-		if err := rows.Scan(s); err != nil {
-			return nil, fmt.Errorf("scan FindAuthorNames row: %w", err)
-		}
+		//if err := plan0.Scan(vals[0], &item.FirstName); err != nil {
+		//	return nil, fmt.Errorf("scan FindAuthors.first_name column: %w", err)
+		//}
+		//if err := plan1.Scan(vals[1], &item.FirstName); err != nil {
+		//	return nil, fmt.Errorf("scan FindAuthors.last_name column: %w", err)
+		//}
 		items = append(items, item)
 	}
 	if err := rows.Err(); err != nil {
@@ -333,13 +294,15 @@ func (r *InsertAuthorSuffixRow) scanRow(rows pgx.Rows) error {
 // InsertAuthorSuffix implements Querier.InsertAuthorSuffix.
 func (q *DBQuerier) InsertAuthorSuffix(ctx context.Context, params InsertAuthorSuffixParams) (InsertAuthorSuffixRow, error) {
 	ctx = context.WithValue(ctx, "pggen_query_name", "InsertAuthorSuffix")
-	row := q.conn.QueryRow(ctx, insertAuthorSuffixSQL, params.FirstName, params.LastName, params.Suffix)
+	//row := q.conn.QueryRow(ctx, insertAuthorSuffixSQL, params.FirstName, params.LastName, params.Suffix)
 	var item InsertAuthorSuffixRow
-	s := scanner[*InsertAuthorSuffixRow]{&item}
-	if err := row.Scan(s); err != nil {
-		return item, fmt.Errorf("query InsertAuthorSuffix: %w", err)
-	}
 	return item, nil
+	//
+	//s := scanner[*InsertAuthorSuffixRow]{&item}
+	//if err := row.Scan(s); err != nil {
+	//	return item, fmt.Errorf("query InsertAuthorSuffix: %w", err)
+	//}
+	//return item, nil
 }
 
 const stringAggFirstNameSQL = `SELECT string_agg(first_name, ',') AS NAMES FROM author WHERE author_id = $1;`
@@ -366,4 +329,59 @@ func (q *DBQuerier) ArrayAggFirstName(ctx context.Context, authorID int32) ([]st
 		return item, fmt.Errorf("query ArrayAggFirstName: %w", err)
 	}
 	return item, nil
+}
+
+type scanCacheKey struct {
+	oid      uint32
+	format   int16
+	typeName string
+}
+
+var (
+	plans   = make(map[scanCacheKey]pgtype.ScanPlan, 16)
+	plansMu sync.RWMutex
+)
+
+func planScan(codec pgtype.Codec, fd pgconn.FieldDescription, target any) pgtype.ScanPlan {
+	key := scanCacheKey{fd.DataTypeOID, fd.Format, fmt.Sprintf("%T", target)}
+	plansMu.RLock()
+	plan := plans[key]
+	plansMu.RUnlock()
+	if plan != nil {
+		return plan
+	}
+	plan = codec.PlanScan(nil, fd.DataTypeOID, fd.Format, target)
+	plansMu.Lock()
+	plans[key] = plan
+	plansMu.Unlock()
+	return plan
+}
+
+type ptrScanner[T any] struct {
+	basePlan pgtype.ScanPlan
+}
+
+func (s ptrScanner[T]) Scan(src []byte, dst any) error {
+	if src == nil {
+		return nil
+	}
+	d := dst.(**T)
+	*d = new(T)
+	return s.basePlan.Scan(src, **d)
+}
+
+func planPtrScan[T any](codec pgtype.Codec, fd pgconn.FieldDescription, target *T) pgtype.ScanPlan {
+	key := scanCacheKey{fd.DataTypeOID, fd.Format, fmt.Sprintf("*%T", target)}
+	plansMu.RLock()
+	plan := plans[key]
+	plansMu.RUnlock()
+	if plan != nil {
+		return plan
+	}
+	basePlan := planScan(codec, fd, target)
+	ptrPlan := ptrScanner[T]{basePlan}
+	plansMu.Lock()
+	plans[key] = plan
+	plansMu.Unlock()
+	return ptrPlan
 }
