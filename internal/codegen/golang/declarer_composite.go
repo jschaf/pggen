@@ -263,7 +263,7 @@ func (c CompositeInitDeclarer) Declare(string) (string, error) {
 // of a composite type as a generic array: []interface{}. Necessary because we
 // can only set pgtype.CompositeType from a []interface{}.
 //
-// Revisit after https://github.com/jackc/pgtype/pull/100 to see if we can
+// Revisit after https://github.com/jackc/pgx/v5/pgtype/pull/100 to see if we can
 // simplify.
 type CompositeRawDeclarer struct {
 	typ *gotype.CompositeType

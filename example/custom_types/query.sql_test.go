@@ -2,7 +2,7 @@ package custom_types
 
 import (
 	"context"
-	"github.com/jackc/pgtype"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jschaf/pggen/internal/pgtest"
 	"github.com/jschaf/pggen/internal/texts"
 	"github.com/stretchr/testify/assert"
@@ -38,7 +38,7 @@ func TestQuerier_CustomMyInt(t *testing.T) {
 			AND pn.nspname = current_schema()
 		LIMIT 1;
 	`))
-	oidVal := pgtype.OIDValue{}
+	oidVal := uint32Value{}
 	err := row.Scan(&oidVal)
 	require.NoError(t, err)
 	t.Logf("my_int oid: %d", oidVal.Uint)

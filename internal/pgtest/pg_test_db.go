@@ -2,7 +2,7 @@ package pgtest
 
 import (
 	"context"
-	"github.com/jackc/pgx/v4"
+	"github.com/jackc/pgx/v5"
 	"math/rand"
 	"os"
 	"strconv"

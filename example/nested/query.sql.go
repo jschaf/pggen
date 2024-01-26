@@ -5,9 +5,9 @@ package nested
 import (
 	"context"
 	"fmt"
-	"github.com/jackc/pgconn"
-	"github.com/jackc/pgtype"
-	"github.com/jackc/pgx/v4"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 // Querier is a typesafe Go interface backed by SQL queries.
@@ -57,7 +57,7 @@ type ProductImageType struct {
 
 // typeResolver looks up the pgtype.ValueTranscoder by Postgres type name.
 type typeResolver struct {
-	connInfo *pgtype.ConnInfo // types by Postgres type name
+	connInfo *pgtype.Codec // types by Postgres type name
 }
 
 func newTypeResolver() *typeResolver {
@@ -148,6 +148,7 @@ func (tr *typeResolver) newDimensions() pgtype.ValueTranscoder {
 // newProductImageSetType creates a new pgtype.ValueTranscoder for the Postgres
 // composite type 'product_image_set_type'.
 func (tr *typeResolver) newProductImageSetType() pgtype.ValueTranscoder {
+	pgtype.CompositeCodec{}
 	return tr.newCompositeValue(
 		"product_image_set_type",
 		compositeField{name: "name", typeName: "text", defaultVal: &pgtype.Text{}},
@@ -169,6 +170,7 @@ func (tr *typeResolver) newProductImageType() pgtype.ValueTranscoder {
 // newProductImageTypeArray creates a new pgtype.ValueTranscoder for the Postgres
 // '_product_image_type' array type.
 func (tr *typeResolver) newProductImageTypeArray() pgtype.ValueTranscoder {
+	pgtype.CompositeCodec{}
 	return tr.newArrayValue("_product_image_type", "product_image_type", tr.newProductImageType)
 }
 

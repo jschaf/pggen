@@ -12,7 +12,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	dockerClient "github.com/docker/docker/client"
 	"github.com/docker/go-connections/nat"
-	"github.com/jackc/pgx/v4"
+	"github.com/jackc/pgx/v5"
 	"github.com/jschaf/pggen/internal/errs"
 	"github.com/jschaf/pggen/internal/ports"
 	"io"

@@ -240,7 +240,7 @@ func ParseOpaqueType(qualType string, pgType pg.Type) (Type, error) {
 }
 
 // MustParseKnownType creates a gotype.Type by parsing a fully qualified Go type
-// that pgx supports natively like "github.com/jackc/pgtype.Int4Array", or most
+// that pgx supports natively like "github.com/jackc/pgx/v5/pgtype.Int4Array", or most
 // builtin types like "string" and []*int16.
 func MustParseKnownType(qualType string, pgType pg.Type) Type {
 	typ, err := ParseOpaqueType(qualType, pgType)

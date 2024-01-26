@@ -4,7 +4,6 @@ import (
 	"context"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
-	"github.com/jackc/pgtype"
 	"github.com/jschaf/pggen/internal/pg/pgoid"
 	"github.com/jschaf/pggen/internal/pgtest"
 	"github.com/jschaf/pggen/internal/texts"
@@ -248,7 +247,7 @@ func TestNewTypeFetcher(t *testing.T) {
 }
 
 // Get the OID by name if fetchOID was a string, or just return the OID.
-func findOIDVal(t *testing.T, fetchOID interface{}, querier *DBQuerier) pgtype.OID {
+func findOIDVal(t *testing.T, fetchOID interface{}, querier *DBQuerier) uint32 {
 	switch rawOID := fetchOID.(type) {
 	case string:
 		oid, err := querier.FindOIDByName(context.Background(), rawOID)
@@ -256,10 +255,10 @@ func findOIDVal(t *testing.T, fetchOID interface{}, querier *DBQuerier) pgtype.O
 			t.Fatalf("find oid by name %s: %s", rawOID, err)
 		}
 		return oid
-	case pgtype.OID:
+	case uint32:
 		return rawOID
 	case int:
-		return pgtype.OID(rawOID)
+		return uint32(rawOID)
 	default:
 		t.Fatalf("unhandled oid test value type %T: %v", rawOID, rawOID)
 		return 0

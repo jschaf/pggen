@@ -5,7 +5,7 @@ package order
 import (
 	"context"
 	"fmt"
-	"github.com/jackc/pgtype"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const findOrdersByPriceSQL = `SELECT * FROM orders WHERE order_total > $1;`

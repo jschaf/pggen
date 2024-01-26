@@ -2,6 +2,7 @@ package golang
 
 import (
 	"fmt"
+	"github.com/jschaf/pggen/internal/ast"
 	"github.com/jschaf/pggen/internal/casing"
 	"github.com/jschaf/pggen/internal/codegen"
 	"github.com/jschaf/pggen/internal/codegen/golang/gotype"
@@ -73,7 +74,7 @@ func (tm Templater) TemplateAll(files []codegen.QueryFile) ([]TemplatedFile, err
 		pgconnIdx := -1
 		imports := file.Imports
 		for i, pkg := range imports {
-			if pkg == "github.com/jackc/pgconn" {
+			if pkg == "github.com/jackc/pgx/v5/pgconn" {
 				pgconnIdx = i
 				break
 			}
@@ -113,10 +114,10 @@ func (tm Templater) templateFile(file codegen.QueryFile, isLeader bool) (Templat
 	imports := NewImportSet()
 	imports.AddPackage("context")
 	imports.AddPackage("fmt")
-	imports.AddPackage("github.com/jackc/pgconn")
+	imports.AddPackage("github.com/jackc/pgx/v5/pgconn")
 	if isLeader {
-		imports.AddPackage("github.com/jackc/pgtype")
-		imports.AddPackage("github.com/jackc/pgx/v4")
+		imports.AddPackage("github.com/jackc/pgx/v5/pgtype")
+		imports.AddPackage("github.com/jackc/pgx/v5")
 	}
 
 	pkgPath := ""
@@ -183,14 +184,20 @@ func (tm Templater) templateFile(file codegen.QueryFile, isLeader bool) (Templat
 			declarers.AddAll(ds...)
 		}
 
+		nonVoidCols := removeVoidColumns(outputs)
+		resultKind := query.ResultKind
+		if len(nonVoidCols) == 0 {
+			resultKind = ast.ResultKindExec
+		}
 		queries = append(queries, TemplatedQuery{
 			Name:             tm.caser.ToUpperGoIdent(query.Name),
 			SQLVarName:       tm.caser.ToLowerGoIdent(query.Name) + "SQL",
-			ResultKind:       query.ResultKind,
+			ResultKind:       resultKind,
 			Doc:              docs.String(),
 			PreparedSQL:      query.PreparedSQL,
 			Inputs:           inputs,
-			Outputs:          outputs,
+			Outputs:          nonVoidCols,
+			ScanCols:         outputs,
 			InlineParamCount: tm.inlineParamCount,
 		})
 	}
@@ -231,4 +238,18 @@ func (tm Templater) chooseLowerName(pgName string, fallback string, idx int, num
 		suffix = fmt.Sprintf("%2d", idx)
 	}
 	return fallback + suffix
+}
+
+// removeVoidColumns makes a copy of cols with all VoidType columns removed.
+// Useful because return types shouldn't contain the void type, but we need
+// to use a nil placeholder for void types when scanning a pgx.Row.
+func removeVoidColumns(cols []TemplatedColumn) []TemplatedColumn {
+	outs := make([]TemplatedColumn, 0, len(cols))
+	for _, col := range cols {
+		if _, ok := col.Type.(*gotype.VoidType); ok {
+			continue
+		}
+		outs = append(outs, col)
+	}
+	return outs
 }

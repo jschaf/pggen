@@ -1,14 +1,14 @@
 package gotype
 
 import (
-	"github.com/jackc/pgtype"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jschaf/pggen/internal/pg"
 	"github.com/jschaf/pggen/internal/pg/pgoid"
 )
 
 // FindKnownTypePgx returns the native pgx type, like pgtype.Text, if known, for
 // a Postgres OID. If there is no known type, returns nil.
-func FindKnownTypePgx(oid pgtype.OID) (Type, bool) {
+func FindKnownTypePgx(oid uint32) (Type, bool) {
 	typ, ok := knownTypesByOID[oid]
 	return typ.pgNative, ok
 }
@@ -16,7 +16,7 @@ func FindKnownTypePgx(oid pgtype.OID) (Type, bool) {
 // FindKnownTypeNullable returns the nullable type, like *string, if known, for
 // a Postgres OID. Falls back to the pgNative type. If there is no known type
 // for the OID, returns nil.
-func FindKnownTypeNullable(oid pgtype.OID) (Type, bool) {
+func FindKnownTypeNullable(oid uint32) (Type, bool) {
 	typ, ok := knownTypesByOID[oid]
 	if !ok {
 		return nil, false
@@ -30,7 +30,7 @@ func FindKnownTypeNullable(oid pgtype.OID) (Type, bool) {
 // FindKnownTypeNonNullable returns the non-nullable type like string, if known,
 // for a Postgres OID. Falls back to the nullable type and pgNative type. If
 // there is no known type for the OID, returns nil.
-func FindKnownTypeNonNullable(oid pgtype.OID) (Type, bool) {
+func FindKnownTypeNonNullable(oid uint32) (Type, bool) {
 	typ, ok := knownTypesByOID[oid]
 	if !ok {
 		return nil, false
@@ -91,73 +91,73 @@ var (
 
 // pgtype types prefixed with "pg".
 var (
-	PgBool             = MustParseKnownType("github.com/jackc/pgtype.Bool", pg.Bool)
-	PgQChar            = MustParseKnownType("github.com/jackc/pgtype.QChar", pg.QChar)
-	PgName             = MustParseKnownType("github.com/jackc/pgtype.Name", pg.Name)
-	PgInt8             = MustParseKnownType("github.com/jackc/pgtype.Int8", pg.Int8)
-	PgInt2             = MustParseKnownType("github.com/jackc/pgtype.Int2", pg.Int2)
-	PgInt4             = MustParseKnownType("github.com/jackc/pgtype.Int4", pg.Int4)
-	PgText             = MustParseKnownType("github.com/jackc/pgtype.Text", pg.Text)
-	PgBytea            = MustParseKnownType("github.com/jackc/pgtype.Bytea", pg.Bytea)
-	PgOID              = MustParseKnownType("github.com/jackc/pgtype.OID", pg.OID)
-	PgTID              = MustParseKnownType("github.com/jackc/pgtype.TID", pg.TID)
-	PgXID              = MustParseKnownType("github.com/jackc/pgtype.XID", pg.XID)
-	PgCID              = MustParseKnownType("github.com/jackc/pgtype.CID", pg.CID)
-	PgJSON             = MustParseKnownType("github.com/jackc/pgtype.JSON", pg.JSON)
-	PgPoint            = MustParseKnownType("github.com/jackc/pgtype.Point", pg.Point)
-	PgLseg             = MustParseKnownType("github.com/jackc/pgtype.Lseg", pg.Lseg)
-	PgPath             = MustParseKnownType("github.com/jackc/pgtype.Path", pg.Path)
-	PgBox              = MustParseKnownType("github.com/jackc/pgtype.Box", pg.Box)
-	PgPolygon          = MustParseKnownType("github.com/jackc/pgtype.Polygon", pg.Polygon)
-	PgLine             = MustParseKnownType("github.com/jackc/pgtype.Line", pg.Line)
-	PgCIDR             = MustParseKnownType("github.com/jackc/pgtype.CIDR", pg.CIDR)
-	PgCIDRArray        = MustParseKnownType("github.com/jackc/pgtype.CIDRArray", pg.CIDRArray)
-	PgFloat4           = MustParseKnownType("github.com/jackc/pgtype.Float4", pg.Float4)
-	PgFloat8           = MustParseKnownType("github.com/jackc/pgtype.Float8", pg.Float8)
-	PgUnknown          = MustParseKnownType("github.com/jackc/pgtype.Unknown", pg.Unknown)
-	PgCircle           = MustParseKnownType("github.com/jackc/pgtype.Circle", pg.Circle)
-	PgMacaddr          = MustParseKnownType("github.com/jackc/pgtype.Macaddr", pg.Macaddr)
-	PgInet             = MustParseKnownType("github.com/jackc/pgtype.Inet", pg.Inet)
-	PgBoolArray        = MustParseKnownType("github.com/jackc/pgtype.BoolArray", pg.BoolArray)
-	PgByteaArray       = MustParseKnownType("github.com/jackc/pgtype.ByteaArray", pg.ByteaArray)
-	PgInt2Array        = MustParseKnownType("github.com/jackc/pgtype.Int2Array", pg.Int2Array)
-	PgInt4Array        = MustParseKnownType("github.com/jackc/pgtype.Int4Array", pg.Int4Array)
-	PgTextArray        = MustParseKnownType("github.com/jackc/pgtype.TextArray", pg.TextArray)
-	PgBPCharArray      = MustParseKnownType("github.com/jackc/pgtype.BPCharArray", pg.BPCharArray)
-	PgVarcharArray     = MustParseKnownType("github.com/jackc/pgtype.VarcharArray", pg.VarcharArray)
-	PgInt8Array        = MustParseKnownType("github.com/jackc/pgtype.Int8Array", pg.Int8Array)
-	PgFloat4Array      = MustParseKnownType("github.com/jackc/pgtype.Float4Array", pg.Float4Array)
-	PgFloat8Array      = MustParseKnownType("github.com/jackc/pgtype.Float8Array", pg.Float8Array)
-	PgACLItem          = MustParseKnownType("github.com/jackc/pgtype.ACLItem", pg.ACLItem)
-	PgACLItemArray     = MustParseKnownType("github.com/jackc/pgtype.ACLItemArray", pg.ACLItemArray)
-	PgInetArray        = MustParseKnownType("github.com/jackc/pgtype.InetArray", pg.InetArray)
-	PgMacaddrArray     = MustParseKnownType("github.com/jackc/pgtype.MacaddrArray", pg.MacaddrArray)
-	PgBPChar           = MustParseKnownType("github.com/jackc/pgtype.BPChar", pg.BPChar)
-	PgVarchar          = MustParseKnownType("github.com/jackc/pgtype.Varchar", pg.Varchar)
-	PgDate             = MustParseKnownType("github.com/jackc/pgtype.Date", pg.Date)
-	PgTime             = MustParseKnownType("github.com/jackc/pgtype.Time", pg.Time)
-	PgTimestamp        = MustParseKnownType("github.com/jackc/pgtype.Timestamp", pg.Timestamp)
-	PgTimestampArray   = MustParseKnownType("github.com/jackc/pgtype.TimestampArray", pg.TimestampArray)
-	PgDateArray        = MustParseKnownType("github.com/jackc/pgtype.DateArray", pg.DateArray)
-	PgTimestamptz      = MustParseKnownType("github.com/jackc/pgtype.Timestamptz", pg.Timestamptz)
-	PgTimestamptzArray = MustParseKnownType("github.com/jackc/pgtype.TimestamptzArray", pg.TimestamptzArray)
-	PgInterval         = MustParseKnownType("github.com/jackc/pgtype.Interval", pg.Interval)
-	PgNumericArray     = MustParseKnownType("github.com/jackc/pgtype.NumericArray", pg.NumericArray)
-	PgBit              = MustParseKnownType("github.com/jackc/pgtype.Bit", pg.Bit)
-	PgVarbit           = MustParseKnownType("github.com/jackc/pgtype.Varbit", pg.Varbit)
+	PgBool             = MustParseKnownType("github.com/jackc/pgx/v5/pgtype.Bool", pg.Bool)
+	PgQChar            = MustParseKnownType("github.com/jackc/pgx/v5/pgtype.QChar", pg.QChar)
+	PgName             = MustParseKnownType("string", pg.Name)
+	PgInt8             = MustParseKnownType("github.com/jackc/pgx/v5/pgtype.Int8", pg.Int8)
+	PgInt2             = MustParseKnownType("github.com/jackc/pgx/v5/pgtype.Int2", pg.Int2)
+	PgInt4             = MustParseKnownType("github.com/jackc/pgx/v5/pgtype.Int4", pg.Int4)
+	PgText             = MustParseKnownType("github.com/jackc/pgx/v5/pgtype.Text", pg.Text)
+	PgBytea            = MustParseKnownType("github.com/jackc/pgx/v5/pgtype.Bytea", pg.Bytea)
+	PgOID              = MustParseKnownType("uint32", pg.OID)
+	PgTID              = MustParseKnownType("github.com/jackc/pgx/v5/pgtype.TID", pg.TID)
+	PgXID              = MustParseKnownType("github.com/jackc/pgx/v5/pgtype.XID", pg.XID)
+	PgCID              = MustParseKnownType("github.com/jackc/pgx/v5/pgtype.CID", pg.CID)
+	PgJSON             = MustParseKnownType("github.com/jackc/pgx/v5/pgtype.JSON", pg.JSON)
+	PgPoint            = MustParseKnownType("github.com/jackc/pgx/v5/pgtype.Point", pg.Point)
+	PgLseg             = MustParseKnownType("github.com/jackc/pgx/v5/pgtype.Lseg", pg.Lseg)
+	PgPath             = MustParseKnownType("github.com/jackc/pgx/v5/pgtype.Path", pg.Path)
+	PgBox              = MustParseKnownType("github.com/jackc/pgx/v5/pgtype.Box", pg.Box)
+	PgPolygon          = MustParseKnownType("github.com/jackc/pgx/v5/pgtype.Polygon", pg.Polygon)
+	PgLine             = MustParseKnownType("github.com/jackc/pgx/v5/pgtype.Line", pg.Line)
+	PgCIDR             = MustParseKnownType("github.com/jackc/pgx/v5/pgtype.CIDR", pg.CIDR)
+	PgCIDRArray        = MustParseKnownType("github.com/jackc/pgx/v5/pgtype.CIDRArray", pg.CIDRArray)
+	PgFloat4           = MustParseKnownType("github.com/jackc/pgx/v5/pgtype.Float4", pg.Float4)
+	PgFloat8           = MustParseKnownType("github.com/jackc/pgx/v5/pgtype.Float8", pg.Float8)
+	PgUnknown          = MustParseKnownType("github.com/jackc/pgx/v5/pgtype.Unknown", pg.Unknown)
+	PgCircle           = MustParseKnownType("github.com/jackc/pgx/v5/pgtype.Circle", pg.Circle)
+	PgMacaddr          = MustParseKnownType("github.com/jackc/pgx/v5/pgtype.Macaddr", pg.Macaddr)
+	PgInet             = MustParseKnownType("github.com/jackc/pgx/v5/pgtype.Inet", pg.Inet)
+	PgBoolArray        = MustParseKnownType("github.com/jackc/pgx/v5/pgtype.BoolArray", pg.BoolArray)
+	PgByteaArray       = MustParseKnownType("github.com/jackc/pgx/v5/pgtype.ByteaArray", pg.ByteaArray)
+	PgInt2Array        = MustParseKnownType("github.com/jackc/pgx/v5/pgtype.Int2Array", pg.Int2Array)
+	PgInt4Array        = MustParseKnownType("github.com/jackc/pgx/v5/pgtype.Int4Array", pg.Int4Array)
+	PgTextArray        = MustParseKnownType("github.com/jackc/pgx/v5/pgtype.TextArray", pg.TextArray)
+	PgBPCharArray      = MustParseKnownType("github.com/jackc/pgx/v5/pgtype.BPCharArray", pg.BPCharArray)
+	PgVarcharArray     = MustParseKnownType("github.com/jackc/pgx/v5/pgtype.VarcharArray", pg.VarcharArray)
+	PgInt8Array        = MustParseKnownType("github.com/jackc/pgx/v5/pgtype.Int8Array", pg.Int8Array)
+	PgFloat4Array      = MustParseKnownType("github.com/jackc/pgx/v5/pgtype.Float4Array", pg.Float4Array)
+	PgFloat8Array      = MustParseKnownType("github.com/jackc/pgx/v5/pgtype.Float8Array", pg.Float8Array)
+	PgACLItem          = MustParseKnownType("github.com/jackc/pgx/v5/pgtype.ACLItem", pg.ACLItem)
+	PgACLItemArray     = MustParseKnownType("github.com/jackc/pgx/v5/pgtype.ACLItemArray", pg.ACLItemArray)
+	PgInetArray        = MustParseKnownType("github.com/jackc/pgx/v5/pgtype.InetArray", pg.InetArray)
+	PgMacaddrArray     = MustParseKnownType("github.com/jackc/pgx/v5/pgtype.MacaddrArray", pg.MacaddrArray)
+	PgBPChar           = MustParseKnownType("github.com/jackc/pgx/v5/pgtype.BPChar", pg.BPChar)
+	PgVarchar          = MustParseKnownType("github.com/jackc/pgx/v5/pgtype.Varchar", pg.Varchar)
+	PgDate             = MustParseKnownType("github.com/jackc/pgx/v5/pgtype.Date", pg.Date)
+	PgTime             = MustParseKnownType("github.com/jackc/pgx/v5/pgtype.Time", pg.Time)
+	PgTimestamp        = MustParseKnownType("github.com/jackc/pgx/v5/pgtype.Timestamp", pg.Timestamp)
+	PgTimestampArray   = MustParseKnownType("github.com/jackc/pgx/v5/pgtype.TimestampArray", pg.TimestampArray)
+	PgDateArray        = MustParseKnownType("github.com/jackc/pgx/v5/pgtype.DateArray", pg.DateArray)
+	PgTimestamptz      = MustParseKnownType("github.com/jackc/pgx/v5/pgtype.Timestamptz", pg.Timestamptz)
+	PgTimestamptzArray = MustParseKnownType("github.com/jackc/pgx/v5/pgtype.TimestamptzArray", pg.TimestamptzArray)
+	PgInterval         = MustParseKnownType("github.com/jackc/pgx/v5/pgtype.Interval", pg.Interval)
+	PgNumericArray     = MustParseKnownType("github.com/jackc/pgx/v5/pgtype.NumericArray", pg.NumericArray)
+	PgBit              = MustParseKnownType("github.com/jackc/pgx/v5/pgtype.Bit", pg.Bit)
+	PgVarbit           = MustParseKnownType("github.com/jackc/pgx/v5/pgtype.Varbit", pg.Varbit)
 	PgVoid             = &VoidType{}
-	PgNumeric          = MustParseKnownType("github.com/jackc/pgtype.Numeric", pg.Numeric)
-	PgRecord           = MustParseKnownType("github.com/jackc/pgtype.Record", pg.Record)
-	PgUUID             = MustParseKnownType("github.com/jackc/pgtype.UUID", pg.UUID)
-	PgUUIDArray        = MustParseKnownType("github.com/jackc/pgtype.UUIDArray", pg.UUIDArray)
-	PgJSONB            = MustParseKnownType("github.com/jackc/pgtype.JSONB", pg.JSONB)
-	PgJSONBArray       = MustParseKnownType("github.com/jackc/pgtype.JSONBArray", pg.JSONBArray)
-	PgInt4range        = MustParseKnownType("github.com/jackc/pgtype.Int4range", pg.Int4range)
-	PgNumrange         = MustParseKnownType("github.com/jackc/pgtype.Numrange", pg.Numrange)
-	PgTsrange          = MustParseKnownType("github.com/jackc/pgtype.Tsrange", pg.Tsrange)
-	PgTstzrange        = MustParseKnownType("github.com/jackc/pgtype.Tstzrange", pg.Tstzrange)
-	PgDaterange        = MustParseKnownType("github.com/jackc/pgtype.Daterange", pg.Daterange)
-	PgInt8range        = MustParseKnownType("github.com/jackc/pgtype.Int8range", pg.Int8range)
+	PgNumeric          = MustParseKnownType("github.com/jackc/pgx/v5/pgtype.Numeric", pg.Numeric)
+	PgRecord           = MustParseKnownType("github.com/jackc/pgx/v5/pgtype.Record", pg.Record)
+	PgUUID             = MustParseKnownType("github.com/jackc/pgx/v5/pgtype.UUID", pg.UUID)
+	PgUUIDArray        = MustParseKnownType("github.com/jackc/pgx/v5/pgtype.UUIDArray", pg.UUIDArray)
+	PgJSONB            = MustParseKnownType("github.com/jackc/pgx/v5/pgtype.JSONB", pg.JSONB)
+	PgJSONBArray       = MustParseKnownType("github.com/jackc/pgx/v5/pgtype.JSONBArray", pg.JSONBArray)
+	PgInt4range        = MustParseKnownType("github.com/jackc/pgx/v5/pgtype.Int4range", pg.Int4range)
+	PgNumrange         = MustParseKnownType("github.com/jackc/pgx/v5/pgtype.Numrange", pg.Numrange)
+	PgTsrange          = MustParseKnownType("github.com/jackc/pgx/v5/pgtype.Tsrange", pg.Tsrange)
+	PgTstzrange        = MustParseKnownType("github.com/jackc/pgx/v5/pgtype.Tstzrange", pg.Tstzrange)
+	PgDaterange        = MustParseKnownType("github.com/jackc/pgx/v5/pgtype.Daterange", pg.Daterange)
+	PgInt8range        = MustParseKnownType("github.com/jackc/pgx/v5/pgtype.Int8range", pg.Int8range)
 )
 
 // knownGoType is the native pgtype type, the nullable and non-nullable types
@@ -177,7 +177,7 @@ var (
 // "string" for a Postgres text type.
 type knownGoType struct{ pgNative, nullable, nonNullable Type }
 
-var knownTypesByOID = map[pgtype.OID]knownGoType{
+var knownTypesByOID = map[uint32]knownGoType{
 	pgtype.BoolOID:             {PgBool, Boolp, Bool},
 	pgtype.QCharOID:            {PgQChar, nil, nil},
 	pgtype.NameOID:             {PgName, nil, nil},

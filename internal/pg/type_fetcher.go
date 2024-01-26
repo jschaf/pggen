@@ -3,8 +3,7 @@ package pg
 import (
 	"context"
 	"fmt"
-	"github.com/jackc/pgtype"
-	"github.com/jackc/pgx/v4"
+	"github.com/jackc/pgx/v5"
 	"time"
 )
 
@@ -24,7 +23,7 @@ func NewTypeFetcher(conn *pgx.Conn) *TypeFetcher {
 // FindTypesByOIDs returns a map of a type OID to the Type description. The
 // returned map contains every unique OID in oids (oids may contain duplicates)
 // unless there's an error.
-func (tf *TypeFetcher) FindTypesByOIDs(oids ...uint32) (map[pgtype.OID]Type, error) {
+func (tf *TypeFetcher) FindTypesByOIDs(oids ...uint32) (map[uint32]Type, error) {
 	if types, uncached := tf.cache.getOIDs(oids...); len(uncached) == 0 {
 		return types, nil
 	}
@@ -96,7 +95,7 @@ func (tf *TypeFetcher) FindTypesByOIDs(oids ...uint32) (map[pgtype.OID]Type, err
 	return types, nil
 }
 
-func (tf *TypeFetcher) findEnumTypes(ctx context.Context, uncached map[pgtype.OID]struct{}) ([]EnumType, error) {
+func (tf *TypeFetcher) findEnumTypes(ctx context.Context, uncached map[uint32]struct{}) ([]EnumType, error) {
 	oids := oidKeys(uncached)
 	rows, err := tf.querier.FindEnumTypes(ctx, oids)
 	if err != nil {
@@ -104,9 +103,9 @@ func (tf *TypeFetcher) findEnumTypes(ctx context.Context, uncached map[pgtype.OI
 	}
 	types := make([]EnumType, len(rows))
 	for i, enum := range rows {
-		childOIDs := make([]pgtype.OID, len(enum.ChildOIDs))
+		childOIDs := make([]uint32, len(enum.ChildOIDs))
 		for i, oidUint32 := range enum.ChildOIDs {
-			childOIDs[i] = pgtype.OID(oidUint32)
+			childOIDs[i] = uint32(oidUint32)
 		}
 		types[i] = EnumType{
 			ID:        enum.OID,
@@ -119,14 +118,14 @@ func (tf *TypeFetcher) findEnumTypes(ctx context.Context, uncached map[pgtype.OI
 	return types, nil
 }
 
-func (tf *TypeFetcher) findCompositeTypes(ctx context.Context, uncached map[pgtype.OID]struct{}) ([]CompositeType, error) {
+func (tf *TypeFetcher) findCompositeTypes(ctx context.Context, uncached map[uint32]struct{}) ([]CompositeType, error) {
 	oids := oidKeys(uncached)
 	rows, err := tf.querier.FindCompositeTypes(ctx, oids)
 	if err != nil {
 		return nil, fmt.Errorf("find composite types: %w", err)
 	}
 	// Record all composite types to fake a topological sort by repeated iteration.
-	allComposites := make(map[pgtype.OID]struct{}, len(rows))
+	allComposites := make(map[uint32]struct{}, len(rows))
 	for _, row := range rows {
 		allComposites[row.TableTypeOID] = struct{}{}
 	}
@@ -148,13 +147,13 @@ func (tf *TypeFetcher) findCompositeTypes(ctx context.Context, uncached map[pgty
 				// We might resolve this type in a future pass like findArrayTypes. At
 				// the end, we'll attempt to to replace the placeholder with the
 				// resolved type.
-				colTypes[i] = placeholderType{ID: pgtype.OID(colOID)}
+				colTypes[i] = placeholderType{ID: uint32(colOID)}
 				colNames[i] = row.ColNames[i]
 			}
 		}
 		typ := CompositeType{
 			ID:          row.TableTypeOID,
-			Name:        row.TableName.String,
+			Name:        row.TableName,
 			ColumnNames: colNames,
 			ColumnTypes: colTypes,
 		}
@@ -164,7 +163,7 @@ func (tf *TypeFetcher) findCompositeTypes(ctx context.Context, uncached map[pgty
 	return types, nil
 }
 
-func (tf *TypeFetcher) findUnknownTypes(ctx context.Context, uncached map[pgtype.OID]struct{}) ([]UnknownType, error) {
+func (tf *TypeFetcher) findUnknownTypes(ctx context.Context, uncached map[uint32]struct{}) ([]UnknownType, error) {
 	oids := oidKeys(uncached)
 	rows, err := tf.querier.FindOIDNames(ctx, oids)
 	if err != nil {
@@ -174,14 +173,14 @@ func (tf *TypeFetcher) findUnknownTypes(ctx context.Context, uncached map[pgtype
 	for i, row := range rows {
 		types[i] = UnknownType{
 			ID:     row.OID,
-			Name:   row.Name.String,
-			PgKind: TypeKind(row.Kind.Int),
+			Name:   row.Name,
+			PgKind: TypeKind(row.Kind),
 		}
 	}
 	return types, nil
 }
 
-func (tf *TypeFetcher) findArrayTypes(ctx context.Context, uncached map[pgtype.OID]struct{}) ([]ArrayType, error) {
+func (tf *TypeFetcher) findArrayTypes(ctx context.Context, uncached map[uint32]struct{}) ([]ArrayType, error) {
 	oids := oidKeys(uncached)
 	rows, err := tf.querier.FindArrayTypes(ctx, oids)
 	if err != nil {
@@ -204,7 +203,7 @@ func (tf *TypeFetcher) findArrayTypes(ctx context.Context, uncached map[pgtype.O
 
 // resolvePlaceholderTypes resolves all placeholder types or errors if we can't
 // resolve a placeholderType using all known types.
-func (tf *TypeFetcher) resolvePlaceholderTypes(knownTypes map[pgtype.OID]Type) error {
+func (tf *TypeFetcher) resolvePlaceholderTypes(knownTypes map[uint32]Type) error {
 	// resolveType walks down type, replacing placeholderType with a known type.
 	var resolveType func(typ Type) (Type, error)
 	resolveType = func(typ Type) (Type, error) {
@@ -246,7 +245,7 @@ func (tf *TypeFetcher) resolvePlaceholderTypes(knownTypes map[pgtype.OID]Type) e
 	return nil
 }
 
-func oidKeys(os map[pgtype.OID]struct{}) []uint32 {
+func oidKeys(os map[uint32]struct{}) []uint32 {
 	oids := make([]uint32, 0, len(os))
 	for oid := range os {
 		oids = append(oids, uint32(oid))

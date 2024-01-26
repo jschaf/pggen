@@ -5,9 +5,8 @@ package pg
 import (
 	"context"
 	"fmt"
-	"github.com/jackc/pgconn"
-	"github.com/jackc/pgtype"
-	"github.com/jackc/pgx/v4"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 // Querier is a typesafe Go interface backed by SQL queries.
@@ -23,11 +22,11 @@ type Querier interface {
 
 	// Recursively expands all given OIDs to all descendants through composite
 	// types.
-	FindDescendantOIDs(ctx context.Context, oids []uint32) ([]pgtype.OID, error)
+	FindDescendantOIDs(ctx context.Context, oids []uint32) ([]uint32, error)
 
-	FindOIDByName(ctx context.Context, name string) (pgtype.OID, error)
+	FindOIDByName(ctx context.Context, name string) (uint32, error)
 
-	FindOIDName(ctx context.Context, oid pgtype.OID) (pgtype.Name, error)
+	FindOIDName(ctx context.Context, oid uint32) (string, error)
 
 	FindOIDNames(ctx context.Context, oid []uint32) ([]FindOIDNamesRow, error)
 }
@@ -35,8 +34,7 @@ type Querier interface {
 var _ Querier = &DBQuerier{}
 
 type DBQuerier struct {
-	conn  genericConn   // underlying Postgres transport to use
-	types *typeResolver // resolve types by name
+	conn genericConn // underlying Postgres transport to use
 }
 
 // genericConn is a connection like *pgx.Conn, pgx.Tx, or *pgxpool.Pool.
@@ -48,36 +46,7 @@ type genericConn interface {
 
 // NewQuerier creates a DBQuerier that implements Querier.
 func NewQuerier(conn genericConn) *DBQuerier {
-	return &DBQuerier{conn: conn, types: newTypeResolver()}
-}
-
-// typeResolver looks up the pgtype.ValueTranscoder by Postgres type name.
-type typeResolver struct {
-	connInfo *pgtype.ConnInfo // types by Postgres type name
-}
-
-func newTypeResolver() *typeResolver {
-	ci := pgtype.NewConnInfo()
-	return &typeResolver{connInfo: ci}
-}
-
-// findValue find the OID, and pgtype.ValueTranscoder for a Postgres type name.
-func (tr *typeResolver) findValue(name string) (uint32, pgtype.ValueTranscoder, bool) {
-	typ, ok := tr.connInfo.DataTypeForName(name)
-	if !ok {
-		return 0, nil, false
-	}
-	v := pgtype.NewValue(typ.Value)
-	return typ.OID, v.(pgtype.ValueTranscoder), true
-}
-
-// setValue sets the value of a ValueTranscoder to a value that should always
-// work and panics if it fails.
-func (tr *typeResolver) setValue(vt pgtype.ValueTranscoder, val interface{}) pgtype.ValueTranscoder {
-	if err := vt.Set(val); err != nil {
-		panic(fmt.Sprintf("set ValueTranscoder %T to %+v: %s", vt, val, err))
-	}
-	return vt
+	return &DBQuerier{conn: conn}
 }
 
 const findEnumTypesSQL = `WITH enums AS (
@@ -125,13 +94,13 @@ WHERE typ.typisdefined
   AND typ.oid = ANY ($1::oid[]);`
 
 type FindEnumTypesRow struct {
-	OID         pgtype.OID   `json:"oid"`
-	TypeName    string       `json:"type_name"`
-	ChildOIDs   []int        `json:"child_oids"`
-	Orders      []float32    `json:"orders"`
-	Labels      []string     `json:"labels"`
-	TypeKind    pgtype.QChar `json:"type_kind"`
-	DefaultExpr string       `json:"default_expr"`
+	OID         uint32    `json:"oid"`
+	TypeName    string    `json:"type_name"`
+	ChildOIDs   []int     `json:"child_oids"`
+	Orders      []float32 `json:"orders"`
+	Labels      []string  `json:"labels"`
+	TypeKind    byte      `json:"type_kind"`
+	DefaultExpr string    `json:"default_expr"`
 }
 
 // FindEnumTypes implements Querier.FindEnumTypes.
@@ -186,10 +155,10 @@ WHERE arr_typ.typisdefined
   AND arr_typ.oid = ANY ($1::oid[]);`
 
 type FindArrayTypesRow struct {
-	OID      pgtype.OID   `json:"oid"`
-	TypeName string       `json:"type_name"`
-	ElemOID  pgtype.OID   `json:"elem_oid"`
-	TypeKind pgtype.QChar `json:"type_kind"`
+	OID      uint32 `json:"oid"`
+	TypeName string `json:"type_name"`
+	ElemOID  uint32 `json:"elem_oid"`
+	TypeKind byte   `json:"type_kind"`
 }
 
 // FindArrayTypes implements Querier.FindArrayTypes.
@@ -245,14 +214,14 @@ WHERE typ.oid = ANY ($1::oid[])
   AND typ.typtype = 'c';`
 
 type FindCompositeTypesRow struct {
-	TableTypeName string           `json:"table_type_name"`
-	TableTypeOID  pgtype.OID       `json:"table_type_oid"`
-	TableName     pgtype.Name      `json:"table_name"`
-	ColNames      []string         `json:"col_names"`
-	ColOIDs       []int            `json:"col_oids"`
-	ColOrders     []int            `json:"col_orders"`
-	ColNotNulls   pgtype.BoolArray `json:"col_not_nulls"`
-	ColTypeNames  []string         `json:"col_type_names"`
+	TableTypeName string   `json:"table_type_name"`
+	TableTypeOID  uint32   `json:"table_type_oid"`
+	TableName     string   `json:"table_name"`
+	ColNames      []string `json:"col_names"`
+	ColOIDs       []int    `json:"col_oids"`
+	ColOrders     []int    `json:"col_orders"`
+	ColNotNulls   []bool   `json:"col_not_nulls"`
+	ColTypeNames  []string `json:"col_type_names"`
 }
 
 // FindCompositeTypes implements Querier.FindCompositeTypes.
@@ -306,16 +275,16 @@ SELECT oid
 FROM oid_descs;`
 
 // FindDescendantOIDs implements Querier.FindDescendantOIDs.
-func (q *DBQuerier) FindDescendantOIDs(ctx context.Context, oids []uint32) ([]pgtype.OID, error) {
+func (q *DBQuerier) FindDescendantOIDs(ctx context.Context, oids []uint32) ([]uint32, error) {
 	ctx = context.WithValue(ctx, "pggen_query_name", "FindDescendantOIDs")
 	rows, err := q.conn.Query(ctx, findDescendantOIDsSQL, oids)
 	if err != nil {
 		return nil, fmt.Errorf("query FindDescendantOIDs: %w", err)
 	}
 	defer rows.Close()
-	items := []pgtype.OID{}
+	items := []uint32{}
 	for rows.Next() {
-		var item pgtype.OID
+		var item uint32
 		if err := rows.Scan(&item); err != nil {
 			return nil, fmt.Errorf("scan FindDescendantOIDs row: %w", err)
 		}
@@ -334,10 +303,10 @@ ORDER BY oid DESC
 LIMIT 1;`
 
 // FindOIDByName implements Querier.FindOIDByName.
-func (q *DBQuerier) FindOIDByName(ctx context.Context, name string) (pgtype.OID, error) {
+func (q *DBQuerier) FindOIDByName(ctx context.Context, name string) (uint32, error) {
 	ctx = context.WithValue(ctx, "pggen_query_name", "FindOIDByName")
 	row := q.conn.QueryRow(ctx, findOIDByNameSQL, name)
-	var item pgtype.OID
+	var item uint32
 	if err := row.Scan(&item); err != nil {
 		return item, fmt.Errorf("query FindOIDByName: %w", err)
 	}
@@ -349,10 +318,10 @@ FROM pg_type
 WHERE oid = $1;`
 
 // FindOIDName implements Querier.FindOIDName.
-func (q *DBQuerier) FindOIDName(ctx context.Context, oid pgtype.OID) (pgtype.Name, error) {
+func (q *DBQuerier) FindOIDName(ctx context.Context, oid uint32) (string, error) {
 	ctx = context.WithValue(ctx, "pggen_query_name", "FindOIDName")
 	row := q.conn.QueryRow(ctx, findOIDNameSQL, oid)
-	var item pgtype.Name
+	var item string
 	if err := row.Scan(&item); err != nil {
 		return item, fmt.Errorf("query FindOIDName: %w", err)
 	}
@@ -364,9 +333,9 @@ FROM pg_type
 WHERE oid = ANY ($1::oid[]);`
 
 type FindOIDNamesRow struct {
-	OID  pgtype.OID   `json:"oid"`
-	Name pgtype.Name  `json:"name"`
-	Kind pgtype.QChar `json:"kind"`
+	OID  uint32 `json:"oid"`
+	Name string `json:"name"`
+	Kind byte   `json:"kind"`
 }
 
 // FindOIDNames implements Querier.FindOIDNames.
@@ -390,28 +359,3 @@ func (q *DBQuerier) FindOIDNames(ctx context.Context, oid []uint32) ([]FindOIDNa
 	}
 	return items, err
 }
-
-// textPreferrer wraps a pgtype.ValueTranscoder and sets the preferred encoding
-// format to text instead binary (the default). pggen uses the text format
-// when the OID is unknownOID because the binary format requires the OID.
-// Typically occurs for unregistered types.
-type textPreferrer struct {
-	pgtype.ValueTranscoder
-	typeName string
-}
-
-// PreferredParamFormat implements pgtype.ParamFormatPreferrer.
-func (t textPreferrer) PreferredParamFormat() int16 { return pgtype.TextFormatCode }
-
-func (t textPreferrer) NewTypeValue() pgtype.Value {
-	return textPreferrer{ValueTranscoder: pgtype.NewValue(t.ValueTranscoder).(pgtype.ValueTranscoder), typeName: t.typeName}
-}
-
-func (t textPreferrer) TypeName() string {
-	return t.typeName
-}
-
-// unknownOID means we don't know the OID for a type. This is okay for decoding
-// because pgx call DecodeText or DecodeBinary without requiring the OID. For
-// encoding parameters, pggen uses textPreferrer if the OID is unknown.
-const unknownOID = 0

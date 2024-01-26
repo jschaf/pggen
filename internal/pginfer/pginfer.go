@@ -3,13 +3,11 @@ package pginfer
 import (
 	"context"
 	"fmt"
-	"github.com/jackc/pgconn"
+	"github.com/jackc/pgx/v5/pgconn"
 	"strings"
 	"time"
 
-	"github.com/jackc/pgproto3/v2"
-	"github.com/jackc/pgtype"
-	"github.com/jackc/pgx/v4"
+	"github.com/jackc/pgx/v5"
 	"github.com/jschaf/pggen/internal/ast"
 	"github.com/jschaf/pggen/internal/pg"
 )
@@ -157,7 +155,7 @@ func (inf *Inferrer) prepareTypes(query *ast.SourceQuery) (_a []InputParam, _ []
 			return nil, nil, fmt.Errorf("fetch oid types: %w", err)
 		}
 		for i, oid := range stmtDesc.ParamOIDs {
-			inputType, ok := types[pgtype.OID(oid)]
+			inputType, ok := types[uint32(oid)]
 			if !ok {
 				return nil, nil, fmt.Errorf("no postgres type name found for parameter %s with oid %d", query.ParamNames[i], oid)
 			}
@@ -187,7 +185,7 @@ func (inf *Inferrer) prepareTypes(query *ast.SourceQuery) (_a []InputParam, _ []
 	// Create output columns
 	var outputColumns []OutputColumn
 	for i, desc := range stmtDesc.Fields {
-		pgType, ok := outputTypes[pgtype.OID(desc.DataTypeOID)]
+		pgType, ok := outputTypes[uint32(desc.DataTypeOID)]
 		if !ok {
 			return nil, nil, fmt.Errorf("no postgrestype name found for column %s with oid %d", string(desc.Name), desc.DataTypeOID)
 		}
@@ -202,7 +200,7 @@ func (inf *Inferrer) prepareTypes(query *ast.SourceQuery) (_a []InputParam, _ []
 
 // inferOutputNullability infers which of the output columns produced by the
 // query and described by descs can be null.
-func (inf *Inferrer) inferOutputNullability(query *ast.SourceQuery, descs []pgproto3.FieldDescription) ([]bool, error) {
+func (inf *Inferrer) inferOutputNullability(query *ast.SourceQuery, descs []pgconn.FieldDescription) ([]bool, error) {
 	if len(descs) == 0 {
 		return nil, nil
 	}
@@ -215,7 +213,7 @@ func (inf *Inferrer) inferOutputNullability(query *ast.SourceQuery, descs []pgpr
 	for i, desc := range descs {
 		if desc.TableOID > 0 {
 			columnKeys[i] = pg.ColumnKey{
-				TableOID: pgtype.OID(desc.TableOID),
+				TableOID: uint32(desc.TableOID),
 				Number:   desc.TableAttributeNumber,
 			}
 		}
