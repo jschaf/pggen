@@ -42,7 +42,6 @@ func NewQuerier(conn genericConn) *DBQuerier {
 	return &DBQuerier{conn: conn}
 }
 
-{{- range .Declarers}}{{- "\n\n" -}}{{ .Declare $.PkgPath }}{{ end -}}
 {{- end -}}
 
 {{- range $i, $q := .Queries -}}
@@ -55,34 +54,41 @@ const {{ $q.SQLVarName }} = {{ $q.EmitPreparedSQL }}
 func (q *DBQuerier) {{ $q.Name }}(ctx context.Context {{- $q.EmitParams }}) ({{ $q.EmitResultType }}, error) {
 	ctx = context.WithValue(ctx, "pggen_query_name", "{{ $q.Name }}")
 {{- if eq $q.ResultKind ":one" }}
-	row := q.conn.QueryRow(ctx, {{ $q.SQLVarName }} {{- $q.EmitParamNames }})
-	{{ $q.EmitResultTypeInit "item" }}
-	{{- $q.EmitResultDecoders }}
-	if err := row.Scan({{ $q.EmitRowScanArgs }}); err != nil {
-		return {{ $q.EmitResultExpr "item" }}, fmt.Errorf("query {{ $q.Name }}: %w", err)
-	}
-	{{- $q.EmitResultAssigns "item" }}
-	return {{ $q.EmitResultExpr "item" }}, nil
-{{- else if eq $q.ResultKind ":many" }}
-	rows, err := q.conn.Query(ctx, {{ $q.SQLVarName }} {{- $q.EmitParamNames }})
+	row, err := q.conn.Query(ctx, {{ $q.SQLVarName }} {{- $q.EmitParamNames }})
 	if err != nil {
 		return nil, fmt.Errorf("query {{ $q.Name }}: %w", err)
 	}
-	defer rows.Close()
-	{{ $q.EmitResultTypeInit "items" }}
-	{{- $q.EmitResultDecoders }}
-	for rows.Next() {
-		var item {{ $q.EmitResultElem }}
-		if err := rows.Scan({{- $q.EmitRowScanArgs -}}); err != nil {
-			return nil, fmt.Errorf("scan {{ $q.Name }} row: %w", err)
-		}
-		{{- $q.EmitResultAssigns "nil" }}
-		items = append(items, {{ $q.EmitResultExpr "item" }})
+
+	fds := rows.FieldDescriptions()
+	{{- range $i, $col := $q.Outputs -}}
+	{{ $q.EmitPlanScan $i $col}}
+	{{- end -}}
+
+	return pgx.CollectExactlyOneRow(rows, func(row pgx.CollectableRow) ({{ $q.EmitSingularResultType }}, error) {
+		vals := row.RawValues()
+		{{ $q.EmitResultTypeInit "item" }}
+		{{- range $i, $col := $q.Outputs -}}
+		{{- $q.EmitScanColumn $i $col -}}
+		{{- end -}}
+	})
+{{- else if eq $q.ResultKind ":many" }}
+	row, err := q.conn.Query(ctx, {{ $q.SQLVarName }} {{- $q.EmitParamNames }})
+	if err != nil {
+	return nil, fmt.Errorf("query {{ $q.Name }}: %w", err)
 	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("close {{ $q.Name }} rows: %w", err)
-	}
-	return items, err
+
+	fds := rows.FieldDescriptions()
+	{{- range $i, $col := $q.Outputs -}}
+		{{ $q.EmitPlanScan $i $col}}
+	{{- end -}}
+
+	return pgx.CollectRows(rows, func(row pgx.CollectableRow) ({{ $q.EmitSingularResultType }}, error) {
+	vals := row.RawValues()
+	{{ $q.EmitResultTypeInit "item" }}
+	{{- range $i, $col := $q.Outputs -}}
+		{{- $q.EmitScanColumn $i $col -}}
+	{{- end -}}
+	})
 {{- else if eq $q.ResultKind ":exec" }}
 	cmdTag, err := q.conn.Exec(ctx, {{ $q.SQLVarName }} {{- $q.EmitParamNames }})
 	if err != nil {
@@ -93,4 +99,60 @@ func (q *DBQuerier) {{ $q.Name }}(ctx context.Context {{- $q.EmitParams }}) ({{ 
 }
 {{- end -}}
 {{- "\n" -}}
+{{ if .IsLeader }}
+type scanCacheKey struct {
+	oid      uint32
+	format   int16
+	typeName string
+}
+
+var (
+	plans   = make(map[scanCacheKey]pgtype.ScanPlan, 16)
+	plansMu sync.RWMutex
+)
+
+func planScan(codec pgtype.Codec, fd pgconn.FieldDescription, target any) pgtype.ScanPlan {
+	key := scanCacheKey{fd.DataTypeOID, fd.Format, fmt.Sprintf("%T", target)}
+	plansMu.RLock()
+	plan := plans[key]
+	plansMu.RUnlock()
+	if plan != nil {
+		return plan
+	}
+	plan = codec.PlanScan(nil, fd.DataTypeOID, fd.Format, target)
+	plansMu.Lock()
+	plans[key] = plan
+	plansMu.Unlock()
+	return plan
+}
+
+type ptrScanner[T any] struct {
+	basePlan pgtype.ScanPlan
+}
+
+func (s ptrScanner[T]) Scan(src []byte, dst any) error {
+	if src == nil {
+		return nil
+	}
+	d := dst.(**T)
+	*d = new(T)
+	return s.basePlan.Scan(src, *d)
+}
+
+func planPtrScan[T any](codec pgtype.Codec, fd pgconn.FieldDescription, target *T) pgtype.ScanPlan {
+	key := scanCacheKey{fd.DataTypeOID, fd.Format, fmt.Sprintf("*%T", target)}
+	plansMu.RLock()
+	plan := plans[key]
+	plansMu.RUnlock()
+	if plan != nil {
+		return plan
+	}
+	basePlan := planScan(codec, fd, target)
+	ptrPlan := ptrScanner[T]{basePlan}
+	plansMu.Lock()
+	plans[key] = plan
+	plansMu.Unlock()
+	return ptrPlan
+}
+{{- end -}}
 {{- end -}}

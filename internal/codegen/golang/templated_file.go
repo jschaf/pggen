@@ -200,6 +200,31 @@ func (tq TemplatedQuery) isInlineParams() bool {
 	return len(tq.Inputs) <= tq.InlineParamCount
 }
 
+// EmitPlanScan emits the variable that hold the pgtype.ScanPlan for a query
+// output.
+func (tq TemplatedQuery) EmitPlanScan(idx int, out TemplatedColumn) (string, error) {
+	switch tq.ResultKind {
+	case ast.ResultKindExec:
+		return "", fmt.Errorf("cannot EmitPlanScanArgs for :exec query %s", tq.Name)
+	case ast.ResultKindMany, ast.ResultKindOne:
+		break // okay
+	default:
+		return "", fmt.Errorf("unhandled EmitPlanScanArgs type: %s", tq.ResultKind)
+	}
+	return fmt.Sprintf("planScan%d = pgtype.TODOCodec{}, fs[%d], (*%s)(nil))", idx, idx, out.Type.BaseName()), nil
+}
+
+// EmitScanColumn emits scan call for a single TemplatedColumn.
+func (tq TemplatedQuery) EmitScanColumn(idx int, out TemplatedColumn) (string, error) {
+	sb := &strings.Builder{}
+	_, _ = fmt.Fprintf(sb, "if err := plan%d.Scan(vals[%d], &item); err != nil\n", idx, idx)
+	sb.WriteString("\t\t\t")
+	_, _ = fmt.Fprintf(sb, `return item, fmt.Errorf("scan %s.%s: %%w", err)`, tq.Name, out.PgName)
+	sb.WriteString("\n")
+	sb.WriteString("\t\t}\n")
+	return sb.String(), nil
+}
+
 // EmitRowScanArgs emits the args to scan a single row from a pgx.Row or
 // pgx.Rows.
 func (tq TemplatedQuery) EmitRowScanArgs() (string, error) {
@@ -256,9 +281,10 @@ func (tq TemplatedQuery) EmitRowScanArgs() (string, error) {
 	return sb.String(), nil
 }
 
-// EmitResultType returns the string representing the overall query result type,
-// meaning the return result.
-func (tq TemplatedQuery) EmitResultType() (string, error) {
+// EmitSingularResultType returns the string representing a single element
+// of the overall query result type, like FindAuthorsRow when the overall return
+// type is []FindAuthorsRow.
+func (tq TemplatedQuery) EmitSingularResultType() (string, error) {
 	outs := removeVoidColumns(tq.Outputs)
 	switch tq.ResultKind {
 	case ast.ResultKindExec:
@@ -268,9 +294,9 @@ func (tq TemplatedQuery) EmitResultType() (string, error) {
 		case 0:
 			return "pgconn.CommandTag", nil
 		case 1:
-			return "[]" + outs[0].QualType, nil
+			return outs[0].QualType, nil
 		default:
-			return "[]" + tq.Name + "Row", nil
+			return tq.Name + "Row", nil
 		}
 	case ast.ResultKindOne:
 		switch len(outs) {
@@ -281,6 +307,29 @@ func (tq TemplatedQuery) EmitResultType() (string, error) {
 		default:
 			return tq.Name + "Row", nil
 		}
+	default:
+		return "", fmt.Errorf("unhandled EmitSingularResultType kind: %s", tq.ResultKind)
+	}
+}
+
+// EmitResultType returns the string representing the overall query result type,
+// meaning the return result.
+func (tq TemplatedQuery) EmitResultType() (string, error) {
+	rt, err := tq.EmitSingularResultType()
+	if err != nil {
+		return "", fmt.Errorf("unhandled EmitResultType: %w", err)
+	}
+	switch tq.ResultKind {
+	case ast.ResultKindExec:
+		return rt, nil
+	case ast.ResultKindMany:
+		outs := removeVoidColumns(tq.Outputs)
+		if len(outs) == 0 {
+			return rt, nil
+		}
+		return "[]" + rt, nil
+	case ast.ResultKindOne:
+		return rt, nil
 	default:
 		return "", fmt.Errorf("unhandled EmitResultType kind: %s", tq.ResultKind)
 	}
