@@ -49,7 +49,7 @@ type Querier interface {
 var _ Querier = &DBQuerier{}
 
 type DBQuerier struct {
-	conn genericConn // underlying Postgres transport to use
+	conn genericConn
 }
 
 // genericConn is a connection like *pgx.Conn, pgx.Tx, or *pgxpool.Pool.
@@ -80,27 +80,26 @@ func (q *DBQuerier) FindAuthorByID(ctx context.Context, authorID int32) (FindAut
 	if err != nil {
 		return FindAuthorByIDRow{}, fmt.Errorf("query FindAuthorByID: %w", err)
 	}
-
 	fds := rows.FieldDescriptions()
-	plan0 := planScan(pgtype.Int4Codec{}, fds[0], (*int32)(nil))
+	plan0 := planScan(pgtype.TextCodec{}, fds[0], (*int32)(nil))
 	plan1 := planScan(pgtype.TextCodec{}, fds[1], (*string)(nil))
 	plan2 := planScan(pgtype.TextCodec{}, fds[2], (*string)(nil))
-	plan3 := planPtrScan(pgtype.TextCodec{}, fds[3], (*string)(nil))
+	plan3 := planScan(pgtype.TextCodec{}, fds[3], (**string)(nil))
 
 	return pgx.CollectExactlyOneRow(rows, func(row pgx.CollectableRow) (FindAuthorByIDRow, error) {
 		vals := row.RawValues()
 		var item FindAuthorByIDRow
-		if err := plan0.Scan(vals[0], &item.AuthorID); err != nil {
-			return item, fmt.Errorf("scan FindAuthors.author_id column: %w", err)
+		if err := plan0.Scan(vals[0], &item); err != nil {
+			return item, fmt.Errorf("scan FindAuthorByID.author_id: %w", err)
 		}
-		if err := plan1.Scan(vals[1], &item.FirstName); err != nil {
-			return item, fmt.Errorf("scan FindAuthors.first_name column: %w", err)
+		if err := plan1.Scan(vals[1], &item); err != nil {
+			return item, fmt.Errorf("scan FindAuthorByID.first_name: %w", err)
 		}
-		if err := plan2.Scan(vals[2], &item.LastName); err != nil {
-			return item, fmt.Errorf("scan FindAuthors.last_name column: %w", err)
+		if err := plan2.Scan(vals[2], &item); err != nil {
+			return item, fmt.Errorf("scan FindAuthorByID.last_name: %w", err)
 		}
-		if err := plan3.Scan(vals[3], &item.Suffix); err != nil {
-			return item, fmt.Errorf("scan FindAuthors.suffix column: %w", err)
+		if err := plan3.Scan(vals[3], &item); err != nil {
+			return item, fmt.Errorf("scan FindAuthorByID.suffix: %w", err)
 		}
 		return item, nil
 	})
@@ -122,27 +121,26 @@ func (q *DBQuerier) FindAuthors(ctx context.Context, firstName string) ([]FindAu
 	if err != nil {
 		return nil, fmt.Errorf("query FindAuthors: %w", err)
 	}
-
 	fds := rows.FieldDescriptions()
-	plan0 := planScan(pgtype.Int4Codec{}, fds[0], (*int32)(nil))
+	plan0 := planScan(pgtype.TextCodec{}, fds[0], (*int32)(nil))
 	plan1 := planScan(pgtype.TextCodec{}, fds[1], (*string)(nil))
 	plan2 := planScan(pgtype.TextCodec{}, fds[2], (*string)(nil))
-	plan3 := planPtrScan(pgtype.TextCodec{}, fds[3], (*string)(nil))
+	plan3 := planScan(pgtype.TextCodec{}, fds[3], (**string)(nil))
 
 	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (FindAuthorsRow, error) {
 		vals := row.RawValues()
 		var item FindAuthorsRow
-		if err := plan0.Scan(vals[0], &item.AuthorID); err != nil {
-			return item, fmt.Errorf("scan FindAuthors.author_id column: %w", err)
+		if err := plan0.Scan(vals[0], &item); err != nil {
+			return item, fmt.Errorf("scan FindAuthors.author_id: %w", err)
 		}
-		if err := plan1.Scan(vals[1], &item.FirstName); err != nil {
-			return item, fmt.Errorf("scan FindAuthors.first_name column: %w", err)
+		if err := plan1.Scan(vals[1], &item); err != nil {
+			return item, fmt.Errorf("scan FindAuthors.first_name: %w", err)
 		}
-		if err := plan2.Scan(vals[2], &item.LastName); err != nil {
-			return item, fmt.Errorf("scan FindAuthors.last_name column: %w", err)
+		if err := plan2.Scan(vals[2], &item); err != nil {
+			return item, fmt.Errorf("scan FindAuthors.last_name: %w", err)
 		}
-		if err := plan3.Scan(vals[3], &item.Suffix); err != nil {
-			return item, fmt.Errorf("scan FindAuthors.suffix column: %w", err)
+		if err := plan3.Scan(vals[3], &item); err != nil {
+			return item, fmt.Errorf("scan FindAuthors.suffix: %w", err)
 		}
 		return item, nil
 	})
@@ -155,10 +153,6 @@ type FindAuthorNamesRow struct {
 	LastName  *string `json:"last_name"`
 }
 
-func (r *FindAuthorNamesRow) scanRow(rows pgx.Rows) error {
-	return rows.Scan(&r.FirstName, &r.LastName)
-}
-
 // FindAuthorNames implements Querier.FindAuthorNames.
 func (q *DBQuerier) FindAuthorNames(ctx context.Context, authorID int32) ([]FindAuthorNamesRow, error) {
 	ctx = context.WithValue(ctx, "pggen_query_name", "FindAuthorNames")
@@ -166,19 +160,18 @@ func (q *DBQuerier) FindAuthorNames(ctx context.Context, authorID int32) ([]Find
 	if err != nil {
 		return nil, fmt.Errorf("query FindAuthorNames: %w", err)
 	}
-
 	fds := rows.FieldDescriptions()
-	plan0 := planScan(pgtype.TextCodec{}, fds[0], (*string)(nil))
-	plan1 := planScan(pgtype.TextCodec{}, fds[1], (*string)(nil))
+	plan0 := planScan(pgtype.TextCodec{}, fds[0], (**string)(nil))
+	plan1 := planScan(pgtype.TextCodec{}, fds[1], (**string)(nil))
 
 	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (FindAuthorNamesRow, error) {
 		vals := row.RawValues()
 		var item FindAuthorNamesRow
-		if err := plan0.Scan(vals[0], &item.FirstName); err != nil {
-			return item, fmt.Errorf("scan FindAuthors.first_name column: %w", err)
+		if err := plan0.Scan(vals[0], &item); err != nil {
+			return item, fmt.Errorf("scan FindAuthorNames.first_name: %w", err)
 		}
-		if err := plan1.Scan(vals[1], &item.LastName); err != nil {
-			return item, fmt.Errorf("scan FindAuthors.last_name column: %w", err)
+		if err := plan1.Scan(vals[1], &item); err != nil {
+			return item, fmt.Errorf("scan FindAuthorNames.last_name: %w", err)
 		}
 		return item, nil
 	})
@@ -193,17 +186,16 @@ func (q *DBQuerier) FindFirstNames(ctx context.Context, authorID int32) ([]*stri
 	if err != nil {
 		return nil, fmt.Errorf("query FindFirstNames: %w", err)
 	}
-
 	fds := rows.FieldDescriptions()
-	plan0 := planScan(pgtype.TextCodec{}, fds[0], (*string)(nil))
+	plan0 := planScan(pgtype.TextCodec{}, fds[0], (**string)(nil))
 
 	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (*string, error) {
 		vals := row.RawValues()
-		var item string
+		var item *string
 		if err := plan0.Scan(vals[0], &item); err != nil {
-			return nil, fmt.Errorf("scan FindFirstNames row: %w", err)
+			return item, fmt.Errorf("scan FindFirstNames.first_name: %w", err)
 		}
-		return &item, nil
+		return item, nil
 	})
 }
 
@@ -214,7 +206,7 @@ func (q *DBQuerier) DeleteAuthors(ctx context.Context) (pgconn.CommandTag, error
 	ctx = context.WithValue(ctx, "pggen_query_name", "DeleteAuthors")
 	cmdTag, err := q.conn.Exec(ctx, deleteAuthorsSQL)
 	if err != nil {
-		return cmdTag, fmt.Errorf("exec query DeleteAuthors: %w", err)
+		return pgconn.CommandTag{}, fmt.Errorf("exec query DeleteAuthors: %w", err)
 	}
 	return cmdTag, err
 }
@@ -226,7 +218,7 @@ func (q *DBQuerier) DeleteAuthorsByFirstName(ctx context.Context, firstName stri
 	ctx = context.WithValue(ctx, "pggen_query_name", "DeleteAuthorsByFirstName")
 	cmdTag, err := q.conn.Exec(ctx, deleteAuthorsByFirstNameSQL, firstName)
 	if err != nil {
-		return cmdTag, fmt.Errorf("exec query DeleteAuthorsByFirstName: %w", err)
+		return pgconn.CommandTag{}, fmt.Errorf("exec query DeleteAuthorsByFirstName: %w", err)
 	}
 	return cmdTag, err
 }
@@ -248,7 +240,7 @@ func (q *DBQuerier) DeleteAuthorsByFullName(ctx context.Context, params DeleteAu
 	ctx = context.WithValue(ctx, "pggen_query_name", "DeleteAuthorsByFullName")
 	cmdTag, err := q.conn.Exec(ctx, deleteAuthorsByFullNameSQL, params.FirstName, params.LastName, params.Suffix)
 	if err != nil {
-		return cmdTag, fmt.Errorf("exec query DeleteAuthorsByFullName: %w", err)
+		return pgconn.CommandTag{}, fmt.Errorf("exec query DeleteAuthorsByFullName: %w", err)
 	}
 	return cmdTag, err
 }
@@ -264,15 +256,14 @@ func (q *DBQuerier) InsertAuthor(ctx context.Context, firstName string, lastName
 	if err != nil {
 		return 0, fmt.Errorf("query InsertAuthor: %w", err)
 	}
-
 	fds := rows.FieldDescriptions()
-	plan0 := planScan(pgtype.Int4Codec{}, fds[0], (*int32)(nil))
+	plan0 := planScan(pgtype.TextCodec{}, fds[0], (*int32)(nil))
 
 	return pgx.CollectExactlyOneRow(rows, func(row pgx.CollectableRow) (int32, error) {
 		vals := row.RawValues()
 		var item int32
 		if err := plan0.Scan(vals[0], &item); err != nil {
-			return item, fmt.Errorf("scan InsertAuthor: %w", err)
+			return item, fmt.Errorf("scan InsertAuthor.author_id: %w", err)
 		}
 		return item, nil
 	})
@@ -295,10 +286,6 @@ type InsertAuthorSuffixRow struct {
 	Suffix    *string `json:"suffix"`
 }
 
-func (r *InsertAuthorSuffixRow) scanRow(rows pgx.Rows) error {
-	return rows.Scan(&r.AuthorID, &r.FirstName, &r.LastName, &r.Suffix)
-}
-
 // InsertAuthorSuffix implements Querier.InsertAuthorSuffix.
 func (q *DBQuerier) InsertAuthorSuffix(ctx context.Context, params InsertAuthorSuffixParams) (InsertAuthorSuffixRow, error) {
 	ctx = context.WithValue(ctx, "pggen_query_name", "InsertAuthorSuffix")
@@ -306,33 +293,32 @@ func (q *DBQuerier) InsertAuthorSuffix(ctx context.Context, params InsertAuthorS
 	if err != nil {
 		return InsertAuthorSuffixRow{}, fmt.Errorf("query InsertAuthorSuffix: %w", err)
 	}
-
 	fds := rows.FieldDescriptions()
-	plan0 := planScan(pgtype.Int4Codec{}, fds[0], (*int32)(nil))
+	plan0 := planScan(pgtype.TextCodec{}, fds[0], (*int32)(nil))
 	plan1 := planScan(pgtype.TextCodec{}, fds[1], (*string)(nil))
 	plan2 := planScan(pgtype.TextCodec{}, fds[2], (*string)(nil))
-	plan3 := planPtrScan(pgtype.TextCodec{}, fds[3], (*string)(nil))
+	plan3 := planScan(pgtype.TextCodec{}, fds[3], (**string)(nil))
 
 	return pgx.CollectExactlyOneRow(rows, func(row pgx.CollectableRow) (InsertAuthorSuffixRow, error) {
 		vals := row.RawValues()
 		var item InsertAuthorSuffixRow
-		if err := plan0.Scan(vals[0], &item.AuthorID); err != nil {
-			return item, fmt.Errorf("scan InsertAuthorSuffixRow.author_id column: %w", err)
+		if err := plan0.Scan(vals[0], &item); err != nil {
+			return item, fmt.Errorf("scan InsertAuthorSuffix.author_id: %w", err)
 		}
-		if err := plan1.Scan(vals[1], &item.FirstName); err != nil {
-			return item, fmt.Errorf("scan InsertAuthorSuffixRow.first_name column: %w", err)
+		if err := plan1.Scan(vals[1], &item); err != nil {
+			return item, fmt.Errorf("scan InsertAuthorSuffix.first_name: %w", err)
 		}
-		if err := plan2.Scan(vals[2], &item.LastName); err != nil {
-			return item, fmt.Errorf("scan InsertAuthorSuffixRow.last_name column: %w", err)
+		if err := plan2.Scan(vals[2], &item); err != nil {
+			return item, fmt.Errorf("scan InsertAuthorSuffix.last_name: %w", err)
 		}
-		if err := plan3.Scan(vals[3], &item.Suffix); err != nil {
-			return item, fmt.Errorf("scan InsertAuthorSuffixRow.suffix column: %w", err)
+		if err := plan3.Scan(vals[3], &item); err != nil {
+			return item, fmt.Errorf("scan InsertAuthorSuffix.suffix: %w", err)
 		}
 		return item, nil
 	})
 }
 
-const stringAggFirstNameSQL = `SELECT string_agg(first_name, ',') AS NAMES FROM author WHERE author_id = $1;`
+const stringAggFirstNameSQL = `SELECT string_agg(first_name, ',') AS names FROM author WHERE author_id = $1;`
 
 // StringAggFirstName implements Querier.StringAggFirstName.
 func (q *DBQuerier) StringAggFirstName(ctx context.Context, authorID int32) (*string, error) {
@@ -341,21 +327,20 @@ func (q *DBQuerier) StringAggFirstName(ctx context.Context, authorID int32) (*st
 	if err != nil {
 		return nil, fmt.Errorf("query StringAggFirstName: %w", err)
 	}
-
 	fds := rows.FieldDescriptions()
-	plan0 := planPtrScan(pgtype.TextCodec{}, fds[0], (*string)(nil))
+	plan0 := planScan(pgtype.TextCodec{}, fds[0], (**string)(nil))
 
 	return pgx.CollectExactlyOneRow(rows, func(row pgx.CollectableRow) (*string, error) {
 		vals := row.RawValues()
 		var item *string
 		if err := plan0.Scan(vals[0], &item); err != nil {
-			return item, fmt.Errorf("scan StringAggFirstName column: %w", err)
+			return item, fmt.Errorf("scan StringAggFirstName.names: %w", err)
 		}
 		return item, nil
 	})
 }
 
-const arrayAggFirstNameSQL = `SELECT array_agg(first_name) AS NAMES FROM author WHERE author_id = $1;`
+const arrayAggFirstNameSQL = `SELECT array_agg(first_name) AS names FROM author WHERE author_id = $1;`
 
 // ArrayAggFirstName implements Querier.ArrayAggFirstName.
 func (q *DBQuerier) ArrayAggFirstName(ctx context.Context, authorID int32) ([]string, error) {
@@ -364,15 +349,14 @@ func (q *DBQuerier) ArrayAggFirstName(ctx context.Context, authorID int32) ([]st
 	if err != nil {
 		return nil, fmt.Errorf("query ArrayAggFirstName: %w", err)
 	}
-
 	fds := rows.FieldDescriptions()
-	plan0 := planScan(pgtype.TextCodec{}, fds[0], (*string)(nil))
+	plan0 := planScan(pgtype.TextCodec{}, fds[0], (*[]string)(nil))
 
-	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (string, error) {
+	return pgx.CollectExactlyOneRow(rows, func(row pgx.CollectableRow) ([]string, error) {
 		vals := row.RawValues()
-		var item string
+		var item []string
 		if err := plan0.Scan(vals[0], &item); err != nil {
-			return item, fmt.Errorf("scan StringAggFirstName column: %w", err)
+			return item, fmt.Errorf("scan ArrayAggFirstName.names: %w", err)
 		}
 		return item, nil
 	})

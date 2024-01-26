@@ -27,7 +27,7 @@ type Querier interface {
 var _ Querier = &DBQuerier{}
 
 type DBQuerier struct {
-	conn  genericConn   // underlying Postgres transport to use
+	conn  genericConn
 }
 
 // genericConn is a connection like *pgx.Conn, pgx.Tx, or *pgxpool.Pool.
@@ -53,48 +53,30 @@ const {{ $q.SQLVarName }} = {{ $q.EmitPreparedSQL }}
 // {{ $q.Name }} implements Querier.{{ $q.Name }}.
 func (q *DBQuerier) {{ $q.Name }}(ctx context.Context {{- $q.EmitParams }}) ({{ $q.EmitResultType }}, error) {
 	ctx = context.WithValue(ctx, "pggen_query_name", "{{ $q.Name }}")
-{{- if eq $q.ResultKind ":one" }}
-	row, err := q.conn.Query(ctx, {{ $q.SQLVarName }} {{- $q.EmitParamNames }})
-	if err != nil {
-		return nil, fmt.Errorf("query {{ $q.Name }}: %w", err)
-	}
-
-	fds := rows.FieldDescriptions()
-	{{- range $i, $col := $q.Outputs -}}
-	{{ $q.EmitPlanScan $i $col}}
-	{{- end -}}
-
-	return pgx.CollectExactlyOneRow(rows, func(row pgx.CollectableRow) ({{ $q.EmitSingularResultType }}, error) {
-		vals := row.RawValues()
-		{{ $q.EmitResultTypeInit "item" }}
-		{{- range $i, $col := $q.Outputs -}}
-		{{- $q.EmitScanColumn $i $col -}}
-		{{- end -}}
-	})
-{{- else if eq $q.ResultKind ":many" }}
-	row, err := q.conn.Query(ctx, {{ $q.SQLVarName }} {{- $q.EmitParamNames }})
-	if err != nil {
-	return nil, fmt.Errorf("query {{ $q.Name }}: %w", err)
-	}
-
-	fds := rows.FieldDescriptions()
-	{{- range $i, $col := $q.Outputs -}}
-		{{ $q.EmitPlanScan $i $col}}
-	{{- end -}}
-
-	return pgx.CollectRows(rows, func(row pgx.CollectableRow) ({{ $q.EmitSingularResultType }}, error) {
-	vals := row.RawValues()
-	{{ $q.EmitResultTypeInit "item" }}
-	{{- range $i, $col := $q.Outputs -}}
-		{{- $q.EmitScanColumn $i $col -}}
-	{{- end -}}
-	})
-{{- else if eq $q.ResultKind ":exec" }}
+{{- if eq $q.ResultKind ":exec" }}
 	cmdTag, err := q.conn.Exec(ctx, {{ $q.SQLVarName }} {{- $q.EmitParamNames }})
 	if err != nil {
-		return cmdTag, fmt.Errorf("exec query {{ $q.Name }}: %w", err)
+		return {{ $q.EmitZeroResult }}, fmt.Errorf("exec query {{ $q.Name }}: %w", err)
 	}
 	return cmdTag, err
+{{- else }}
+	rows, err := q.conn.Query(ctx, {{ $q.SQLVarName }} {{- $q.EmitParamNames }})
+	if err != nil {
+		return {{ $q.EmitZeroResult }}, fmt.Errorf("query {{ $q.Name }}: %w", err)
+	}
+	fds := rows.FieldDescriptions()
+	{{- range $i, $col := $q.Outputs }}
+	{{ $q.EmitPlanScan $i $col}}
+	{{- end }}
+
+	return {{ $q.EmitCollectionFunc }}(rows, func(row pgx.CollectableRow) ({{ $q.EmitSingularResultType }}, error) {
+		vals := row.RawValues()
+		var item {{ $q.EmitSingularResultType }}
+		{{- range $i, $col := $q.Outputs }}
+		{{ $q.EmitScanColumn $i $col }}
+		{{- end }}
+		return item, nil
+	})
 {{- end }}
 }
 {{- end -}}

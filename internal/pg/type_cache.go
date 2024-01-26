@@ -1,6 +1,7 @@
 package pg
 
 import (
+	"github.com/jackc/pgx/v5/pgtype"
 	"sync"
 )
 
@@ -21,6 +22,16 @@ func newTypeCache() *typeCache {
 	}
 }
 
+func lookup() {
+	!!!fixme
+	m := pgtype.NewMap() // !!!
+	m.TypeForValue()     // looks up pg type for go type
+	m.FormatCodeForOID()
+	m.TypeForOID()
+	m.TypeForName()
+
+}
+
 // getOIDs returns the cached OIDS (with the type) and uncached OIDs.
 func (tc *typeCache) getOIDs(oids ...uint32) (map[uint32]Type, map[uint32]struct{}) {
 	cachedTypes := make(map[uint32]Type, len(oids))
@@ -28,10 +39,10 @@ func (tc *typeCache) getOIDs(oids ...uint32) (map[uint32]Type, map[uint32]struct
 	tc.mu.Lock()
 	defer tc.mu.Unlock()
 	for _, oid := range oids {
-		if t, ok := tc.types[uint32(oid)]; ok {
-			cachedTypes[uint32(oid)] = t
+		if t, ok := tc.types[oid]; ok {
+			cachedTypes[oid] = t
 		} else {
-			uncachedTypes[uint32(oid)] = struct{}{}
+			uncachedTypes[oid] = struct{}{}
 		}
 	}
 	return cachedTypes, uncachedTypes
@@ -39,7 +50,7 @@ func (tc *typeCache) getOIDs(oids ...uint32) (map[uint32]Type, map[uint32]struct
 
 func (tc *typeCache) getOID(oid uint32) (Type, bool) {
 	tc.mu.Lock()
-	typ, ok := tc.types[uint32(oid)]
+	typ, ok := tc.types[oid]
 	tc.mu.Unlock()
 	return typ, ok
 }

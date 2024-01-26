@@ -40,7 +40,8 @@ type TemplatedQuery struct {
 	Doc              string            // doc from the source query file, formatted for Go
 	PreparedSQL      string            // SQL query, ready to run with PREPARE statement
 	Inputs           []TemplatedParam  // input parameters to the query
-	Outputs          []TemplatedColumn // output columns of the query
+	Outputs          []TemplatedColumn // non-void output columns of the query
+	ScanCols         []TemplatedColumn // all columns of the query, including void columns
 	InlineParamCount int               // inclusive count of params that will be inlined
 }
 
@@ -211,17 +212,17 @@ func (tq TemplatedQuery) EmitPlanScan(idx int, out TemplatedColumn) (string, err
 	default:
 		return "", fmt.Errorf("unhandled EmitPlanScanArgs type: %s", tq.ResultKind)
 	}
-	return fmt.Sprintf("planScan%d = pgtype.TODOCodec{}, fs[%d], (*%s)(nil))", idx, idx, out.Type.BaseName()), nil
+	return fmt.Sprintf("plan%d := planScan(pgtype.TextCodec{}, fds[%d], (*%s)(nil))", idx, idx, out.Type.BaseName()), nil
 }
 
 // EmitScanColumn emits scan call for a single TemplatedColumn.
 func (tq TemplatedQuery) EmitScanColumn(idx int, out TemplatedColumn) (string, error) {
 	sb := &strings.Builder{}
-	_, _ = fmt.Fprintf(sb, "if err := plan%d.Scan(vals[%d], &item); err != nil\n", idx, idx)
+	_, _ = fmt.Fprintf(sb, "if err := plan%d.Scan(vals[%d], &item); err != nil {\n", idx, idx)
 	sb.WriteString("\t\t\t")
 	_, _ = fmt.Fprintf(sb, `return item, fmt.Errorf("scan %s.%s: %%w", err)`, tq.Name, out.PgName)
 	sb.WriteString("\n")
-	sb.WriteString("\t\t}\n")
+	sb.WriteString("\t\t}")
 	return sb.String(), nil
 }
 
@@ -237,7 +238,7 @@ func (tq TemplatedQuery) EmitRowScanArgs() (string, error) {
 		return "", fmt.Errorf("unhandled EmitRowScanArgs type: %s", tq.ResultKind)
 	}
 
-	hasOnlyOneNonVoid := len(removeVoidColumns(tq.Outputs)) == 1
+	hasOnlyOneOutput := len(tq.Outputs) == 1
 	sb := strings.Builder{}
 	sb.Grow(15 * len(tq.Outputs))
 	for i, out := range tq.Outputs {
@@ -248,7 +249,7 @@ func (tq TemplatedQuery) EmitRowScanArgs() (string, error) {
 				sb.WriteString(out.LowerName)
 				sb.WriteString("Array")
 			default:
-				if hasOnlyOneNonVoid {
+				if hasOnlyOneOutput {
 					sb.WriteString("&item")
 				} else {
 					sb.WriteString("&item.")
@@ -261,7 +262,7 @@ func (tq TemplatedQuery) EmitRowScanArgs() (string, error) {
 			sb.WriteString("Row")
 
 		case *gotype.EnumType, *gotype.OpaqueType:
-			if hasOnlyOneNonVoid {
+			if hasOnlyOneOutput {
 				sb.WriteString("&item")
 			} else {
 				sb.WriteString("&item.")
@@ -281,55 +282,45 @@ func (tq TemplatedQuery) EmitRowScanArgs() (string, error) {
 	return sb.String(), nil
 }
 
+func (tq TemplatedQuery) EmitCollectionFunc() (string, error) {
+	switch tq.ResultKind {
+	case ast.ResultKindExec:
+		return "", fmt.Errorf("cannot EmitCollectionFunc for :exec query %s", tq.Name)
+	case ast.ResultKindMany:
+		return "pgx.CollectRows", nil
+	case ast.ResultKindOne:
+		return "pgx.CollectExactlyOneRow", nil
+	default:
+		return "", fmt.Errorf("unhandled EmitCollectionFunc type: %s", tq.ResultKind)
+	}
+}
+
 // EmitSingularResultType returns the string representing a single element
 // of the overall query result type, like FindAuthorsRow when the overall return
 // type is []FindAuthorsRow.
-func (tq TemplatedQuery) EmitSingularResultType() (string, error) {
-	outs := removeVoidColumns(tq.Outputs)
-	switch tq.ResultKind {
-	case ast.ResultKindExec:
-		return "pgconn.CommandTag", nil
-	case ast.ResultKindMany:
-		switch len(outs) {
-		case 0:
-			return "pgconn.CommandTag", nil
-		case 1:
-			return outs[0].QualType, nil
-		default:
-			return tq.Name + "Row", nil
-		}
-	case ast.ResultKindOne:
-		switch len(outs) {
-		case 0:
-			return "pgconn.CommandTag", nil
-		case 1:
-			return outs[0].QualType, nil
-		default:
-			return tq.Name + "Row", nil
-		}
-	default:
-		return "", fmt.Errorf("unhandled EmitSingularResultType kind: %s", tq.ResultKind)
+func (tq TemplatedQuery) EmitSingularResultType() string {
+	if tq.ResultKind == ast.ResultKindExec {
+		return "pgconn.CommandTag"
 	}
+	if len(tq.Outputs) == 0 {
+		return "pgconn.CommandTag"
+	}
+	if len(tq.Outputs) == 1 {
+		return tq.Outputs[0].QualType
+	}
+	return tq.Name + "Row"
 }
 
 // EmitResultType returns the string representing the overall query result type,
 // meaning the return result.
 func (tq TemplatedQuery) EmitResultType() (string, error) {
-	rt, err := tq.EmitSingularResultType()
-	if err != nil {
-		return "", fmt.Errorf("unhandled EmitResultType: %w", err)
-	}
 	switch tq.ResultKind {
 	case ast.ResultKindExec:
-		return rt, nil
+		return "pgconn.CommandTag", nil
 	case ast.ResultKindMany:
-		outs := removeVoidColumns(tq.Outputs)
-		if len(outs) == 0 {
-			return rt, nil
-		}
-		return "[]" + rt, nil
+		return "[]" + tq.EmitSingularResultType(), nil
 	case ast.ResultKindOne:
-		return rt, nil
+		return tq.EmitSingularResultType(), nil
 	default:
 		return "", fmt.Errorf("unhandled EmitResultType kind: %s", tq.ResultKind)
 	}
@@ -371,108 +362,37 @@ func (tq TemplatedQuery) EmitResultTypeInit(name string) (string, error) {
 	}
 }
 
-// EmitResultDecoders declares all initialization required for output types.
-func (tq TemplatedQuery) EmitResultDecoders() (string, error) {
-	sb := &strings.Builder{}
-	const indent = "\n\t" // 1 level indent inside querier method
-	for _, out := range tq.Outputs {
-		switch typ := gotype.UnwrapNestedType(out.Type).(type) {
-		case *gotype.CompositeType:
-			sb.WriteString(indent)
-			sb.WriteString(out.LowerName)
-			sb.WriteString("Row := q.types.")
-			sb.WriteString(NameCompositeTranscoderFunc(typ))
-			sb.WriteString("()")
-		case *gotype.ArrayType:
-			switch gotype.UnwrapNestedType(typ.Elem).(type) {
-			case *gotype.EnumType, *gotype.CompositeType:
-				// For all other array elems, a normal array works.
-				sb.WriteString(indent)
-				sb.WriteString(out.LowerName)
-				sb.WriteString("Array := q.types.")
-				sb.WriteString(NameArrayTranscoderFunc(typ))
-				sb.WriteString("()")
-			}
+// EmitZeroResult returns the string representing the zero value of a result.
+func (tq TemplatedQuery) EmitZeroResult() (string, error) {
+	switch tq.ResultKind {
+	case ast.ResultKindExec:
+		return "pgconn.CommandTag{}", nil
+	case ast.ResultKindMany:
+		return "nil", nil // empty slice
+	case ast.ResultKindOne:
+		if len(tq.Outputs) > 1 {
+			return tq.Name + "Row{}", nil
+		}
+		typ := tq.Outputs[0].Type.BaseName()
+		switch {
+		case strings.HasPrefix(typ, "[]"):
+			return "nil", nil // empty slice
+		case strings.HasPrefix(typ, "*"):
+			return "nil", nil // nil pointer
+		}
+		switch typ {
+		case "int", "int32", "int64", "float32", "float64":
+			return "0", nil
+		case "string":
+			return `""`, nil
+		case "bool":
+			return "false", nil
 		default:
-			continue
+			return typ + "{}", nil // won't work for type Foo int
 		}
+	default:
+		return "", fmt.Errorf("unhandled EmitZeroResult kind: %s", tq.ResultKind)
 	}
-	return sb.String(), nil
-}
-
-// EmitResultAssigns writes all the assign statements after scanning the result
-// from pgx.
-//
-// Copies pgtype.CompositeFields representing a Postgres composite type into the
-// output struct.
-//
-// Copies pgtype.EnumArray fields into Go enum array types.
-func (tq TemplatedQuery) EmitResultAssigns(zeroVal string) (string, error) {
-	sb := &strings.Builder{}
-	indent := "\n\t"
-	if tq.ResultKind == ast.ResultKindMany {
-		indent += "\t" // a :many query processes items in a for loop
-	}
-	for _, out := range tq.Outputs {
-		switch typ := gotype.UnwrapNestedType(out.Type).(type) {
-		case *gotype.CompositeType:
-			sb.WriteString(indent)
-			sb.WriteString("if err := ")
-			sb.WriteString(out.LowerName)
-			sb.WriteString("Row.AssignTo(&item")
-			if len(removeVoidColumns(tq.Outputs)) > 1 {
-				sb.WriteRune('.')
-				sb.WriteString(out.UpperName)
-			}
-			sb.WriteString("); err != nil {")
-			sb.WriteString(indent)
-			sb.WriteString("\treturn ")
-			sb.WriteString(zeroVal)
-			sb.WriteString(", fmt.Errorf(\"assign ")
-			sb.WriteString(tq.Name)
-			sb.WriteString(" row: %w\", err)")
-			sb.WriteString(indent)
-			sb.WriteString("}")
-		case *gotype.ArrayType:
-			switch gotype.UnwrapNestedType(typ.Elem).(type) {
-			case *gotype.CompositeType, *gotype.EnumType:
-				sb.WriteString(indent)
-				sb.WriteString("if err := ")
-				sb.WriteString(out.LowerName)
-				sb.WriteString("Array.AssignTo(&item")
-				if len(removeVoidColumns(tq.Outputs)) > 1 {
-					sb.WriteRune('.')
-					sb.WriteString(out.UpperName)
-				}
-				sb.WriteString("); err != nil {")
-				sb.WriteString(indent)
-				sb.WriteString("\treturn ")
-				sb.WriteString(zeroVal)
-				sb.WriteString(", fmt.Errorf(\"assign ")
-				sb.WriteString(tq.Name)
-				sb.WriteString(" row: %w\", err)")
-				sb.WriteString(indent)
-				sb.WriteString("}")
-			}
-		}
-	}
-	return sb.String(), nil
-}
-
-// EmitResultElem returns the string representing a single item in the overall
-// query result type. For :one and :exec queries, this is the same as
-// EmitResultType. For :many queries, this is the element type of the slice
-// result type.
-func (tq TemplatedQuery) EmitResultElem() (string, error) {
-	result, err := tq.EmitResultType()
-	if err != nil {
-		return "", fmt.Errorf("unhandled EmitResultElem type: %w", err)
-	}
-	// Unwrap arrays because we build the array with append.
-	arr := strings.TrimPrefix(result, "[]")
-	// Unwrap pointers because we add "&" to return the correct types.
-	ptr := strings.TrimPrefix(arr, "*")
-	return ptr, nil
 }
 
 // EmitResultExpr returns the string representation of a single item to return
@@ -531,16 +451,15 @@ func (tq TemplatedQuery) EmitRowStruct() string {
 	case ast.ResultKindExec:
 		return ""
 	case ast.ResultKindOne, ast.ResultKindMany:
-		outs := removeVoidColumns(tq.Outputs)
-		if len(outs) <= 1 {
+		if len(tq.Outputs) == 1 {
 			return "" // if there's only 1 output column, return it directly
 		}
 		sb := &strings.Builder{}
 		sb.WriteString("\n\ntype ")
 		sb.WriteString(tq.Name)
 		sb.WriteString("Row struct {\n")
-		maxNameLen, maxTypeLen := getLongestOutput(outs)
-		for _, out := range outs {
+		maxNameLen, maxTypeLen := getLongestOutput(tq.Outputs)
+		for _, out := range tq.Outputs {
 			// Name
 			sb.WriteString("\t")
 			sb.WriteString(out.UpperName)
@@ -559,18 +478,4 @@ func (tq TemplatedQuery) EmitRowStruct() string {
 	default:
 		panic("unhandled result type: " + tq.ResultKind)
 	}
-}
-
-// removeVoidColumns makes a copy of cols with all VoidType columns removed.
-// Useful because return types shouldn't contain the void type, but we need
-// to use a nil placeholder for void types when scanning a pgx.Row.
-func removeVoidColumns(cols []TemplatedColumn) []TemplatedColumn {
-	outs := make([]TemplatedColumn, 0, len(cols))
-	for _, col := range cols {
-		if _, ok := col.Type.(*gotype.VoidType); ok {
-			continue
-		}
-		outs = append(outs, col)
-	}
-	return outs
 }
