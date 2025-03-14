@@ -1,16 +1,16 @@
 package slices
 
 import (
-	"context"
+	"testing"
+	"time"
+
 	"github.com/jschaf/pggen/internal/difftest"
 	"github.com/jschaf/pggen/internal/pgtest"
 	"github.com/stretchr/testify/require"
-	"testing"
-	"time"
 )
 
 func TestNewQuerier_GetBools(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	conn, cleanup := pgtest.NewPostgresSchema(t, []string{"schema.sql"})
 	defer cleanup()
 
@@ -25,7 +25,7 @@ func TestNewQuerier_GetBools(t *testing.T) {
 }
 
 func TestNewQuerier_GetOneTimestamp(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	conn, cleanup := pgtest.NewPostgresSchema(t, []string{"schema.sql"})
 	defer cleanup()
 
@@ -40,7 +40,7 @@ func TestNewQuerier_GetOneTimestamp(t *testing.T) {
 }
 
 func TestNewQuerier_GetManyTimestamptzs(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	conn, cleanup := pgtest.NewPostgresSchema(t, []string{"schema.sql"})
 	defer cleanup()
 

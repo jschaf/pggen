@@ -1,9 +1,10 @@
 package pg
 
 import (
+	"strconv"
+
 	"github.com/jackc/pgtype"
 	"github.com/jschaf/pggen/internal/pg/pgoid"
-	"strconv"
 )
 
 // Type is a Postgres type.
@@ -40,8 +41,10 @@ func (k TypeKind) String() string {
 		return "PseudoType"
 	case KindRangeType:
 		return "RangeType"
+	case kindPlaceholderType:
+		return "PlaceholderType"
 	default:
-		panic("unhandled TypeKind: " + string(k))
+		panic("unreachable")
 	}
 }
 

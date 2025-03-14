@@ -1,20 +1,20 @@
 package order
 
 import (
-	"context"
+	"math/big"
+	"testing"
+	"time"
+
 	"github.com/jackc/pgtype"
 	"github.com/jschaf/pggen/internal/pgtest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"math/big"
-	"testing"
-	"time"
 )
 
 func TestNewQuerier_FindOrdersByCustomer(t *testing.T) {
 	conn, cleanup := pgtest.NewPostgresSchema(t, []string{"../01_schema.sql", "../02_schema.sql"})
 	defer cleanup()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	q := NewQuerier(conn)
 	cust1, err := q.InsertCustomer(ctx, InsertCustomerParams{
@@ -37,7 +37,7 @@ func TestNewQuerier_FindOrdersByCustomer(t *testing.T) {
 	}
 
 	t.Run("FindOrdersByCustomer", func(t *testing.T) {
-		orders, err := q.FindOrdersByCustomer(context.Background(), cust1.CustomerID)
+		orders, err := q.FindOrdersByCustomer(t.Context(), cust1.CustomerID)
 		require.NoError(t, err)
 		assert.Equal(t, []FindOrdersByCustomerRow{
 			{

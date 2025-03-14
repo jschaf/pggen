@@ -1,8 +1,9 @@
 package gomod
 
 import (
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestResolvePackage(t *testing.T) {
@@ -34,5 +35,4 @@ func TestResolvePackage(t *testing.T) {
 			assert.Equal(t, tt.want, got)
 		})
 	}
-
 }

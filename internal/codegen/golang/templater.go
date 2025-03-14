@@ -2,13 +2,14 @@ package golang
 
 import (
 	"fmt"
+	"strconv"
+	"strings"
+	"unicode"
+
 	"github.com/jschaf/pggen/internal/casing"
 	"github.com/jschaf/pggen/internal/codegen"
 	"github.com/jschaf/pggen/internal/codegen/golang/gotype"
 	"github.com/jschaf/pggen/internal/gomod"
-	"strconv"
-	"strings"
-	"unicode"
 )
 
 // Templater creates query file templates.

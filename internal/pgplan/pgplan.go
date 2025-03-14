@@ -3,8 +3,9 @@ package pgplan
 import (
 	"context"
 	"fmt"
-	"github.com/jackc/pgx/v4"
 	"time"
+
+	"github.com/jackc/pgx/v4"
 )
 
 // ExplainQuery executes an explain query and parses the plan.
@@ -22,7 +23,6 @@ func ExplainQuery(conn *pgx.Conn, sql string) (Node, error) {
 	if len(explain) == 0 {
 		return BadNode{}, fmt.Errorf("no explain output")
 	}
-	// TODO: when would there be multiple plans?
 	plan, ok := explain[0]["Plan"]
 	if !ok {
 		return BadNode{}, fmt.Errorf("explain output had no 'Plan' node")
@@ -43,10 +43,10 @@ func ParseNode(rawPlan map[string]interface{}) (Node, error) {
 	case KindProjectSet:
 		return ProjectSet{Plan: plan}, nil
 	case KindModifyTable:
-		op, _ := parseString(rawPlan, "Operation")
-		schema, _ := parseString(rawPlan, "Schema")
-		relationName, _ := parseString(rawPlan, "Relation Name")
-		alias, _ := parseString(rawPlan, "Alias")
+		op := parseString(rawPlan, "Operation")
+		schema := parseString(rawPlan, "Schema")
+		relationName := parseString(rawPlan, "Relation Name")
+		alias := parseString(rawPlan, "Alias")
 		return ModifyTable{
 			Operation:    Operation(op),
 			Plan:         plan,
@@ -173,15 +173,15 @@ func parseBasePlan(plan map[string]interface{}) (NodeKind, Plan, error) {
 		return KindBadNode, Plan{}, fmt.Errorf("explain output 'Plan[Node Type]' is not string; got type %T for value %v", node, node)
 	}
 
-	startupCost, _ := parseFloat64(plan, "Startup Cost")
-	totalCost, _ := parseFloat64(plan, "Total Cost")
-	planRows, _ := parseFloat64(plan, "Plan Rows")
+	startupCost := parseFloat64(plan, "Startup Cost")
+	totalCost := parseFloat64(plan, "Total Cost")
+	planRows := parseFloat64(plan, "Plan Rows")
 	planWidth, _ := parseInt(plan, "Plan Width")
-	parallelAware, _ := parseBool(plan, "Parallel Aware")
-	parallelSafe, _ := parseBool(plan, "Parallel Safe")
-	parentRel, _ := parseString(plan, "Parent Relationship")
-	strategy, _ := parseString(plan, "Strategy")
-	customPlanProvider, _ := parseString(plan, "Custom Plan Provider")
+	parallelAware := parseBool(plan, "Parallel Aware")
+	parallelSafe := parseBool(plan, "Parallel Safe")
+	parentRel := parseString(plan, "Parent Relationship")
+	strategy := parseString(plan, "Strategy")
+	customPlanProvider := parseString(plan, "Custom Plan Provider")
 
 	nodes, err := parseChildNodes(plan)
 	if err != nil {
@@ -217,31 +217,31 @@ func parseInt(plan map[string]interface{}, key string) (int, bool) {
 	return 0, false
 }
 
-func parseFloat64(plan map[string]interface{}, key string) (float64, bool) {
+func parseFloat64(plan map[string]interface{}, key string) float64 {
 	if c, ok := plan[key]; ok {
 		if n, ok := c.(float64); ok {
-			return n, true
+			return n
 		}
 	}
-	return 0, false
+	return 0
 }
 
-func parseBool(plan map[string]interface{}, key string) (bool, bool) {
+func parseBool(plan map[string]interface{}, key string) bool {
 	if c, ok := plan[key]; ok {
 		if n, ok := c.(bool); ok {
-			return n, true
+			return n
 		}
 	}
-	return false, false
+	return false
 }
 
-func parseString(plan map[string]interface{}, key string) (string, bool) {
+func parseString(plan map[string]interface{}, key string) string {
 	if c, ok := plan[key]; ok {
 		if n, ok := c.(string); ok {
-			return n, true
+			return n
 		}
 	}
-	return "", false
+	return ""
 }
 
 func parseStringSlice(plan map[string]interface{}, key string) ([]string, error) {

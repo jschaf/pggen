@@ -1,11 +1,12 @@
 package parser
 
 import (
+	gotok "go/token"
+	"testing"
+
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/jschaf/pggen/internal/ast"
-	gotok "go/token"
-	"testing"
 )
 
 func ignoreCommentPos() cmp.Option {
@@ -136,7 +137,6 @@ func TestParseFile_Queries(t *testing.T) {
 			}
 		})
 	}
-
 }
 
 func TestParseFile_Queries_Fuzz(t *testing.T) {

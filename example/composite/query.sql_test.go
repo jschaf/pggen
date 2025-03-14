@@ -1,14 +1,14 @@
 package composite
 
 import (
-	"context"
+	"testing"
+
 	"github.com/jackc/pgtype"
 	"github.com/jschaf/pggen/internal/difftest"
 	"github.com/jschaf/pggen/internal/pgtest"
 	"github.com/jschaf/pggen/internal/ptrs"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"testing"
 )
 
 func TestNewQuerier_SearchScreenshots(t *testing.T) {
@@ -38,7 +38,7 @@ func TestNewQuerier_SearchScreenshots(t *testing.T) {
 	}
 
 	t.Run("SearchScreenshots", func(t *testing.T) {
-		rows, err := q.SearchScreenshots(context.Background(), SearchScreenshotsParams{
+		rows, err := q.SearchScreenshots(t.Context(), SearchScreenshotsParams{
 			Body:   "body",
 			Limit:  5,
 			Offset: 0,
@@ -48,7 +48,7 @@ func TestNewQuerier_SearchScreenshots(t *testing.T) {
 	})
 
 	t.Run("SearchScreenshotsOneCol", func(t *testing.T) {
-		rows, err := q.SearchScreenshotsOneCol(context.Background(), SearchScreenshotsOneColParams{
+		rows, err := q.SearchScreenshotsOneCol(t.Context(), SearchScreenshotsOneColParams{
 			Body:   "body",
 			Limit:  5,
 			Offset: 0,
@@ -71,7 +71,7 @@ func TestNewQuerier_ArraysInput(t *testing.T) {
 			Bools:  []bool{true, true, false},
 			Floats: []*float64{ptrs.Float64(33.3), ptrs.Float64(66.6)},
 		}
-		got, err := q.ArraysInput(context.Background(), want)
+		got, err := q.ArraysInput(t.Context(), want)
 		require.NoError(t, err)
 		difftest.AssertSame(t, want, got)
 	})
@@ -83,7 +83,7 @@ func TestNewQuerier_UserEmails(t *testing.T) {
 
 	q := NewQuerier(conn)
 
-	got, err := q.UserEmails(context.Background())
+	got, err := q.UserEmails(t.Context())
 	require.NoError(t, err)
 	want := UserEmail{
 		ID:    "foo",
@@ -94,7 +94,7 @@ func TestNewQuerier_UserEmails(t *testing.T) {
 
 func insertScreenshotBlock(t *testing.T, q *DBQuerier, screenID int, body string) InsertScreenshotBlocksRow {
 	t.Helper()
-	row, err := q.InsertScreenshotBlocks(context.Background(), screenID, body)
+	row, err := q.InsertScreenshotBlocks(t.Context(), screenID, body)
 	require.NoError(t, err, "insert screenshot blocks")
 	return row
 }

@@ -1,8 +1,9 @@
 package pginfer
 
 import (
-	"context"
 	"errors"
+	"testing"
+
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/jschaf/pggen/internal/ast"
@@ -12,7 +13,6 @@ import (
 	"github.com/jschaf/pggen/internal/texts"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"testing"
 )
 
 func TestInferrer_InferTypes(t *testing.T) {
@@ -33,9 +33,9 @@ func TestInferrer_InferTypes(t *testing.T) {
 	`))
 	defer cleanupFunc()
 	q := pg.NewQuerier(conn)
-	deviceTypeOID, err := q.FindOIDByName(context.Background(), "device_type")
+	deviceTypeOID, err := q.FindOIDByName(t.Context(), "device_type")
 	require.NoError(t, err)
-	deviceTypeArrOID, err := q.FindOIDByName(context.Background(), "_device_type")
+	deviceTypeArrOID, err := q.FindOIDByName(t.Context(), "_device_type")
 	require.NoError(t, err)
 
 	tests := []struct {
@@ -221,14 +221,14 @@ func TestInferrer_InferTypes(t *testing.T) {
 			name: "update by author id returning",
 			query: &ast.SourceQuery{
 				Name:        "UpdateByAuthorIDReturning",
-				PreparedSQL: "UPDATE author set first_name = 'foo' WHERE author_id = $1 RETURNING author_id, first_name, suffix;",
+				PreparedSQL: "UPDATE author SET first_name = 'foo' WHERE author_id = $1 RETURNING author_id, first_name, suffix;",
 				ParamNames:  []string{"AuthorID"},
 				ResultKind:  ast.ResultKindMany,
 			},
 			want: TypedQuery{
 				Name:        "UpdateByAuthorIDReturning",
 				ResultKind:  ast.ResultKindMany,
-				PreparedSQL: "UPDATE author set first_name = 'foo' WHERE author_id = $1 RETURNING author_id, first_name, suffix;",
+				PreparedSQL: "UPDATE author SET first_name = 'foo' WHERE author_id = $1 RETURNING author_id, first_name, suffix;",
 				Inputs: []InputParam{
 					{PgName: "AuthorID", PgType: pg.Int4},
 				},

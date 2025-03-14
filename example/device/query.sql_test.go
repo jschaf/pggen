@@ -1,20 +1,20 @@
 package device
 
 import (
-	"context"
+	"net"
+	"testing"
+
 	"github.com/jackc/pgtype"
 	"github.com/jschaf/pggen/internal/pgtest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"net"
-	"testing"
 )
 
 func TestQuerier_FindDevicesByUser(t *testing.T) {
 	conn, cleanup := pgtest.NewPostgresSchema(t, []string{"schema.sql"})
 	defer cleanup()
 	q := NewQuerier(conn)
-	ctx := context.Background()
+	ctx := t.Context()
 	userID := 18
 	_, err := q.InsertUser(ctx, userID, "foo")
 	require.NoError(t, err)
@@ -47,7 +47,7 @@ func TestQuerier_CompositeUser(t *testing.T) {
 	conn, cleanup := pgtest.NewPostgresSchema(t, []string{"schema.sql"})
 	defer cleanup()
 	q := NewQuerier(conn)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	userID := 18
 	name := "foo"
@@ -84,7 +84,7 @@ func TestQuerier_CompositeUserOne(t *testing.T) {
 	conn, cleanup := pgtest.NewPostgresSchema(t, []string{"schema.sql"})
 	defer cleanup()
 	q := NewQuerier(conn)
-	ctx := context.Background()
+	ctx := t.Context()
 	id := 15
 	name := "qux"
 	wantUser := User{ID: &id, Name: &name}

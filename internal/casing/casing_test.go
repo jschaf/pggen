@@ -1,8 +1,9 @@
 package casing
 
 import (
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestCaser_ToUpperGoIdent(t *testing.T) {
@@ -46,6 +47,7 @@ func TestCaser_ToUpperGoIdent(t *testing.T) {
 		})
 	}
 }
+
 func TestCaser_ToLowerGoIdent(t *testing.T) {
 	tests := []struct {
 		word     string

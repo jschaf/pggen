@@ -1,8 +1,9 @@
 package golang
 
 import (
-	"github.com/jschaf/pggen/internal/codegen/golang/gotype"
 	"sort"
+
+	"github.com/jschaf/pggen/internal/codegen/golang/gotype"
 )
 
 // Declarer is implemented by any value that needs to declare types, data, or

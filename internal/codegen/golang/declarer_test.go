@@ -2,16 +2,18 @@ package golang
 
 import (
 	"flag"
+	"os"
+	"strings"
+	"testing"
+
 	"github.com/jschaf/pggen/internal/casing"
 	"github.com/jschaf/pggen/internal/codegen/golang/gotype"
 	"github.com/jschaf/pggen/internal/difftest"
 	"github.com/jschaf/pggen/internal/pg"
 	"github.com/stretchr/testify/require"
-	"os"
-	"strings"
-	"testing"
 )
 
+//nolint:gochecknoglobals
 var update = flag.Bool("update", false, "update integration tests if true")
 
 func TestDeclarers(t *testing.T) {
@@ -67,7 +69,8 @@ func TestDeclarers(t *testing.T) {
 							caser,
 						),
 					},
-				}},
+				},
+			},
 		},
 		{
 			name:    "composite_nested",
@@ -143,7 +146,7 @@ func TestDeclarers(t *testing.T) {
 			got := sb.String()
 
 			if *update {
-				err := os.WriteFile(golden, []byte(got), 0644)
+				err := os.WriteFile(golden, []byte(got), 0o600)
 				require.NoError(t, err)
 				return
 			}
@@ -170,7 +173,7 @@ func TestDeclarers(t *testing.T) {
 			got := sb.String()
 
 			if *update {
-				err := os.WriteFile(golden, []byte(got), 0644)
+				err := os.WriteFile(golden, []byte(got), 0o600)
 				require.NoError(t, err)
 				return
 			}

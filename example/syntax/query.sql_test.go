@@ -1,17 +1,17 @@
 package syntax
 
 import (
-	"context"
+	"testing"
+
 	"github.com/jschaf/pggen/internal/pgtest"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 func TestQuerier(t *testing.T) {
 	conn, cleanup := pgtest.NewPostgresSchema(t, nil)
 	defer cleanup()
 	q := NewQuerier(conn)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	val, err := q.Backtick(ctx)
 	assert.NoError(t, err, "Backtick")

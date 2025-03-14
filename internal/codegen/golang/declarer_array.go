@@ -2,9 +2,10 @@ package golang
 
 import (
 	"fmt"
-	"github.com/jschaf/pggen/internal/codegen/golang/gotype"
 	"strconv"
 	"strings"
+
+	"github.com/jschaf/pggen/internal/codegen/golang/gotype"
 )
 
 // NameArrayTranscoderFunc returns the function name that creates a

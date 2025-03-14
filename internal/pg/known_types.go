@@ -8,6 +8,7 @@ import (
 // If you add to this list, also add to defaultKnownTypes below.
 //
 //goland:noinspection GoNameStartsWithPackageName
+//nolint:gochecknoglobals
 var (
 	Bool             = BaseType{ID: pgtype.BoolOID, Name: "bool"}
 	Bytea            = BaseType{ID: pgtype.ByteaOID, Name: "bytea"}
@@ -81,6 +82,8 @@ var (
 )
 
 // All known Postgres types by OID.
+//
+//nolint:gochecknoglobals
 var defaultKnownTypes = map[pgtype.OID]Type{
 	pgtype.BoolOID:             Bool,
 	pgtype.ByteaOID:            Bytea,

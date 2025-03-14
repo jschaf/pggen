@@ -1,10 +1,10 @@
 package nested
 
 import (
-	"context"
+	"testing"
+
 	"github.com/jschaf/pggen/internal/pgtest"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 func TestNewQuerier_ArrayNested2(t *testing.T) {
@@ -12,7 +12,7 @@ func TestNewQuerier_ArrayNested2(t *testing.T) {
 	defer cleanup()
 
 	q := NewQuerier(conn)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	want := []ProductImageType{
 		{Source: "img2", Dimensions: Dimensions{22, 22}},
@@ -32,7 +32,7 @@ func TestNewQuerier_Nested3(t *testing.T) {
 	defer cleanup()
 
 	q := NewQuerier(conn)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	want := []ProductImageSetType{
 		{

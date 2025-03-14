@@ -1,9 +1,10 @@
 package difftest
 
 import (
+	"testing"
+
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
-	"testing"
 )
 
 func AssertSame(t *testing.T, want, got interface{}, opts ...cmp.Option) {

@@ -1,8 +1,9 @@
 package casing
 
 import (
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestSanitize(t *testing.T) {

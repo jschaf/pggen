@@ -1,18 +1,15 @@
 package ports
 
 import (
-	"github.com/jschaf/pggen/internal/errs"
 	"net"
+
+	"github.com/jschaf/pggen/internal/errs"
 )
 
 // Port is a port.
 type Port = int
 
-// FindAvailable returns an available port by asking the kernel for an
-// unused port. https://unix.stackexchange.com/a/180500/179300
-//
-// Copied and slightly modified from https://github.com/phayes/freeport
-// Licensed under BSD-3. Copyright (c) 2014, Patrick Hayes
+// Licensed under BSD-3. Copyright (c) 2014, Patrick Hayes.
 func FindAvailable() (p Port, mErr error) {
 	addr, err := net.ResolveTCPAddr("tcp", "localhost:0")
 	if err != nil {

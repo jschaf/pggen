@@ -1,11 +1,11 @@
 package go_pointer_types
 
 import (
-	"context"
+	"testing"
+
 	"github.com/jschaf/pggen/internal/pgtest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"testing"
 )
 
 func TestQuerier_GenSeries1(t *testing.T) {
@@ -13,7 +13,7 @@ func TestQuerier_GenSeries1(t *testing.T) {
 	defer cleanup()
 
 	q := NewQuerier(conn)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	t.Run("GenSeries1", func(t *testing.T) {
 		got, err := q.GenSeries1(ctx)
@@ -28,7 +28,7 @@ func TestQuerier_GenSeries(t *testing.T) {
 	defer cleanup()
 
 	q := NewQuerier(conn)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	t.Run("GenSeries", func(t *testing.T) {
 		got, err := q.GenSeries(ctx)
@@ -45,7 +45,7 @@ func TestQuerier_GenSeriesArr1(t *testing.T) {
 	defer cleanup()
 
 	q := NewQuerier(conn)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	t.Run("GenSeriesArr1", func(t *testing.T) {
 		got, err := q.GenSeriesArr1(ctx)
@@ -59,7 +59,7 @@ func TestQuerier_GenSeriesArr(t *testing.T) {
 	defer cleanup()
 
 	q := NewQuerier(conn)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	t.Run("GenSeriesArr", func(t *testing.T) {
 		got, err := q.GenSeriesArr(ctx)
@@ -73,7 +73,7 @@ func TestQuerier_GenSeriesStr(t *testing.T) {
 	defer cleanup()
 
 	q := NewQuerier(conn)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	t.Run("GenSeriesStr1", func(t *testing.T) {
 		got, err := q.GenSeriesStr1(ctx)

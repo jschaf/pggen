@@ -1,11 +1,11 @@
 package function
 
 import (
-	"context"
+	"testing"
+
 	"github.com/jschaf/pggen/internal/difftest"
 	"github.com/jschaf/pggen/internal/ptrs"
 	"github.com/stretchr/testify/require"
-	"testing"
 
 	"github.com/jschaf/pggen/internal/pgtest"
 )
@@ -17,7 +17,7 @@ func TestNewQuerier_OutParams(t *testing.T) {
 	q := NewQuerier(conn)
 
 	t.Run("OutParams", func(t *testing.T) {
-		got, err := q.OutParams(context.Background())
+		got, err := q.OutParams(t.Context())
 		require.NoError(t, err)
 		want := []OutParamsRow{
 			{

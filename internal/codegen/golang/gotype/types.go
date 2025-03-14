@@ -3,12 +3,13 @@ package gotype
 import (
 	"bytes"
 	"fmt"
-	"github.com/jschaf/pggen/internal/casing"
-	"github.com/jschaf/pggen/internal/pg"
 	"regexp"
 	"strconv"
 	"strings"
 	"unicode"
+
+	"github.com/jschaf/pggen/internal/casing"
+	"github.com/jschaf/pggen/internal/pg"
 )
 
 // Type is a Go type.
@@ -250,8 +251,7 @@ func MustParseKnownType(qualType string, pgType pg.Type) Type {
 	return typ
 }
 
-// MustParseOpaqueType creates a gotype.Type by parsing a fully qualified Go
-// type unsupported by pgx supports natively like "github.com/example/Foo"
+// type unsupported by pgx supports natively like "github.com/example/Foo".
 func MustParseOpaqueType(qualType string) Type {
 	typ, err := ParseOpaqueType(qualType, nil)
 	if err != nil {

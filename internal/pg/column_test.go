@@ -2,14 +2,16 @@ package pg
 
 import (
 	"context"
+	"errors"
+	"testing"
+	"time"
+
 	"github.com/google/go-cmp/cmp"
 	"github.com/jackc/pgtype"
 	"github.com/jackc/pgx/v4"
 	"github.com/jschaf/pggen/internal/pgtest"
 	"github.com/jschaf/pggen/internal/texts"
 	"github.com/stretchr/testify/assert"
-	"testing"
-	"time"
 )
 
 func TestFetchColumns(t *testing.T) {
@@ -82,11 +84,11 @@ func findTableOID(t *testing.T, conn *pgx.Conn, table string) pgtype.OID {
 		ORDER BY table_oid DESC
 		LIMIT 1;
 	`)
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	ctx, cancel := context.WithTimeout(t.Context(), 3*time.Second)
 	defer cancel()
 	row := conn.QueryRow(ctx, sql, table)
 	var oid pgtype.OID = 0
-	if err := row.Scan(&oid); err != nil && err != pgx.ErrNoRows {
+	if err := row.Scan(&oid); err != nil && !errors.Is(err, pgx.ErrNoRows) {
 		t.Fatal(err)
 	}
 	return oid

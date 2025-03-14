@@ -2,10 +2,12 @@ package pginfer
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"github.com/jackc/pgconn"
 	"strings"
 	"time"
+
+	"github.com/jackc/pgconn"
 
 	"github.com/jackc/pgproto3/v2"
 	"github.com/jackc/pgtype"
@@ -112,7 +114,8 @@ func (inf *Inferrer) prepareTypes(query *ast.SourceQuery) (_a []InputParam, _ []
 	var paramOIDs []uint32
 	stmtDesc, err := inf.conn.PgConn().Prepare(ctx, "", query.PreparedSQL, paramOIDs)
 	if err != nil {
-		if pgErr, ok := err.(*pgconn.PgError); ok {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) {
 			msg := "fetch field descriptions: " + pgErr.Message
 			if pgErr.Where != "" {
 				msg += "\n    WHERE: " + pgErr.Where

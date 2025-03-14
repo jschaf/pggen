@@ -20,6 +20,7 @@ const (
 	KindFile
 )
 
+//nolint:gochecknoglobals
 var kindNames = [...]string{
 	KindLineComment:   "LineComment",
 	KindCommentGroup:  "CommentGroup",

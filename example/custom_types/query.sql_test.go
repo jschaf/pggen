@@ -1,20 +1,20 @@
 package custom_types
 
 import (
-	"context"
+	"testing"
+
 	"github.com/jackc/pgtype"
 	"github.com/jschaf/pggen/internal/pgtest"
 	"github.com/jschaf/pggen/internal/texts"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"testing"
 )
 
 func TestQuerier_CustomTypes(t *testing.T) {
 	conn, cleanup := pgtest.NewPostgresSchema(t, []string{"schema.sql"})
 	defer cleanup()
 	q := NewQuerier(conn)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	t.Run("CustomTypes", func(t *testing.T) {
 		val, err := q.CustomTypes(ctx)
@@ -30,7 +30,7 @@ func TestQuerier_CustomTypes(t *testing.T) {
 func TestQuerier_CustomMyInt(t *testing.T) {
 	conn, cleanup := pgtest.NewPostgresSchema(t, []string{"schema.sql"})
 	defer cleanup()
-	row := conn.QueryRow(context.Background(), texts.Dedent(`
+	row := conn.QueryRow(t.Context(), texts.Dedent(`
 		SELECT pt.oid
 		FROM pg_type pt
 			JOIN pg_namespace pn ON pt.typnamespace = pn.oid
@@ -50,7 +50,7 @@ func TestQuerier_CustomMyInt(t *testing.T) {
 	})
 
 	q := NewQuerier(conn)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	t.Run("CustomMyInt", func(t *testing.T) {
 		val, err := q.CustomMyInt(ctx)
@@ -63,7 +63,7 @@ func TestQuerier_IntArray(t *testing.T) {
 	conn, cleanup := pgtest.NewPostgresSchema(t, []string{"schema.sql"})
 	defer cleanup()
 	q := NewQuerier(conn)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	t.Run("IntArray", func(t *testing.T) {
 		array, err := q.IntArray(ctx)

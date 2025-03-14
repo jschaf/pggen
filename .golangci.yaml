@@ -1,0 +1,48 @@
+linters:
+  enable:
+    # Enabled by default.
+    - errcheck
+    - gosimple
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    # Disabled by default.
+    - dupword
+    - durationcheck
+    - errchkjson
+    - errname
+    - errorlint
+    - exhaustive
+    - exptostd
+    - gocheckcompilerdirectives
+    - gochecknoglobals
+    - gochecknoinits
+    - gochecksumtype
+    - gocritic
+    - godot
+    - godox
+    - gofumpt
+    - gosec
+    - intrange
+    - mirror
+    - misspell
+    - nilerr
+    - nilnesserr
+    - nilnil
+    - nolintlint
+    - predeclared
+    - reassign
+    - recvcheck
+    - sloglint
+    - unconvert
+    - unparam
+    - usestdlibvars
+    - usetesting
+    - wastedassign
+
+linters-settings:
+  gosec:
+    excludes:
+      - G115
+  

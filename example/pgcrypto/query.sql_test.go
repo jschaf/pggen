@@ -1,11 +1,11 @@
 package pgcrypto
 
 import (
-	"context"
-	"github.com/jschaf/pggen/internal/pgtest"
-	"github.com/stretchr/testify/assert"
 	"strings"
 	"testing"
+
+	"github.com/jschaf/pggen/internal/pgtest"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestQuerier(t *testing.T) {
@@ -13,7 +13,7 @@ func TestQuerier(t *testing.T) {
 	defer cleanup()
 
 	q := NewQuerier(conn)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	_, err := q.CreateUser(ctx, "foo", "hunter2")
 	if err != nil {

@@ -1,8 +1,9 @@
 package golang
 
 import (
-	"github.com/jschaf/pggen/internal/codegen/golang/gotype"
 	"sort"
+
+	"github.com/jschaf/pggen/internal/codegen/golang/gotype"
 )
 
 // ImportSet contains a set of imports required by one Go file.

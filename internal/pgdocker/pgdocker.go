@@ -8,13 +8,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/container"
-	dockerClient "github.com/docker/docker/client"
-	"github.com/docker/go-connections/nat"
-	"github.com/jackc/pgx/v4"
-	"github.com/jschaf/pggen/internal/errs"
-	"github.com/jschaf/pggen/internal/ports"
 	"io"
 	"log/slog"
 	"os"
@@ -23,6 +16,14 @@ import (
 	"strconv"
 	"text/template"
 	"time"
+
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
+	dockerClient "github.com/docker/docker/client"
+	"github.com/docker/go-connections/nat"
+	"github.com/jackc/pgx/v4"
+	"github.com/jschaf/pggen/internal/errs"
+	"github.com/jschaf/pggen/internal/ports"
 )
 
 // Client is a client to control the running Postgres Docker container.
@@ -89,7 +90,7 @@ func (c *Client) GetContainerLogs() (logs string, mErr error) {
 	}
 	logsCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
-	logsR, err := c.docker.ContainerLogs(logsCtx, c.containerID, types.ContainerLogsOptions{
+	logsR, err := c.docker.ContainerLogs(logsCtx, c.containerID, container.LogsOptions{
 		ShowStdout: true,
 		ShowStderr: true,
 	})
@@ -223,7 +224,7 @@ func (c *Client) runContainer(ctx context.Context, imageID string) (string, port
 	}
 	containerID := resp.ID
 	slog.DebugContext(ctx, "created postgres container", slog.String("container_id", containerID), slog.Int("port", port))
-	err = c.docker.ContainerStart(ctx, containerID, types.ContainerStartOptions{})
+	err = c.docker.ContainerStart(ctx, containerID, container.StartOptions{})
 	if err != nil {
 		return "", 0, fmt.Errorf("start container: %w", err)
 	}
@@ -279,7 +280,7 @@ func (c *Client) Stop(ctx context.Context) error {
 	if err := c.docker.ContainerStop(ctx, c.containerID, container.StopOptions{}); err != nil {
 		return fmt.Errorf("stop container %s: %w", c.containerID, err)
 	}
-	err := c.docker.ContainerRemove(ctx, c.containerID, types.ContainerRemoveOptions{
+	err := c.docker.ContainerRemove(ctx, c.containerID, container.RemoveOptions{
 		RemoveVolumes: true,
 		RemoveLinks:   false,
 		Force:         true,

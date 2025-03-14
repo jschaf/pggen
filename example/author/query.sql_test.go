@@ -1,11 +1,11 @@
 package author
 
 import (
-	"context"
 	"errors"
+	"testing"
+
 	"github.com/jschaf/pggen/internal/ptrs"
 	"github.com/stretchr/testify/require"
-	"testing"
 
 	"github.com/jackc/pgx/v4"
 	"github.com/jschaf/pggen/internal/pgtest"
@@ -21,7 +21,7 @@ func TestNewQuerier_FindAuthorByID(t *testing.T) {
 	insertAuthor(t, q, "george", "washington")
 
 	t.Run("FindAuthorByID", func(t *testing.T) {
-		authorByID, err := q.FindAuthorByID(context.Background(), adamsID)
+		authorByID, err := q.FindAuthorByID(t.Context(), adamsID)
 		require.NoError(t, err)
 		assert.Equal(t, FindAuthorByIDRow{
 			AuthorID:  adamsID,
@@ -32,7 +32,7 @@ func TestNewQuerier_FindAuthorByID(t *testing.T) {
 	})
 
 	t.Run("FindAuthorByID - none-exists", func(t *testing.T) {
-		missingAuthorByID, err := q.FindAuthorByID(context.Background(), 888)
+		missingAuthorByID, err := q.FindAuthorByID(t.Context(), 888)
 		require.Error(t, err, "expected error when finding author ID that doesn't match")
 		assert.Zero(t, missingAuthorByID, "expected zero value when error")
 		if !errors.Is(err, pgx.ErrNoRows) {
@@ -50,7 +50,7 @@ func TestNewQuerier_FindAuthors(t *testing.T) {
 	carverID := insertAuthor(t, q, "george", "carver")
 
 	t.Run("FindAuthors - 1 row - john", func(t *testing.T) {
-		authors, err := q.FindAuthors(context.Background(), "john")
+		authors, err := q.FindAuthors(t.Context(), "john")
 		require.NoError(t, err)
 		want := []FindAuthorsRow{
 			{
@@ -64,7 +64,7 @@ func TestNewQuerier_FindAuthors(t *testing.T) {
 	})
 
 	t.Run("FindAuthors - 2 rows - george", func(t *testing.T) {
-		authors, err := q.FindAuthors(context.Background(), "george")
+		authors, err := q.FindAuthors(t.Context(), "george")
 		require.NoError(t, err)
 		want := []FindAuthorsRow{
 			{AuthorID: washingtonID, FirstName: "george", LastName: "washington", Suffix: nil},
@@ -74,7 +74,7 @@ func TestNewQuerier_FindAuthors(t *testing.T) {
 	})
 
 	t.Run("FindAuthors - 0 rows - joe", func(t *testing.T) {
-		authors, err := q.FindAuthors(context.Background(), "joe")
+		authors, err := q.FindAuthors(t.Context(), "joe")
 		require.NoError(t, err)
 		assert.Equal(t, []FindAuthorsRow{}, authors)
 	})
@@ -89,7 +89,7 @@ func TestNewQuerier_FindFirstNames(t *testing.T) {
 	insertAuthor(t, q, "george", "washington")
 
 	t.Run("FindAuthorByID", func(t *testing.T) {
-		firstNames, err := q.FindFirstNames(context.Background(), adamsID)
+		firstNames, err := q.FindFirstNames(t.Context(), adamsID)
 		require.NoError(t, err)
 		assert.Equal(t, []*string{ptrs.String("george"), ptrs.String("john")}, firstNames)
 	})
@@ -101,7 +101,7 @@ func TestNewQuerier_InsertAuthorSuffix(t *testing.T) {
 	q := NewQuerier(conn)
 
 	t.Run("InsertAuthorSuffix", func(t *testing.T) {
-		author, err := q.InsertAuthorSuffix(context.Background(), InsertAuthorSuffixParams{
+		author, err := q.InsertAuthorSuffix(t.Context(), InsertAuthorSuffixParams{
 			FirstName: "john",
 			LastName:  "adams",
 			Suffix:    "Jr.",
@@ -127,12 +127,12 @@ func TestNewQuerier_DeleteAuthorsByFirstName(t *testing.T) {
 	insertAuthor(t, q, "george", "carver")
 
 	t.Run("DeleteAuthorsByFirstName", func(t *testing.T) {
-		tag, err := q.DeleteAuthorsByFirstName(context.Background(), "george")
+		tag, err := q.DeleteAuthorsByFirstName(t.Context(), "george")
 		require.NoError(t, err)
 		assert.Truef(t, tag.Delete(), "expected delete tag; got %s", tag.String())
 		assert.Equal(t, int64(2), tag.RowsAffected())
 
-		authors, err := q.FindAuthors(context.Background(), "george")
+		authors, err := q.FindAuthors(t.Context(), "george")
 		require.NoError(t, err)
 		assert.Empty(t, authors, "no authors should remain with first name of george")
 	})
@@ -143,7 +143,7 @@ func TestNewQuerier_DeleteAuthorsByFullName(t *testing.T) {
 	defer cleanup()
 	q := NewQuerier(conn)
 	washingtonID := insertAuthor(t, q, "george", "washington")
-	_, err := q.InsertAuthorSuffix(context.Background(), InsertAuthorSuffixParams{
+	_, err := q.InsertAuthorSuffix(t.Context(), InsertAuthorSuffixParams{
 		FirstName: "george",
 		LastName:  "washington",
 		Suffix:    "Jr.",
@@ -151,7 +151,7 @@ func TestNewQuerier_DeleteAuthorsByFullName(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("DeleteAuthorsByFullName", func(t *testing.T) {
-		tag, err := q.DeleteAuthorsByFullName(context.Background(), DeleteAuthorsByFullNameParams{
+		tag, err := q.DeleteAuthorsByFullName(t.Context(), DeleteAuthorsByFullNameParams{
 			FirstName: "george",
 			LastName:  "washington",
 			Suffix:    "Jr.",
@@ -160,7 +160,7 @@ func TestNewQuerier_DeleteAuthorsByFullName(t *testing.T) {
 		assert.Truef(t, tag.Delete(), "expected delete tag; got %s", tag.String())
 		assert.Equal(t, int64(1), tag.RowsAffected())
 
-		authors, err := q.FindAuthors(context.Background(), "george")
+		authors, err := q.FindAuthors(t.Context(), "george")
 		require.NoError(t, err)
 		want := []FindAuthorsRow{
 			{
@@ -179,7 +179,7 @@ func TestNewQuerier_StringAggFirstName(t *testing.T) {
 	defer cleanup()
 	q := NewQuerier(conn)
 	washingtonID := insertAuthor(t, q, "george", "washington")
-	_, err := q.InsertAuthorSuffix(context.Background(), InsertAuthorSuffixParams{
+	_, err := q.InsertAuthorSuffix(t.Context(), InsertAuthorSuffixParams{
 		FirstName: "george",
 		LastName:  "washington",
 		Suffix:    "Jr.",
@@ -187,13 +187,13 @@ func TestNewQuerier_StringAggFirstName(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("StringAggFirstName - null", func(t *testing.T) {
-		firstNames, err := q.StringAggFirstName(context.Background(), 999)
+		firstNames, err := q.StringAggFirstName(t.Context(), 999)
 		require.NoError(t, err)
 		require.Nil(t, firstNames)
 	})
 
 	t.Run("StringAggFirstName - one", func(t *testing.T) {
-		firstNames, err := q.StringAggFirstName(context.Background(), washingtonID)
+		firstNames, err := q.StringAggFirstName(t.Context(), washingtonID)
 		require.NoError(t, err)
 		assert.Equal(t, "george", *firstNames)
 	})
@@ -204,7 +204,7 @@ func TestNewQuerier_ArrayAggFirstName(t *testing.T) {
 	defer cleanup()
 	q := NewQuerier(conn)
 	washingtonID := insertAuthor(t, q, "george", "washington")
-	_, err := q.InsertAuthorSuffix(context.Background(), InsertAuthorSuffixParams{
+	_, err := q.InsertAuthorSuffix(t.Context(), InsertAuthorSuffixParams{
 		FirstName: "george",
 		LastName:  "washington",
 		Suffix:    "Jr.",
@@ -212,13 +212,13 @@ func TestNewQuerier_ArrayAggFirstName(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("ArrayAggFirstName - null", func(t *testing.T) {
-		firstNames, err := q.ArrayAggFirstName(context.Background(), 999)
+		firstNames, err := q.ArrayAggFirstName(t.Context(), 999)
 		require.NoError(t, err)
 		require.Nil(t, firstNames)
 	})
 
 	t.Run("ArrayAggFirstName - one", func(t *testing.T) {
-		firstNames, err := q.ArrayAggFirstName(context.Background(), washingtonID)
+		firstNames, err := q.ArrayAggFirstName(t.Context(), washingtonID)
 		require.NoError(t, err)
 		assert.Equal(t, []string{"george"}, firstNames)
 	})
@@ -226,7 +226,7 @@ func TestNewQuerier_ArrayAggFirstName(t *testing.T) {
 
 func insertAuthor(t *testing.T, q *DBQuerier, first, last string) int32 {
 	t.Helper()
-	authorID, err := q.InsertAuthor(context.Background(), first, last)
+	authorID, err := q.InsertAuthor(t.Context(), first, last)
 	require.NoError(t, err, "insert author")
 	return authorID
 }

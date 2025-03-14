@@ -3,11 +3,12 @@ package golang
 import (
 	_ "embed"
 	"fmt"
-	"github.com/jschaf/pggen/internal/casing"
-	"github.com/jschaf/pggen/internal/codegen"
 	"path/filepath"
 	"sort"
 	"text/template"
+
+	"github.com/jschaf/pggen/internal/casing"
+	"github.com/jschaf/pggen/internal/codegen"
 )
 
 // GenerateOptions are options to control generated Go output.

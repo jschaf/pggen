@@ -2,17 +2,18 @@ package enums
 
 import (
 	"context"
+	"net"
+	"testing"
+	"time"
+
 	"github.com/jackc/pgtype"
 	"github.com/jschaf/pggen/internal/pgtest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"net"
-	"testing"
-	"time"
 )
 
 func TestNewQuerier_FindAllDevices(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 	defer cancel()
 	conn, cleanup := pgtest.NewPostgresSchema(t, []string{"schema.sql"})
 	defer cleanup()
@@ -34,6 +35,7 @@ func TestNewQuerier_FindAllDevices(t *testing.T) {
 	})
 }
 
+//nolint:gochecknoglobals
 var allDeviceTypes = []DeviceType{
 	DeviceTypeUndefined,
 	DeviceTypePhone,
@@ -44,7 +46,7 @@ var allDeviceTypes = []DeviceType{
 }
 
 func TestNewQuerier_FindOneDeviceArray(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 	defer cancel()
 	conn, cleanup := pgtest.NewPostgresSchema(t, []string{"schema.sql"})
 	defer cleanup()
@@ -59,7 +61,7 @@ func TestNewQuerier_FindOneDeviceArray(t *testing.T) {
 }
 
 func TestNewQuerier_FindManyDeviceArray(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 	defer cancel()
 	conn, cleanup := pgtest.NewPostgresSchema(t, []string{"schema.sql"})
 	defer cleanup()
@@ -74,7 +76,7 @@ func TestNewQuerier_FindManyDeviceArray(t *testing.T) {
 }
 
 func TestNewQuerier_FindManyDeviceArrayWithNum(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 	defer cancel()
 	conn, cleanup := pgtest.NewPostgresSchema(t, []string{"schema.sql"})
 	defer cleanup()
@@ -93,7 +95,7 @@ func TestNewQuerier_FindManyDeviceArrayWithNum(t *testing.T) {
 }
 
 func TestNewQuerier_EnumInsideComposite(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 	defer cancel()
 	conn, cleanup := pgtest.NewPostgresSchema(t, []string{"schema.sql"})
 	defer cleanup()
@@ -113,7 +115,7 @@ func TestNewQuerier_EnumInsideComposite(t *testing.T) {
 
 func insertDevice(t *testing.T, q *DBQuerier, mac net.HardwareAddr, device DeviceType) {
 	t.Helper()
-	_, err := q.InsertDevice(context.Background(),
+	_, err := q.InsertDevice(t.Context(),
 		pgtype.Macaddr{Addr: mac, Status: pgtype.Present},
 		device,
 	)

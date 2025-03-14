@@ -2,11 +2,12 @@ package golang
 
 import (
 	"fmt"
+	"strconv"
+	"strings"
+
 	"github.com/jschaf/pggen/internal/casing"
 	"github.com/jschaf/pggen/internal/codegen/golang/gotype"
 	"github.com/jschaf/pggen/internal/pg"
-	"strconv"
-	"strings"
 )
 
 // TypeResolver handles the mapping between Postgres and Go types.
@@ -179,7 +180,7 @@ func listElemAliases(name string) []string {
 		return []string{"serial", "serial4"}
 
 	default:
-		// TODO: numeric, multi word aliases
+		// NOTE: we don't yet handle numeric, multi word aliases
 		return []string{name}
 	}
 }
