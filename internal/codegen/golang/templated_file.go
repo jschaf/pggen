@@ -2,11 +2,12 @@ package golang
 
 import (
 	"fmt"
+	"strconv"
+	"strings"
+
 	"github.com/jschaf/pggen/internal/ast"
 	"github.com/jschaf/pggen/internal/codegen/golang/gotype"
 	"github.com/jschaf/pggen/internal/pginfer"
-	"strconv"
-	"strings"
 )
 
 // TemplatedPackage is all templated files in a pggen invocation. The templated
@@ -317,6 +318,9 @@ func (tq TemplatedQuery) EmitResultTypeInit(name string) (string, error) {
 		result = strings.TrimPrefix(result, "*")
 		return "var " + name + " " + result, nil
 
+	case ast.ResultKindExec:
+		return "", fmt.Errorf("cannot EmitResultTypeInit for :exec query %s", tq.Name)
+
 	default:
 		return "", fmt.Errorf("unhandled EmitResultTypeInit for kind %s", tq.ResultKind)
 	}
@@ -447,6 +451,9 @@ func (tq TemplatedQuery) EmitResultExpr(name string) (string, error) {
 			return "&" + name, nil
 		}
 		return name, nil
+
+	case ast.ResultKindExec:
+		return "", fmt.Errorf("cannot EmitResultExpr for :exec query %s", tq.Name)
 
 	default:
 		return "", fmt.Errorf("unhandled EmitResultExpr type: %s", tq.ResultKind)

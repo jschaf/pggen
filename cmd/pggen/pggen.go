@@ -18,12 +18,14 @@ import (
 )
 
 // Set via ldflags for release binaries.
+//
+//nolint:gochecknoglobals
 var (
 	version = "dev"
 	commit  = "head"
 )
 
-var flagHelp = `pggen generates type-safe code from files containing Postgres queries by running
+const flagHelp = `pggen generates type-safe code from files containing Postgres queries by running
 the queries on Postgres to get type information.
 
 EXAMPLES

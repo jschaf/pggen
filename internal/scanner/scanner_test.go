@@ -1,15 +1,16 @@
 package scanner
 
 import (
-	"github.com/jschaf/pggen/internal/token"
-	"github.com/stretchr/testify/assert"
 	gotok "go/token"
 	"testing"
+
+	"github.com/jschaf/pggen/internal/token"
+	"github.com/stretchr/testify/assert"
 )
 
 func newlineCount(s string) int {
 	n := 0
-	for i := 0; i < len(s); i++ {
+	for i := range len(s) {
 		if s[i] == '\n' {
 			n++
 		}
@@ -119,7 +120,6 @@ func TestScanner_Scan(t *testing.T) {
 			assert.Equal(t, tt.errs, ec.msgs, "error messages should match")
 		})
 	}
-
 }
 
 func checkPosLine(t *testing.T, want, got gotok.Position, lit string) {
@@ -142,6 +142,7 @@ func checkToken(t *testing.T, want, got token.Token, lit string) {
 		t.Errorf("bad token for %q: got %s, expected %s", lit, got, want)
 	}
 }
+
 func checkLiteral(t *testing.T, wantLit string, gotLit string) {
 	t.Helper()
 	if wantLit != gotLit {

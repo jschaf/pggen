@@ -1,11 +1,11 @@
 package domain
 
 import (
-	"context"
+	"testing"
+
 	"github.com/jschaf/pggen/internal/pgtest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"testing"
 )
 
 func TestQuerier_DomainOne(t *testing.T) {
@@ -13,7 +13,7 @@ func TestQuerier_DomainOne(t *testing.T) {
 	defer cleanup()
 
 	q := NewQuerier(conn)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	t.Run("DomainOne", func(t *testing.T) {
 		postCode, err := q.DomainOne(ctx)

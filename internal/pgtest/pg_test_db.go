@@ -2,13 +2,14 @@ package pgtest
 
 import (
 	"context"
-	"github.com/jackc/pgx/v4"
-	"math/rand"
+	"math/rand/v2"
 	"os"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/jackc/pgx/v4"
 )
 
 // CleanupFunc deletes the schema and all database objects.
@@ -22,13 +23,13 @@ func NewPostgresSchemaString(t *testing.T, sql string, opts ...Option) (*pgx.Con
 	t.Helper()
 	// Create a new schema.
 	connStr := "user=postgres password=hunter2 host=localhost port=5555 dbname=pggen"
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
 	defer cancel()
 	conn, err := pgx.Connect(ctx, connStr)
 	if err != nil {
 		t.Fatalf("connect to docker postgres: %s", err)
 	}
-	schema := "pggen_test_" + strconv.Itoa(int(rand.Int31()))
+	schema := "pggen_test_" + strconv.Itoa(int(rand.Int32())) //nolint:gosec
 	if _, err = conn.Exec(ctx, "CREATE SCHEMA "+schema); err != nil {
 		t.Fatalf("create new schema: %s", err)
 	}
@@ -53,7 +54,7 @@ func NewPostgresSchemaString(t *testing.T, sql string, opts ...Option) (*pgx.Con
 	}
 
 	cleanup := func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
 		defer cancel()
 		if _, err := conn.Exec(ctx, "DROP SCHEMA "+schema+" CASCADE"); err != nil {
 			t.Errorf("close conn: %s", err)

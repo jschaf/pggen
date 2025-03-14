@@ -1,6 +1,8 @@
 package golang
 
 import (
+	"testing"
+
 	"github.com/google/go-cmp/cmp"
 	"github.com/jackc/pgtype"
 	"github.com/jschaf/pggen/internal/casing"
@@ -8,7 +10,6 @@ import (
 	"github.com/jschaf/pggen/internal/difftest"
 	"github.com/jschaf/pggen/internal/pg"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 func TestTypeResolver_Resolve(t *testing.T) {

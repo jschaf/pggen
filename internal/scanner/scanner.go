@@ -3,10 +3,11 @@ package scanner
 import (
 	"bytes"
 	"fmt"
-	"github.com/jschaf/pggen/internal/token"
 	gotok "go/token"
 	"unicode"
 	"unicode/utf8"
+
+	"github.com/jschaf/pggen/internal/token"
 )
 
 const (
@@ -228,12 +229,12 @@ func (s *Scanner) scanDollarQuoteString() (token.Token, string) {
 		s.errorf(offs, "no closing delimiter found for dollar quoted string: %s", string(s.src[offs:s.offset]))
 		return token.Illegal, ""
 	}
-	for i := 0; i < idx; i++ {
+	for range idx {
 		s.next()
 	}
 
 	// closing tag
-	for i := 0; i < len(tag); i++ {
+	for range tag {
 		s.next()
 	}
 	return token.String, string(s.src[offs:s.offset])

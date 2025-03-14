@@ -1,10 +1,11 @@
 package golang
 
 import (
-	"github.com/jschaf/pggen/internal/codegen/golang/gotype"
-	"github.com/jschaf/pggen/internal/pg"
 	"strconv"
 	"strings"
+
+	"github.com/jschaf/pggen/internal/codegen/golang/gotype"
+	"github.com/jschaf/pggen/internal/pg"
 )
 
 // NameCompositeTranscoderFunc returns the function name that creates a
@@ -176,8 +177,6 @@ func (c CompositeTranscoderDeclarer) Declare(pkgPath string) (string, error) {
 			// skip
 		default:
 			sb.WriteString("&") // pgx needs pointers to types
-			// TODO: support builtin types and builtin wrappers that use a different
-			// initialization syntax.
 			pgType := c.typ.PgComposite.ColumnTypes[i]
 			if pgType == nil || pgType == (pg.VoidType{}) {
 				sb.WriteString("nil,")

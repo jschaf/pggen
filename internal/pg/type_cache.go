@@ -1,8 +1,9 @@
 package pg
 
 import (
-	"github.com/jackc/pgtype"
 	"sync"
+
+	"github.com/jackc/pgtype"
 )
 
 // typeCache caches a map from a Postgres pg_type.oid to a Type.

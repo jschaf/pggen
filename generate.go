@@ -4,6 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	gotok "go/token"
+	"log/slog"
+	"os"
+	"path/filepath"
+	"time"
+
 	"github.com/jackc/pgx/v4"
 	"github.com/jschaf/pggen/internal/ast"
 	"github.com/jschaf/pggen/internal/codegen"
@@ -12,11 +18,6 @@ import (
 	"github.com/jschaf/pggen/internal/parser"
 	"github.com/jschaf/pggen/internal/pgdocker"
 	"github.com/jschaf/pggen/internal/pginfer"
-	gotok "go/token"
-	"log/slog"
-	"os"
-	"path/filepath"
-	"time"
 )
 
 // Lang is a supported codegen language.
@@ -141,7 +142,7 @@ func connectPostgres(ctx context.Context, opts GenerateOptions) (*pgx.Conn, func
 		}
 		errEnricher := func(e error) error {
 			if e == nil {
-				return e
+				return nil
 			}
 			logs, err := client.GetContainerLogs()
 			if err != nil {

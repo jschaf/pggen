@@ -3,9 +3,10 @@ package pg
 import (
 	"context"
 	"fmt"
+	"time"
+
 	"github.com/jackc/pgtype"
 	"github.com/jackc/pgx/v4"
-	"time"
 )
 
 // TypeFetcher fetches Postgres types by the OID.
@@ -146,7 +147,7 @@ func (tf *TypeFetcher) findCompositeTypes(ctx context.Context, uncached map[pgty
 				colNames[i] = row.ColNames[i]
 			} else {
 				// We might resolve this type in a future pass like findArrayTypes. At
-				// the end, we'll attempt to to replace the placeholder with the
+				// the end, we'll attempt to replace the placeholder with the
 				// resolved type.
 				colTypes[i] = placeholderType{ID: pgtype.OID(colOID)}
 				colNames[i] = row.ColNames[i]

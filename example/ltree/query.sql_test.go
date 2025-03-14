@@ -1,12 +1,12 @@
 package ltree
 
 import (
-	"context"
+	"testing"
+
 	"github.com/jackc/pgtype"
 	"github.com/jschaf/pggen/internal/pgtest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"testing"
 )
 
 func TestQuerier(t *testing.T) {
@@ -14,7 +14,7 @@ func TestQuerier(t *testing.T) {
 	defer cleanup()
 
 	q := NewQuerier(conn)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	if _, err := q.InsertSampleData(ctx); err != nil {
 		t.Fatal(err)

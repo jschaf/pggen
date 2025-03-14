@@ -3,13 +3,14 @@ package pg
 import (
 	"context"
 	"fmt"
-	"github.com/jackc/pgtype"
-	"github.com/jackc/pgx/v4"
-	"github.com/jschaf/pggen/internal/texts"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/jackc/pgtype"
+	"github.com/jackc/pgx/v4"
+	"github.com/jschaf/pggen/internal/texts"
 )
 
 // Column stores information about a column in a TableOID.
@@ -30,6 +31,7 @@ type ColumnKey struct {
 	Number   uint16 // the number of column starting from 1
 }
 
+//nolint:gochecknoglobals
 var (
 	columnsMu   = &sync.Mutex{}
 	columnCache = make(map[ColumnKey]Column, 32)

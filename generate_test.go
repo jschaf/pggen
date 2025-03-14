@@ -1,12 +1,13 @@
 package pggen
 
 import (
-	"github.com/jschaf/pggen/internal/pgtest"
-	"github.com/jschaf/pggen/internal/texts"
-	"github.com/stretchr/testify/assert"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/jschaf/pggen/internal/pgtest"
+	"github.com/jschaf/pggen/internal/texts"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestGenerate_Golang_Error(t *testing.T) {
@@ -43,7 +44,7 @@ func TestGenerate_Golang_Error(t *testing.T) {
 			defer cleanupFunc()
 			tmpDir := t.TempDir()
 			queryFile := filepath.Join(tmpDir, "query.sql")
-			err := os.WriteFile(queryFile, []byte(tt.queries), 0644)
+			err := os.WriteFile(queryFile, []byte(tt.queries), 0o600)
 			if err != nil {
 				t.Fatal(err)
 			}

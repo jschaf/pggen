@@ -1,15 +1,15 @@
 package pg
 
 import (
-	"context"
+	"sort"
+	"testing"
+
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/jackc/pgtype"
 	"github.com/jschaf/pggen/internal/pg/pgoid"
 	"github.com/jschaf/pggen/internal/pgtest"
 	"github.com/jschaf/pggen/internal/texts"
-	"sort"
-	"testing"
 )
 
 func TestNewTypeFetcher(t *testing.T) {
@@ -134,7 +134,8 @@ func TestNewTypeFetcher(t *testing.T) {
 				CompositeType{
 					Name:        "product_image_set_type",
 					ColumnNames: []string{"name", "images"},
-					ColumnTypes: []Type{Text, productImageArrayType}},
+					ColumnTypes: []Type{Text, productImageArrayType},
+				},
 				productImageType,
 				productImageArrayType,
 				Text,
@@ -251,7 +252,7 @@ func TestNewTypeFetcher(t *testing.T) {
 func findOIDVal(t *testing.T, fetchOID interface{}, querier *DBQuerier) pgtype.OID {
 	switch rawOID := fetchOID.(type) {
 	case string:
-		oid, err := querier.FindOIDByName(context.Background(), rawOID)
+		oid, err := querier.FindOIDByName(t.Context(), rawOID)
 		if err != nil {
 			t.Fatalf("find oid by name %s: %s", rawOID, err)
 		}

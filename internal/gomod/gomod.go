@@ -4,21 +4,23 @@ package gomod
 
 import (
 	"fmt"
-	"github.com/jschaf/pggen/internal/paths"
-	"golang.org/x/mod/modfile"
 	"os"
 	"path/filepath"
 	"sync"
+
+	"github.com/jschaf/pggen/internal/paths"
+	"golang.org/x/mod/modfile"
 )
 
+//nolint:gochecknoglobals
 var (
 	goModDirOnce = &sync.Once{}
 	goModDir     string
-	goModDirErr  error
+	errGoModDir  error
 
 	goModNameOnce = &sync.Once{}
 	goModPath     string
-	goModPathErr  error
+	errGoModPath  error
 )
 
 // FindDir finds the nearest directory containing a go.mod file. Checks
@@ -27,12 +29,12 @@ func FindDir() (string, error) {
 	goModDirOnce.Do(func() {
 		wd, err := os.Getwd()
 		if err != nil {
-			goModDirErr = fmt.Errorf("FindDir working dir: %w", err)
+			errGoModDir = fmt.Errorf("FindDir working dir: %w", err)
 			return
 		}
-		goModDir, goModDirErr = paths.WalkUp(wd, "go.mod")
+		goModDir, errGoModDir = paths.WalkUp(wd, "go.mod")
 	})
-	return goModDir, goModDirErr
+	return goModDir, errGoModDir
 }
 
 // ParsePath finds the module path in the nearest go.mod file.
@@ -40,18 +42,18 @@ func ParsePath() (string, error) {
 	goModNameOnce.Do(func() {
 		dir, err := FindDir()
 		if err != nil {
-			goModPathErr = fmt.Errorf("find go.mod dir: %w", err)
+			errGoModPath = fmt.Errorf("find go.mod dir: %w", err)
 			return
 		}
 		p := filepath.Join(dir, "go.mod")
 		bs, err := os.ReadFile(p)
 		if err != nil {
-			goModPathErr = fmt.Errorf("read go.mod: %w", err)
+			errGoModPath = fmt.Errorf("read go.mod: %w", err)
 			return
 		}
 		goModPath = modfile.ModulePath(bs)
 	})
-	return goModPath, goModPathErr
+	return goModPath, errGoModPath
 }
 
 // GuessPackage guesses the full Go package path for a file name, relative to

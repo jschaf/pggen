@@ -1,10 +1,10 @@
 package inline2
 
 import (
-	"context"
 	"errors"
-	"github.com/stretchr/testify/require"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 
 	"github.com/jackc/pgx/v4"
 	"github.com/jschaf/pggen/internal/pgtest"
@@ -20,13 +20,13 @@ func TestNewQuerier_FindAuthorByID(t *testing.T) {
 	insertAuthor(t, q, "george", "washington")
 
 	t.Run("CountAuthors two", func(t *testing.T) {
-		got, err := q.CountAuthors(context.Background())
+		got, err := q.CountAuthors(t.Context())
 		require.NoError(t, err)
 		assert.Equal(t, 2, *got)
 	})
 
 	t.Run("FindAuthorByID", func(t *testing.T) {
-		authorByID, err := q.FindAuthorByID(context.Background(), adamsID)
+		authorByID, err := q.FindAuthorByID(t.Context(), adamsID)
 		require.NoError(t, err)
 		assert.Equal(t, FindAuthorByIDRow{
 			AuthorID:  adamsID,
@@ -37,7 +37,7 @@ func TestNewQuerier_FindAuthorByID(t *testing.T) {
 	})
 
 	t.Run("FindAuthorByID - none-exists", func(t *testing.T) {
-		missingAuthorByID, err := q.FindAuthorByID(context.Background(), 888)
+		missingAuthorByID, err := q.FindAuthorByID(t.Context(), 888)
 		require.Error(t, err, "expected error when finding author ID that doesn't match")
 		assert.Zero(t, missingAuthorByID, "expected zero value when error")
 		if !errors.Is(err, pgx.ErrNoRows) {
@@ -53,7 +53,7 @@ func TestNewQuerier_DeleteAuthorsByFullName(t *testing.T) {
 	insertAuthor(t, q, "george", "washington")
 
 	t.Run("DeleteAuthorsByFullName", func(t *testing.T) {
-		tag, err := q.DeleteAuthorsByFullName(context.Background(), DeleteAuthorsByFullNameParams{
+		tag, err := q.DeleteAuthorsByFullName(t.Context(), DeleteAuthorsByFullNameParams{
 			FirstName: "george",
 			LastName:  "washington",
 			Suffix:    "",
@@ -66,7 +66,7 @@ func TestNewQuerier_DeleteAuthorsByFullName(t *testing.T) {
 
 func insertAuthor(t *testing.T, q *DBQuerier, first, last string) int32 {
 	t.Helper()
-	authorID, err := q.InsertAuthor(context.Background(), first, last)
+	authorID, err := q.InsertAuthor(t.Context(), first, last)
 	require.NoError(t, err, "insert author")
 	return authorID
 }

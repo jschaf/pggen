@@ -2,11 +2,12 @@ package golang
 
 import (
 	"fmt"
-	"github.com/jschaf/pggen/internal/errs"
 	"os"
 	"path/filepath"
 	"strconv"
 	"text/template"
+
+	"github.com/jschaf/pggen/internal/errs"
 )
 
 // Emitter writes a templated query file to a file.
@@ -96,7 +97,7 @@ func (em Emitter) chooseOutputFiles(tfs []TemplatedFile) []string {
 // emitQueryFile emits a single query file.
 func (em Emitter) emitQueryFile(outRelPath string, tf TemplatedFile) (mErr error) {
 	out := filepath.Join(em.outDir, outRelPath)
-	file, err := os.OpenFile(out, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
+	file, err := os.OpenFile(out, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o644)
 	defer errs.Capture(&mErr, file.Close, "close emit query file")
 	if err != nil {
 		return fmt.Errorf("open generated query file for writing: %w", err)

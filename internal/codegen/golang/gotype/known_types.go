@@ -46,7 +46,7 @@ func FindKnownTypeNonNullable(oid pgtype.OID) (Type, bool) {
 
 // Native go types are not prefixed.
 //
-//goland:noinspection GoUnusedGlobalVariable
+//nolint:gochecknoglobals
 var (
 	Bool          = MustParseKnownType("bool", pg.Bool)
 	Boolp         = MustParseKnownType("*bool", pg.Bool)
@@ -90,6 +90,8 @@ var (
 )
 
 // pgtype types prefixed with "pg".
+//
+//nolint:gochecknoglobals
 var (
 	PgBool             = MustParseKnownType("github.com/jackc/pgtype.Bool", pg.Bool)
 	PgQChar            = MustParseKnownType("github.com/jackc/pgtype.QChar", pg.QChar)
@@ -177,6 +179,7 @@ var (
 // "string" for a Postgres text type.
 type knownGoType struct{ pgNative, nullable, nonNullable Type }
 
+//nolint:gochecknoglobals
 var knownTypesByOID = map[pgtype.OID]knownGoType{
 	pgtype.BoolOID:             {PgBool, Boolp, Bool},
 	pgtype.QCharOID:            {PgQChar, nil, nil},

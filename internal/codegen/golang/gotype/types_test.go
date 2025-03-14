@@ -1,9 +1,10 @@
 package gotype
 
 import (
+	"testing"
+
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 func TestMustParseKnownType(t *testing.T) {
